@@ -1,7 +1,7 @@
 CC = ${CROSS_COMPILE}gcc
 LDFLAGS := -lgcore
 CFLAGS := ${DRIVER_CFLAGS} -c -Wall -Werror
-INCLUDES := -I. -I../dev 
+INCLUDES := -I. -I../driver 
 
 
 .PHONY : all
