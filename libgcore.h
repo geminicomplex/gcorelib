@@ -7,7 +7,7 @@ extern "C" {
 
 #include <stddef.h>
 #include <stdint.h>
-#include "../dev/gemini_core.h"
+#include "../driver/gemini_core.h"
 
 #define MMAP_PATH "/dev/gcore"
 #define MMAP_SIZE (DMA_SIZE * sizeof(uint8_t))
