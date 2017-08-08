@@ -530,6 +530,8 @@ struct gcore_registers* gcore_get_regs(){
 	regs->status = (u32) 0;
 	regs->addr = (u32) 0;
 	regs->data = (u32) 0;
+	regs->a1_status = (u32) 0;
+	regs->a2_status = (u32) 0;
     if (ioctl(fd, GCORE_REGS_READ, regs) < 0) {
 		perror("gcorelib: error regs_read failed");
 		exit(EXIT_FAILURE);
