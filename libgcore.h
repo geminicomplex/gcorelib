@@ -9,6 +9,9 @@ extern "C" {
 #include <stdint.h>
 #include "../driver/gemini_core.h"
 
+#define debug(fmt, ...) fprintf(stderr, "%s:%d:%s: " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__);  
+#define die(fmt, ...) do{ fprintf(stderr, "%s:%d:%s: " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__); exit(EXIT_FAILURE); } while(0);
+
 #define MMAP_PATH "/dev/gcore"
 #define MMAP_SIZE (DMA_SIZE * sizeof(uint8_t))
 
@@ -22,17 +25,17 @@ enum gcore_wait {
 /*
  * Initialization
  */
-int gcore_init();
-int gcore_exit(void);
+void gcore_init();
+void gcore_exit();
 
 /*
  * Subcore
  */
-int gcore_subcore_load(struct gcore_cfg* gcfg);
-int gcore_subcore_run();
-int gcore_subcore_idle();
-int gcore_subcore_mode_state(uint32_t *mode_state);
-int gcore_subcore_reset();
+void gcore_subcore_load(struct gcore_cfg* gcfg);
+void gcore_subcore_run();
+void gcore_subcore_idle();
+void gcore_subcore_mode_state(uint32_t *mode_state);
+void gcore_subcore_reset();
 
 /*
  * Crtl Axi
@@ -46,11 +49,11 @@ int gcore_ctrl_read(struct gcore_ctrl_packet *packet);
  */
 void *gcore_dma_alloc(int length, int byte_num);
 void gcore_dma_alloc_reset(void);
-int gcore_dma_prep(
+void gcore_dma_prep(
      uint64_t *tx_ptr, size_t tx_size,
      uint64_t *rx_ptr, size_t rx_size);
-int gcore_dma_start(enum gcore_wait wait);
-int gcore_dma_stop();
+void gcore_dma_start(enum gcore_wait wait);
+void gcore_dma_stop();
 
 /*
  * Direct access to axi dma registers.
@@ -65,7 +68,7 @@ void dma_status();
  * Helper
  */
 struct gcore_registers *gcore_get_regs();
- int gcore_dma_prep_start(enum gcore_wait wait,
+void gcore_dma_prep_start(enum gcore_wait wait,
      uint64_t *tx_ptr, size_t tx_size,
      uint64_t *rx_ptr, size_t rx_size);   
 

@@ -56,22 +56,17 @@ static bool is_tx_prepared = false;
 /*
  * mmap to /dev/gcore, reset alloc buffer, get userdevs
  */
-int gcore_init(){
-    int status = 0;
-
+void gcore_init(){
 	fd = open(MMAP_PATH, O_RDWR | O_CREAT | O_TRUNC, (mode_t) 0600);
-	if (fd == -1) {
-		perror("gcorelib: opening file for writing");
-		return EXIT_FAILURE;
-	}
+	if(fd == -1){
+		die("gcorelib: opening file for writing");
+    }
 	
     map = mmap(0, MMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (map == MAP_FAILED) {
+	if(map == MAP_FAILED){
 		close(fd);
-		perror("gcorelib: mmapping the file");
-		return EXIT_FAILURE;
-	}
-
+		die("gcorelib: mmapping the file");
+    }
 
 	gcore_dma_alloc_reset();
 
@@ -80,42 +75,41 @@ int gcore_init(){
     userdev.rx_chan = (u32) 0;
     userdev.rx_cmp = (u32) 0;
 
-    if (ioctl(fd, GCORE_USERDEVS_READ, &userdev) < 0) {
-		perror("gcorelib: error userdevs_read failed");
-		status = errno;
+    if(ioctl(fd, GCORE_USERDEVS_READ, &userdev) < 0){
+		die("gcorelib: error userdevs_read failed");
     }
 
     // mmap the axi lite register block
     mfd = open("/dev/mem", O_RDONLY); 
     dma_map = mmap(NULL, 65535, PROT_READ, MAP_SHARED, mfd, DMA_BASE_ADDR);
 
+    // automatically cleanup on exit
+    atexit(&gcore_exit);
+
     is_initialized = true;
-    return status;
+    return;
 }
 
 /*
  * Do some cleanup.
  */
-int gcore_exit(void){
-    if(!is_initialized) {
-        perror("gcorelib: failed to exit, gcore not initialized");
-		return EXIT_FAILURE;
+void gcore_exit(void){
+    if(!is_initialized){
+        die("gcorelib: failed to exit, gcore not initialized");
     }
 
-	if (munmap(map, MMAP_SIZE) == -1) {
-		perror("gcorelib: error un-mmapping the file");
-		return EXIT_FAILURE;
+	if(munmap(map, MMAP_SIZE) == -1){
+		die("gcorelib: error un-mmapping the file");
 	}
 	close(fd);
 
-    if (munmap(dma_map, 65535) == -1) {
-		perror("gcorelib: error un-mmapping the file");
-		return EXIT_FAILURE;
+    if(munmap(dma_map, 65535) == -1){
+		die("gcorelib: error un-mmapping the file");
 	}
 	close(mfd);
 
     is_initialized = false;
-	return EXIT_SUCCESS;
+	return;
 }
 
 
@@ -127,66 +121,56 @@ int gcore_exit(void){
 /*
  * Configure subcore with an FSM state and artix unit.
  */
-int gcore_subcore_load(struct gcore_cfg *gcfg) {
-    int status = 0;
-    if(ioctl(fd, GCORE_SUBCORE_LOAD, gcfg) < 0) {
-		perror("gcorelib: error subcore_load failed");
-		status = errno;
+void gcore_subcore_load(struct gcore_cfg *gcfg){
+    if(ioctl(fd, GCORE_SUBCORE_LOAD, gcfg) < 0){
+		die("gcorelib: error subcore_load failed");
 	}
-    return status;
+    return;
 }
 
 /*
  * Run loaded state.
  */
-int gcore_subcore_run() {
-    int status = 0;
-    if(ioctl(fd, GCORE_SUBCORE_RUN) < 0) {
-		perror("gcorelib: error subcore_run failed");
-		status = errno;
+void gcore_subcore_run(){
+    if(ioctl(fd, GCORE_SUBCORE_RUN) < 0){
+		die("gcorelib: error subcore_run failed");
 	}
-    return status;
+    return;
 }
 
 /*
  * Waits for subcore to go back to IDLE state.
  */
-int gcore_subcore_idle() {
-    int status = 0;
+void gcore_subcore_idle(){
     // wait for done to go high
-    if(ioctl(fd, GCORE_SUBCORE_IDLE) < 0) {
-		perror("gcorelib: error subcore_idle failed");
-		status = errno;
+    if(ioctl(fd, GCORE_SUBCORE_IDLE) < 0){
+		die("gcorelib: error subcore_idle failed");
 	}
-    return status;
+    return;
 }
 
 /*
  * Return the current state of subcore.
  *
  */
-int gcore_subcore_mode_state(uint32_t *mode_state) {
-    int status = 0;
+void gcore_subcore_mode_state(uint32_t *mode_state){
     struct gcore_registers *regs;
-    if(ioctl(fd, GCORE_SUBCORE_STATE) < 0) {
-		perror("gcorelib: error subcore_state failed");
-		status = errno;
+    if(ioctl(fd, GCORE_SUBCORE_STATE) < 0){
+		die("gcorelib: error subcore_state failed");
 	}
     regs = gcore_get_regs();
     (*mode_state) = (uint32_t)regs->data;
-    return status;
+    return;
 }
 
 /*
  * Peform a subcore soft reset.
  */
-int gcore_subcore_reset() {
-    int status = 0;
-    if(ioctl(fd, GCORE_SUBCORE_RESET) < 0) {
-		perror("gcorelib: error subcore_reset failed");
-		status = errno;
+void gcore_subcore_reset(){
+    if(ioctl(fd, GCORE_SUBCORE_RESET) < 0){
+		die("gcorelib: error subcore_reset failed");
 	}
-    return status;
+    return;
 }
 
 /* ==========================================================================
@@ -199,24 +183,20 @@ int gcore_subcore_reset() {
  * will write to subcore what's in the rank_sel, addr
  * and data regs.
  */
-int gcore_ctrl_write(struct gcore_ctrl_packet *packet){
-    int s = 0;
-    if(ioctl(fd, GCORE_CTRL_WRITE, packet) < 0) {
-		perror("gcorelib: error ctrl_write failed");
-		s = errno;
+void gcore_ctrl_write(struct gcore_ctrl_packet *packet){
+    if(ioctl(fd, GCORE_CTRL_WRITE, packet) < 0){
+		die("gcorelib: error ctrl_write failed");
 	}
-    return s;
+    return;
 }
 
 /*
  * Subcore must be in ctrl_read state. Calling this ioctl
  * will read from subcore into the rank_sel, addr, data.
  */
-int gcore_ctrl_read(struct gcore_ctrl_packet *packet){
-    int s = 0;
-    if(ioctl(fd, GCORE_CTRL_READ, packet) < 0) {
-		perror("gcorelib: error ctrl_read failed");
-		s = errno;
+void gcore_ctrl_read(struct gcore_ctrl_packet *packet){
+    if(ioctl(fd, GCORE_CTRL_READ, packet) < 0){
+		die("gcorelib: error ctrl_read failed");
 	}
     return s;
 }
@@ -230,11 +210,11 @@ uint32_t gcore_dma_calc_offset(void *ptr){
 	return (((uint8_t *) ptr) - &map[0]);
 }
 
-uint32_t gcore_dma_calc_size(int length, int byte_num) {
+uint32_t gcore_dma_calc_size(int length, int byte_num){
 	const int block = (BUS_IN_BYTES * BUS_BURST);
 	length = length * byte_num;
 
-	if (0 != (length % block)) {
+	if(0 != (length % block)){
 		length += (block - (length % block));
 	}
 
@@ -256,71 +236,63 @@ void gcore_dma_alloc_reset(void){
  * To perform a one-way transaction set the unused directions pointer to NULL
  * or length to zero.
  */
-int gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
+void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
     uint64_t *rx_ptr, size_t rx_size)
 {
-	int ret = 0;
 	const bool tx_used = ((tx_ptr != NULL) && (tx_size != 0));
 	const bool rx_used = ((rx_ptr != NULL) && (rx_size != 0));
     
-    if(!is_initialized) {
-        perror("gcorelib: failed to dma prep, gcore not initialized");
-		return EXIT_FAILURE;
+    if(!is_initialized){
+        die("gcorelib: failed to dma prep, gcore not initialized");
     }
 
-    if (tx_used) {
+    if(tx_used){
         tx_config.chan = userdev.tx_chan;
         tx_config.buf_offset = (u32) gcore_dma_calc_offset(tx_ptr);
         tx_config.buf_size = (u32) tx_size;
         tx_config.dir = GCORE_MEM_TO_DEV;
-        if (ioctl(fd, GCORE_DMA_CONFIG, &tx_config) < 0) {
-            perror("gcorelib: error config dma tx chan");
-            return EXIT_FAILURE;
+        if(ioctl(fd, GCORE_DMA_CONFIG, &tx_config) < 0){
+            die("gcorelib: error config dma tx chan");
         }
     }
 
-	if (rx_used) {
+	if(rx_used){
         rx_config.chan = userdev.rx_chan;
         rx_config.buf_offset = (u32) gcore_dma_calc_offset(rx_ptr);
         rx_config.buf_size = (u32) rx_size;
         rx_config.dir = GCORE_DEV_TO_MEM;
-        if (ioctl(fd, GCORE_DMA_CONFIG, &rx_config) < 0) {
-            perror("gcorelib: error config dma rx chan");
-            return EXIT_FAILURE;
+        if(ioctl(fd, GCORE_DMA_CONFIG, &rx_config) < 0){
+            die("gcorelib: error config dma rx chan");
         }
     }
 
-	if (tx_used) {
+	if(tx_used){
 		tx_config.completion = userdev.tx_cmp;
-		ret = (int)ioctl(fd, GCORE_DMA_PREP, &tx_config);
-		if (ret < 0) {
-			perror("gcorelib: error prep dma tx buf");
-			return ret;
+		if(ioctl(fd, GCORE_DMA_PREP, &tx_config)){
+			die("gcorelib: error prep dma tx buf");
 		}
 	}
 
-	if (rx_used) {
+	if(rx_used){
 		rx_config.completion = userdev.rx_cmp;
-		ret = (int)ioctl(fd, GCORE_DMA_PREP, &rx_config);
-		if (ret < 0) {
-			perror("gcorelib: error prep dma rx buf");
-			return ret;
+		if(ioctl(fd, GCORE_DMA_PREP, &rx_config)){
+			die("gcorelib: error prep dma rx buf");
 		}
 	}
     
-    if (tx_used) {
+    if(tx_used){
         is_tx_prepared = true;
     }else {
         is_tx_prepared = false;
     }
 
-	if (rx_used) {
+	if(rx_used){
         is_rx_prepared = true;
     } else {
         is_rx_prepared = false;
     }
 
-    return ret;
+    return;
 }
 
 /* Perform DMA transaction
@@ -328,23 +300,20 @@ int gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
  * To perform a one-way transaction set the unused directions pointer to NULL
  * or length to zero.
  */
-int gcore_dma_start(enum gcore_wait wait)
+void gcore_dma_start(enum gcore_wait wait)
 {   
-    int ret = 0;
 	struct gcore_transfer rx_trans;
 	struct gcore_transfer tx_trans;
 
-    if(!is_initialized) {
-        perror("gcorelib: failed to start dma, gcore not initialized");
-		return EXIT_FAILURE;
+    if(!is_initialized){
+        die("gcorelib: failed to start dma, gcore not initialized");
     }
 
-    if(!(is_tx_prepared || is_rx_prepared)) {
-        perror("gcorelib: error starting dma, not prepared yet");
-        return -1;
+    if(!(is_tx_prepared || is_rx_prepared)){
+        die("gcorelib: error starting dma, not prepared yet");
     }
 
-	if (is_tx_prepared) {
+	if(is_tx_prepared){
 		tx_trans.chan = userdev.tx_chan;
 		tx_trans.wait = (0 != (wait & GCORE_WAIT_TX));
 		tx_trans.wait_time_msecs = 3000;
@@ -352,17 +321,16 @@ int gcore_dma_start(enum gcore_wait wait)
 		tx_trans.cookie = tx_config.cookie;
         tx_trans.buf_size = tx_config.buf_size;
 		
-        ret = (int)ioctl(fd, GCORE_DMA_START, &tx_trans);
-		if (ret < 0) {
-			perror("gcorelib: error starting dma tx transaction");
-			return ret;
+        
+		if(ioctl(fd, GCORE_DMA_START, &tx_trans)){
+			die("gcorelib: error starting dma tx transaction");
 		}
 
         // reset flag
         is_tx_prepared = false;
 	}
 
-	if (is_rx_prepared) {
+	if(is_rx_prepared){
 		rx_trans.chan = userdev.rx_chan;
 		rx_trans.wait = (0 != (wait & GCORE_WAIT_RX));
 		rx_trans.wait_time_msecs = 3000;
@@ -370,55 +338,48 @@ int gcore_dma_start(enum gcore_wait wait)
 		rx_trans.cookie = rx_config.cookie;
         rx_trans.buf_size = rx_config.buf_size;
 
-		ret = (int)ioctl(fd, GCORE_DMA_START, &rx_trans);
-		if (ret < 0) {
-			perror("gcorelib: error starting dma rx transaction");
-			return ret;
+		if(ioctl(fd, GCORE_DMA_START, &rx_trans)){
+			die("gcorelib: error starting dma rx transaction");
 		}
         
         // reset flag
         is_rx_prepared = false;
 	}
 
-	return ret;
+	return;
 }
 
-int gcore_dma_stop()
+void gcore_dma_stop()
 {
-	int ret = 0;
 	struct gcore_transfer rx_trans;
 	struct gcore_transfer tx_trans;
 
-    if(!is_initialized) {
-        perror("gcorelib: failed to stop dma, gcore not initialized");
-		return EXIT_FAILURE;
+    if(!is_initialized){
+        die("gcorelib: failed to stop dma, gcore not initialized");
     }
 
-    if(!(is_tx_prepared || is_rx_prepared)) {
-        perror("gcorelib: error failed to stop dma, nothing is running");
-        return -1;
+    if(!(is_tx_prepared || is_rx_prepared)){
+        die("gcorelib: error failed to stop dma, nothing is running");
     }
 
-	if (is_tx_prepared) {
+	if(is_tx_prepared){
 		tx_trans.chan = userdev.tx_chan;
-		ret = (int)ioctl(fd, GCORE_DMA_STOP, &(tx_trans.chan));
-		if (ret < 0) {
-			perror("gcorelib: error stopping dma tx trans");
-			return ret;
+		
+		if(ioctl(fd, GCORE_DMA_STOP, &(tx_trans.chan))){
+			die("gcorelib: error stopping dma tx trans");
 		}
         is_tx_prepared = false;
 	}
 
-	if (is_rx_prepared) {
+	if(is_rx_prepared){
 		rx_trans.chan = userdev.rx_chan;
-		ret = (int)ioctl(fd, GCORE_DMA_STOP, &(rx_trans.chan));
-		if (ret < 0) {
-			perror("gcorelib: error stopping dma rx trans");
-			return ret;
+		
+		if(ioctl(fd, GCORE_DMA_STOP, &(rx_trans.chan))){
+			die("gcorelib: error stopping dma rx trans");
 		}
         is_rx_prepared = false;
 	}
-	return ret;
+	return;
 }
 
 /* ==========================================================================
@@ -426,47 +387,47 @@ int gcore_dma_stop()
  * ==========================================================================
  */
 
-uint32_t dma_get(uint32_t offset) {
+uint32_t dma_get(uint32_t offset){
     return ((uint32_t*)dma_map)[offset>>2];
 }
 
-void dma_status_reg(uint32_t status) {
-    if (status & (1 << 0)) printf(" halted"); else printf(" running");
-    if (status & (1 << 1)) printf(" idle");
-    if (status & (1 << 3)) printf(" SGIncld");
-    if (status & (1 << 4)) printf(" DMAIntErr");
-    if (status & (1 << 5)) printf(" DMASlvErr");
-    if (status & (1 << 6)) printf(" DMADecErr");
-    if (status & (1 << 8)) printf(" SGIntErr");
-    if (status & (1 << 9)) printf(" SGSlvErr");
-    if (status & (1 << 10)) printf(" SGDecErr");
-    if (status & (1 << 12)) printf(" IOC_Irq");
-    if (status & (1 << 13)) printf(" Dly_Irq");
-    if (status & (1 << 14)) printf(" Err_Irq");
+void dma_status_reg(uint32_t status){
+    if(status & (1 << 0)) printf(" halted"); else printf(" running");
+    if(status & (1 << 1)) printf(" idle");
+    if(status & (1 << 3)) printf(" SGIncld");
+    if(status & (1 << 4)) printf(" DMAIntErr");
+    if(status & (1 << 5)) printf(" DMASlvErr");
+    if(status & (1 << 6)) printf(" DMADecErr");
+    if(status & (1 << 8)) printf(" SGIntErr");
+    if(status & (1 << 9)) printf(" SGSlvErr");
+    if(status & (1 << 10)) printf(" SGDecErr");
+    if(status & (1 << 12)) printf(" IOC_Irq");
+    if(status & (1 << 13)) printf(" Dly_Irq");
+    if(status & (1 << 14)) printf(" Err_Irq");
     printf(" IRQThresholdSts (0x%02x)", (status & (0xff << 16)) >> 16);
     printf(" IRQDelaySts (0x%02x)", (status & (0xff << 24)) >> 24);
     printf("\n");
     return;
 }
 
-void dma_control_reg(uint32_t control) {
-    if (control & (1 << 0)) printf(" run"); else printf(" stop");
-    if (control & (1 << 2)) printf(" reset");
-    if (control & (1 << 3)) printf(" Keyhole");
-    if (control & (1 << 4)) printf(" CyclicBD");
-    if (control & (1 << 12)) printf(" IOC_IrqEn");
-    if (control & (1 << 13)) printf(" Dly_IrqEn");
-    if (control & (1 << 14)) printf(" Err_IrqEn");
+void dma_control_reg(uint32_t control){
+    if(control & (1 << 0)) printf(" run"); else printf(" stop");
+    if(control & (1 << 2)) printf(" reset");
+    if(control & (1 << 3)) printf(" Keyhole");
+    if(control & (1 << 4)) printf(" CyclicBD");
+    if(control & (1 << 12)) printf(" IOC_IrqEn");
+    if(control & (1 << 13)) printf(" Dly_IrqEn");
+    if(control & (1 << 14)) printf(" Err_IrqEn");
     printf(" IRQThreshold (0x%02x)", (control & (0xff << 16)) >> 16);
     printf(" IRQDelay (0x%02x)", (control & (0xff << 24)) >> 24);
     printf("\n");
     return;
 }
 
-void dma_mm2s_status() {
+void dma_mm2s_status(){
     uint32_t status = 0;
-    if(!is_initialized) {
-        perror("gcorelib: failed to get mm2s status, gcore not initialized");
+    if(!is_initialized){
+        die("gcorelib: failed to get mm2s status, gcore not initialized");
         return;
     }
     status = dma_get(MM2S_CONTROL);
@@ -484,10 +445,10 @@ void dma_mm2s_status() {
     return;
 }
 
-void dma_s2mm_status() {
+void dma_s2mm_status(){
     uint32_t status = 0;
-    if(!is_initialized) {
-        perror("gcorelib: failed to get s2mm status, gcore not initialized");
+    if(!is_initialized){
+        die("gcorelib: failed to get s2mm status, gcore not initialized");
         return;
     }
     status = dma_get(S2MM_CONTROL);
@@ -522,9 +483,8 @@ void dma_status(){
 struct gcore_registers* gcore_get_regs(){
     struct gcore_registers *regs;
 
-    if((regs = (struct gcore_registers *)
-        malloc(sizeof(struct gcore_registers))) == NULL){
-        return NULL;
+    if((regs = (struct gcore_registers *) malloc(sizeof(struct gcore_registers))) == NULL){
+        die("error: malloc failed");
     }
     regs->control = (u32) 0;
 	regs->status = (u32) 0;
@@ -532,9 +492,8 @@ struct gcore_registers* gcore_get_regs(){
 	regs->data = (u32) 0;
 	regs->a1_status = (u32) 0;
 	regs->a2_status = (u32) 0;
-    if (ioctl(fd, GCORE_REGS_READ, regs) < 0) {
-		perror("gcorelib: error regs_read failed");
-		exit(EXIT_FAILURE);
+    if(ioctl(fd, GCORE_REGS_READ, regs) < 0){
+		die("gcorelib: error regs_read failed");
 	}
     return regs;
 }
@@ -542,17 +501,11 @@ struct gcore_registers* gcore_get_regs(){
 /*
  * helper function to prepare and start dma.
  */
-int gcore_dma_prep_start(enum gcore_wait wait,
-     uint64_t *tx_ptr, size_t tx_size,
-     uint64_t *rx_ptr, size_t rx_size){
-
-    int s = 0;
-    s = gcore_dma_prep(tx_ptr, tx_size, rx_ptr, rx_size);	
-    if(s){ goto error; }
-    s = gcore_dma_start(wait);	
-    if(s){ goto error; }
-
-error:
-    return s;
+void gcore_dma_prep_start(enum gcore_wait wait,
+    uint64_t *tx_ptr, size_t tx_size,
+    uint64_t *rx_ptr, size_t rx_size){
+    gcore_dma_prep(tx_ptr, tx_size, rx_ptr, rx_size);	
+    gcore_dma_start(wait);	
+    return;
 }
 
