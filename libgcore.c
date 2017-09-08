@@ -1,3 +1,12 @@
+/*
+ * libgcore provides api calls that handle talking to the gcore driver
+ *
+ */
+
+// support for files larger than 2GB limit
+#define _LARGEFILE_SOURCE
+#define _LARGEFILE64_SOURCE
+
 #include "libgcore.h"
 
 // can't include kernel headers so add defines here

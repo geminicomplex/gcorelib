@@ -1,6 +1,10 @@
 #ifndef LIBGCORE_H
 #define LIBGCORE_H
 
+// support for files larger than 2GB limit
+#define _LARGEFILE_SOURCE
+#define _LARGEFILE64_SOURCE
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -9,7 +13,6 @@ extern "C" {
 #include <stdint.h>
 #include "../driver/gemini_core.h"
 
-#define debug(fmt, ...) fprintf(stderr, "%s:%d:%s: " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__);  
 #define die(fmt, ...) do{ fprintf(stderr, "%s:%d:%s: " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__); exit(EXIT_FAILURE); } while(0);
 
 #define MMAP_PATH "/dev/gcore"
