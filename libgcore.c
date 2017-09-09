@@ -207,7 +207,7 @@ void gcore_ctrl_read(struct gcore_ctrl_packet *packet){
     if(ioctl(fd, GCORE_CTRL_READ, packet) < 0){
 		die("gcorelib: error ctrl_read failed");
 	}
-    return s;
+    return;
 }
 
 /* ==========================================================================

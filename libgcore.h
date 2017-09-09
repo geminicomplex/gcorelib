@@ -44,8 +44,8 @@ void gcore_subcore_reset();
  * Crtl Axi
  */
 
-int gcore_ctrl_write(struct gcore_ctrl_packet *packet);
-int gcore_ctrl_read(struct gcore_ctrl_packet *packet);
+void gcore_ctrl_write(struct gcore_ctrl_packet *packet);
+void gcore_ctrl_read(struct gcore_ctrl_packet *packet);
 
 /*
  * DMA
