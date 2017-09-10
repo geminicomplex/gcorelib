@@ -13,7 +13,9 @@ extern "C" {
 #include <stdint.h>
 #include "../driver/gemini_core.h"
 
+#ifndef die
 #define die(fmt, ...) do{ fprintf(stderr, "%s:%d:%s: " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__); exit(EXIT_FAILURE); } while(0);
+#endif
 
 #define MMAP_PATH "/dev/gcore"
 #define MMAP_SIZE (DMA_SIZE * sizeof(uint8_t))
