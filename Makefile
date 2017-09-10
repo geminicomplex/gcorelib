@@ -3,18 +3,20 @@ INCLUDES := -I. -I../driver
 CFLAGS := ${DRIVER_CFLAGS} -c -Wall -Werror -fpic -D_FILE_OFFSET_BITS=64
 LDFLAGS := -shared -Wl,-soname,libgcore.so
 EXECUTABLE = libgcore.so
-HEADERS = $(wildcard ./*.h)
+
 SOURCES = $(wildcard ./*.c)
-OBJECTS = $(SOURCES: .c=.o)
+OBJECTS = $(SOURCES:%.c=%.o)
+HEADERS = $(wildcard ./*.h)
 
 .PHONY : all
 all: $(EXECUTABLE)
 
-%.o : %.c $(HEADERS)
-	$(CC) $(CFLAGS) $(INCLUDES) $< -o $@
-
 $(EXECUTABLE): $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $(EXECUTABLE) $(OBJECTS)
+	$(CC) $(INCLUDES) $(LDFLAGS) $(OBJECTS) -o $(EXECUTABLE)
+
+%.o : %.c $(HEADERS)
+	$(CC) $(INCLUDES) $(CFLAGS) $< -o $@
+
 
 .PHONY : clean
 clean :
