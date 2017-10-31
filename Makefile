@@ -1,7 +1,7 @@
 CC = ${CROSS_COMPILE}gcc
 INCLUDES := -I. -I../driver 
-CFLAGS := ${DRIVER_CFLAGS} -c -Wall -Werror -fpic -D_FILE_OFFSET_BITS=64
-LDFLAGS := -shared -Wl,-soname,libgcore.so
+CFLAGS := ${DRIVER_CFLAGS} -ggdb -c -Wall -Werror -fpic -D_FILE_OFFSET_BITS=64
+LDFLAGS := -ggdb -shared -Wl,-soname,libgcore.so
 EXECUTABLE = libgcore.so
 
 SRCS = $(wildcard ./*.c)
