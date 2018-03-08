@@ -7,10 +7,10 @@
 #define _LARGEFILE_SOURCE
 #define _LARGEFILE64_SOURCE
 
-#include "common.h"
+#include "../common.h"
 #include "dma.h"
 
-#include "../driver/gemini_core.h"
+#include "../../driver/gcore_common.h"
 
 #include <time.h>
 #include <stdio.h>
@@ -22,7 +22,6 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <string.h>
-#include <linux/i2c-dev.h>
 
 /*
  * gcore_map is an mmap to the gcore driver.

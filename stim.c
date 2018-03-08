@@ -4,13 +4,16 @@
  */
 
 // support for files larger than 2GB limit
+#ifndef _LARGEFILE_SOURCE
 #define _LARGEFILE_SOURCE
+#endif
+#ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
+#endif
 
 #include "stim.h"
 #include "util.h"
 #include "profile.h"
-#include "helper.h"
 #include "config.h"
 #include "lib/avl/avl.h"
 
@@ -25,13 +28,24 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <inttypes.h>
+
+// Mac OS X / Darwin features
+#if defined(__APPLE__)
+#include <libkern/OSByteOrder.h>
+#define bswap_16(x) OSSwapInt16(x)
+#define bswap_32(x) OSSwapInt32(x)
+#define bswap_64(x) OSSwapInt64(x)
+#else
 #include <byteswap.h>
+#endif
+
+#define BUFFER_LENGTH (4096)
 
 /*
  * Given a vector , pack the subvec for the given dut_io_id.
  *
  */
-void pack_vec_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum subvecs subvec){
+void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum subvecs subvec){
     if(packed_subvecs == NULL){
         die("error: pointer is null\n");
     }
@@ -69,7 +83,7 @@ void pack_vec_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum sub
  * TODO: operand is 27 bytes long, but we're only using 32bits of it. Support the full size.
  *
  */
-void pack_vec_with_opcode_and_operand(uint8_t *packed_subvecs, enum vec_opcode opcode, uint32_t operand){
+void pack_subvecs_with_opcode_and_operand(uint8_t *packed_subvecs, enum vec_opcode opcode, uint32_t operand){
     if(packed_subvecs == NULL){
         die("error: pointer is null\n");
     }
@@ -188,30 +202,110 @@ enum subvecs *convert_bitstream_word_to_subvecs(uint32_t *word,
 }
 
 /*
+ * Following three functions will read either 8, 16 or 32 bits
+ * and increment the map byte offset. Note that regardless
+ * if the machine is 32bit or 64bit, the data is stored little
+ * endian on disk. After accessing the address, type-casting,
+ * and de-referencing, it will be swapped.  
+ *
+ */
+static inline uint8_t read_map_8(struct stim *stim){
+    if(stim == NULL){
+        die("pointer is NULL\n");
+    }
+    uint8_t *byte = (uint8_t*)&(stim->map)[stim->cur_map_byte];
+    if(byte == NULL){
+        die("map byte is NULL\n");
+    }
+    stim->cur_map_byte += 1;
+    return *byte;
+}
+
+static inline uint16_t read_map_16(struct stim *stim, bool swap_endian){
+    if(stim == NULL){
+        die("pointer is NULL\n");
+    }
+    uint16_t *halfword = (uint16_t*)&(stim->map)[stim->cur_map_byte];
+    if(halfword == NULL){
+        die("map halfword is NULL\n");
+    }
+    stim->cur_map_byte += 2;
+    if(swap_endian){
+        return bswap_16(*halfword);
+    }
+    return *halfword;
+}
+
+static inline uint32_t read_map_32(struct stim *stim, bool swap_endian){
+    if(stim == NULL){
+        die("pointer is NULL\n");
+    }
+    uint32_t *word = (uint32_t*)&(stim->map)[stim->cur_map_byte];
+    if(word == NULL){
+        die("map word is NULL\n");
+    }
+    stim->cur_map_byte += 4;
+    if(swap_endian){
+        return bswap_32(*word);
+    }
+    return *word;
+}
+
+/*
  * The mmaped file is just raw bytes. Return content aware words based on the
  * file's data type, taking into account the endianess. Always return with the
  * ordering from D31 to D00.
  *
- *
  */
-uint32_t *stim_get_next_bitstream_word(struct stim *stim){
-    uint32_t *word = NULL;
+uint32_t stim_get_next_bitstream_word(struct stim *stim){
+    uint32_t word = 0;
+    char buffer[BUFFER_LENGTH];
     switch(stim->type){
         case STIM_TYPE_RBT:
-            // TODO: read 32 ascii bytes, throw away new line chars
-            die("error: rbt not supported yet\n");
+            int32_t c = 0;
+            uint32_t count = 0;
+            while(stim->cur_map_byte < stim->file_size){
+                if(stim->map[stim->cur_map_byte+count] == '\n'){
+                    if(count > BUFFER_LENGTH){
+                        die("buffer overflow; gross\n");
+                    }
+                    memset(buffer, '\0', BUFFER_LENGTH);
+                    memcpy(buffer, (stim->map+stim->cur_map_byte), count);
+                    if(count != 32){
+                        die("rbt bitstream word is not 32 bits\n");
+                    }
+                    c = count;
+                    word = 0;
+                    while((--c) >= 0){
+                        if(buffer[c] == '0'){
+                            continue;
+                        }else if(buffer[c] == '1'){
+                            word += (1<<((count-1)-c));
+                        }else{
+                            die("invalid rbt bitstream at byte %i\n",
+                                stim->cur_map_byte+c);
+                        }
+                    }
+                    stim->cur_map_byte += (count+1);
+                    count = 0;
+                    break;
+                }else{
+                    count += 1;
+                }
+            }
+                
             break;
         case STIM_TYPE_BIN:
-            // TODO: handle endianess
-            if(stim->map_word_offset > ((stim->file_size/sizeof(uint32_t))-1)){
+        case STIM_TYPE_BIT:
+            if(stim->cur_map_byte > (stim->file_size-1)){
                 return NULL;
             } else {
-                word = &((uint32_t*)stim->map)[stim->map_word_offset++];
+                if(stim->is_little_endian){
+                    word = read_map_32(stim, false);
+                }else{
+                    word = read_map_32(stim, true);
+                }
             }
-            break;
-        case STIM_TYPE_BIT:
-            // TODO: read up to first data word, return aligned words
-            die("error: bit not supported yet\n");
             break;
         case STIM_TYPE_DOTS:
         case STIM_TYPE_RAW:
@@ -249,43 +343,6 @@ struct vec *create_vec(){
     return vec;
 }
 
-/*
- * Malloc and init new vec_repeat struct and internal members.
- *
- */
-struct vec_repeat *create_vec_repeat(){
-    struct vec_repeat *vec_rep = NULL;
-
-    if((vec_rep = (struct vec_repeat*)malloc(sizeof(struct vec_repeat))) == NULL){
-        die("error: failed to malloc vec_repeat struct\n.");
-    }
-    vec_rep->id = 0;
-    vec_rep->repeat = 0;
-
-    return vec_rep;
-}
-
-/*
- * Used by avl tree to compare vec_repeat id values. 
- * a < b  : -1
- * a == b :  0
- * a > b  :  1
- *
- */
-int vec_repeat_compare(const void *a, const void *b){
-    uint32_t a_id = *((uint32_t*)a);
-    uint32_t b_id = *((uint32_t*)b);
-    return (a_id > b_id) - (a_id < b_id);
-}
-
-void vec_repeat_free(const void *key, const void *value, const void *data) {
-    if(value == NULL){
-        return;
-    }
-    free((struct vec_repeat*)value);
-    return;
-}
-
 /* 
  * Create new vec_chunk object. Because we can only store so many vectors 
  * in memory at a time, we split them into chunks and load them as needed
@@ -316,9 +373,6 @@ struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs){
     // number of bytes for loaded vecs
     chunk->size = 0;
 
-    // Maps vec id to repeat. Use repeat one if none found.
-    chunk->vec_repeats = CreateAVL(&vec_repeat_compare);
-    
     return chunk;
 }
 
@@ -362,7 +416,8 @@ struct stim *create_stim(){
     stim->fp = NULL;
     stim->file_size = 0;
     stim->map = NULL;
-    stim->map_word_offset = 0;
+    stim->cur_map_byte = 0;
+    stim->is_little_endian = true;
 
     return stim;
 }
@@ -460,25 +515,6 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
 }
 
 /*
- * Unloads a chunk by freeing all memory and clearing the is_loaded flag.
- *
- */
-void stim_unload_chunk(struct vec_chunk *chunk){
-    if(chunk == NULL){
-        die("error: failed to unload chunk, pointer is NULL\n");
-    }
-    if(chunk->is_loaded == false){
-        return;
-    }
-    free(chunk->vec_data);
-    chunk->vec_data = NULL;
-    chunk->vec_data_size = 0;
-    chunk->size = 0;
-    chunk->is_loaded = false;
-    return;
-}
-
-/*
  * Loads the next available chunk and unloads the previous chunk. Return NULL
  * if there are no more chunks to load or on error. Loading a chunk consists
  * of allocating enough memory for the vectors.
@@ -503,7 +539,6 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim){
     if(stim->cur_vec_chunk_id == (stim->num_vec_chunks-1)){
         return NULL;
     }
-
 
     stim->cur_vec_chunk_id++;
     next_chunk = stim->vec_chunks[stim->cur_vec_chunk_id];
@@ -531,27 +566,162 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim){
     // a full 200 pin vec over to each artix
     next_chunk->size = next_chunk->num_vecs*STIM_VEC_SIZE;
 
-    printf("filling chunk %i with %i vecs (%zu bytes)...\n", 
-            next_chunk->id, next_chunk->num_vecs, next_chunk->size);
-    next_chunk = stim_fill_chunk(stim, next_chunk);
-
     return next_chunk;
 }
 
 /*
- * Given a vec_chunk and it's cur_vec_id, begin packing subvecs from the
- * header or footer config, incrementing the cur_vec_id and return the
- * partially packed chunk or NULL if there is an error.
- *
- * TODO: stim->pins must be based on config_tags
+ * Unloads a chunk by freeing all memory and clearing the is_loaded flag.
  *
  */
-struct vec_chunk *stim_fill_chunk_by_config(struct stim *stim,
-        struct vec_chunk *chunk, struct config *config){
+void stim_unload_chunk(struct vec_chunk *chunk){
+    if(chunk == NULL){
+        die("error: failed to unload chunk, pointer is NULL\n");
+    }
+    if(chunk->is_loaded == false){
+        return;
+    }
+    free(chunk->vec_data);
+    chunk->vec_data = NULL;
+    chunk->vec_data_size = 0;
+    chunk->size = 0;
+    chunk->is_loaded = false;
+    return;
+}
+
+/*
+ * Function who's pointer will be passed to stim_fill_chunk_by_dots and called
+ * to get bitstream subvecs when filling the body section of a dots.
+ *
+ */
+static void stim_get_next_bitstream_subvecs(stuct stim *stim, 
+        enum subvecs **subvecs, uint32_t *num_subvecs){
+    if(stim == NULL || subvecs == NULL || num_subvecs == NULL){
+        die("pointer is NULL\n");
+    }
+    // get next word (D31 to D00)
+    uint32_t word = stim_get_next_bitstream_word(stim);
+
+    // converts word to subvecs (D0 to D31 same as profile_pins)
+    (*subvecs) = convert_bitstream_word_to_subvecs(word, num_subvecs);
+
+    return;
+}
+
+/*
+ * fill chunk with data starting at the current vector that needs to be loaded.
+ * A chunk is packed after it has been loaded into memory, with data from the
+ * source file. This only fills the chunk if open_stim was called and the file
+ * type supports mmap loading.
+ *
+ *
+ */
+struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
+    uint32_t start_num_vecs = 0;
+    uint32_t end_num_vecs = 0;
+    uint32_t num_vecs_to_load = 0;
+    struct config *config = NULL;
+    bool is_first_chunk = false;
+    bool is_last_chunk = false;
+
+    if(stim == NULL){
+        die("pointer is NULL\n");
+    }
+    
+    if(chunk == NULL){
+        die("pointer is NULL\n");
+    }
+
+    printf("filling chunk %i with %i vecs (%zu bytes)...\n", 
+            chunk->id, chunk->num_vecs, chunk->size);
+    
+    if(stim->type == STIM_TYPE_NONE){
+        die("error: failed to fill chunk, stim type is none\n");
+    }
+
+    if(chunk->id == 0){
+        is_first_chunk = true;
+    }
+    if(chunk->id == (stim->num_vec_chunks-1)){
+        is_last_chunk = true;
+    }
+
+    if(stim->type == STIM_TYPE_RBT || stim->type == STIM_TYPE_BIN || stim->type == STIM_TYPE_BIT){
+        // first chunk so fill it with the config header
+        if(is_first_chunk){
+            if((config = create_config(CONFIG_TYPE_HEADER, 1, 0)) == NULL){
+                die("error: pointer is NULL\n");
+            }
+            if((chunk = stim_fill_chunk_by_dots(stim, chunk, config->dots, 
+                    config->dots->num_dots_vecs, NULL)) == NULL){
+                die("error: failed to fill chunk by config vecs\n");
+            }
+            config = free_config(config);
+        } 
+    
+        // If this is the last chunk, then the number of vectors also includes
+        // vecs for the footer so we need to adjust how many words we load.
+        // Note, filling chunk for header will increment cur_vec_id.
+        start_num_vecs = chunk->cur_vec_id;
+        if(is_last_chunk){
+            uint32_t footer_num_vecs = get_config_num_vecs_by_type(CONFIG_TYPE_FOOTER);
+            end_num_vecs = chunk->num_vecs - footer_num_vecs - stim->num_padding_vecs;
+        }else{
+            end_num_vecs = chunk->num_vecs;
+        }
+        num_vecs_to_load = end_num_vecs - start_num_vecs;
+         
+        // fill chunk with one data word and the corresponding body config
+        if((config = create_config(CONFIG_TYPE_BODY, num_vecs_to_load, 0)) == NULL){
+            die("error: pointer is NULL\n");
+        }
+        // TODO: stim->pins must be based on config_tags
+        if((chunk = stim_fill_chunk_by_dots(stim, chunk, config->dots, 
+                config->dots->num_dots_vecs, &stim_get_next_bitstream_subvecs)) == NULL){
+            die("error: failed to pack chunk by config vecs\n");
+        }
+        config = free_config(config);
+    
+        // if we're in the last chunk and we loaded all the data from the source
+        // file already, then copy the footer after
+        if(is_last_chunk){
+            printf("number of padding vecs %i\n", stim->num_padding_vecs);
+            if((config = create_config(CONFIG_TYPE_FOOTER, 1, stim->num_padding_vecs)) == NULL){
+                die("error: pointer is NULL\n");
+            }
+            if((chunk = stim_fill_chunk_by_dots(stim, chunk, config->dots, 
+                    config->dots->num_dots_vecs, NULL)) == NULL){
+                die("error: failed to pack chunk by config vecs\n");
+            }
+            config = free_config(config);
+        }
+    }else if(stim->type == STIM_TYPE_DOTS){
+        die("mmap loading of dots not supported yet\n");
+    }else if(stim->type == STIM_TYPE_RAW){
+        die("mmap loading of stim not supported yet\n");
+    }else {
+        die("invalid stim type\n");
+    }
+
+    return chunk;
+}
+
+
+/*
+ * Given a dots, fills the chunk with given amount of dots vecs to load.
+ * The dots has an internal cur_dots_vecs which keeps track of how many
+ * vecs were read from the dots. This is called by stim_fill_chunk if
+ * the stim file was loaded by mmap. Otherwise, this can be called directly
+ * if loading the stim through the api.
+ *
+ */
+struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
+        struct vec_chunk *chunk, struct dots *dots, 
+        uint32_t num_dots_vecs_to_load,
+        void (*get_next_data_subvecs)(struct stim *, enum subvecs **, uint32_t*)){
     struct dots_vec *dots_vec = NULL;
     enum subvecs *data_subvecs = NULL;
     uint32_t num_data_subvecs = 0;
-    struct vec *vec = create_vec();
+    struct vec *chunk_vec = create_vec();
     
     if(stim == NULL){
         die("error: pointer is NULL\n");
@@ -561,53 +731,22 @@ struct vec_chunk *stim_fill_chunk_by_config(struct stim *stim,
         die("error: pointer is NULL\n");
     }
 
-    if(config == NULL){
+    if(dots == NULL){
         die("error: pointer is NULL\n");
     }
 
-    // TODO: add double check that ordering of pins is 
-    // same as the config's tags
+    if((dots->cur_dots_vec+num_dots_vecs_to_load) > dots->num_dots_vecs){
+        die("failed to load chunk; trying to load too many dots vecs 
+            %i > %i num_dots_vecs\n", 
+            (dots->cur_dots_vec+num_dots_vecs_to_load),
+            dots->num_dots_vecs
+        );
+    }
 
-
-    for(int i=0; i<config->dots->num_dots_vecs; i++){ 
-        dots_vec = config->dots->dots_vecs[i];
+    while(dots->cur_dots_vec < num_dots_vecs_to_load){ 
+        dots_vec = dots->dots_vecs[dots->cur_dots_vec];
         if(dots_vec ==  NULL){
-            die("error: failed to get config vec by real id %i\n", i);
-        }
-
-        // Footer only gets added to last chunk. We need to pad stim's num_vecs
-        // so take the last vector and modify the repeat value. Note, this 
-        // vector shouldn't have any clocks. We need to use the last vector because
-        // when configuring, we need to know how to drive the pins after. We can't
-        // just drive zero on dut_io because it will pull prog_b down.
-        if(config->type == CONFIG_TYPE_FOOTER && i == (config->dots->num_dots_vecs-1)){
-            //dots_vec->repeat += stim->num_padding_vecs;
-        }
-
-        data_subvecs = NULL;
-        num_data_subvecs = 0;
-
-        if(config->type == CONFIG_TYPE_BODY){
-            if(dots_vec->repeat != 1){
-                die("error: dots vec for body must have a repeat of one\
-                    but it has a repeat of %d\n", dots_vec->repeat);
-            }
-
-            // get next word (D31 to D00)
-            uint32_t *word = stim_get_next_bitstream_word(stim);
-            if(word == NULL){
-                die("error: got a NULL bitstream word before finishing filling chunk, "
-                    "cur_vec_id %i\n", chunk->cur_vec_id);
-            }        
-
-            // converts word to subvecs (D0 to D31 same as profile_pins)
-            data_subvecs = convert_bitstream_word_to_subvecs(word, &num_data_subvecs);
-            if(data_subvecs == NULL){
-                die("error: data subvecs is NULL\n");
-            }
-        }else{
-            data_subvecs = NULL;
-            num_data_subvecs = 0;
+            die("error: failed to get dots_vec by real id %i\n", dots->cur_dots_vec);
         }
 
         if(dots_vec->num_subvecs != stim->num_pins){
@@ -620,30 +759,48 @@ struct vec_chunk *stim_fill_chunk_by_config(struct stim *stim,
                 chunk->cur_vec_id, chunk->num_vecs);
         }
 
-        // if body, fill data subvecs from bitstream
-        fill_dots_vec(dots_vec, data_subvecs, num_data_subvecs); 
+        // clear subvecs
+        data_subvecs = NULL;
+        num_data_subvecs = 0;
 
-        // clear the vec
-        for(int j=0; j<STIM_VEC_SIZE; j++){
-            vec->packed_subvecs[j] = 0xff;
+        // get data subvecs if we need to inject them into the vector
+        if(get_next_data_subvecs != NULL){
+            if(dots_vec->repeat != 1){
+                die("error: dots vec for body must have a repeat of one\
+                    but it has a repeat of %d\n", dots_vec->repeat);
+            }
+            (*get_next_data_subvecs)(stim, &data_subvecs, &num_data_subvecs);
+            if(data_subvecs == NULL){
+                die("error: data subvecs is NULL\n");
+            }
         }
 
-        // pack vec with subvecs (which represent pins)
+        // Convert the dots_vec's vec_str into subvecs. If bitstream inject
+        // the data subvecs for the data pins.
+        expand_dots_vec_str(dots_vec, data_subvecs, num_data_subvecs); 
+
+        // clear the chunk's vec
+        for(int j=0; j<STIM_VEC_SIZE; j++){
+            chunk_vec->packed_subvecs[j] = 0xff;
+        }
+
+        // pack chunk vec with subvecs (which represent pins)
         for(int pin_id=0; pin_id<dots_vec->num_subvecs; pin_id++){
             struct profile_pin *pin = stim->pins[pin_id];
             enum subvecs subvec = dots_vec->subvecs[pin_id];
-            pack_vec_by_dut_io_id(vec->packed_subvecs, pin->dut_io_id, subvec);
+            pack_subvecs_by_dut_io_id(chunk_vec->packed_subvecs, pin->dut_io_id, subvec);
         }
 
+        // set the opcode for the chunk vec
         if(dots_vec->has_clk){
-            pack_vec_with_opcode_and_operand(vec->packed_subvecs, DUT_OPCODE_VECCLK, dots_vec->repeat);
+            pack_subvecs_with_opcode_and_operand(chunk_vec->packed_subvecs, DUT_OPCODE_VECCLK, dots_vec->repeat);
         }else if(dots_vec->repeat > 1){
-            pack_vec_with_opcode_and_operand(vec->packed_subvecs, DUT_OPCODE_VECLOOP, dots_vec->repeat);
+            pack_subvecs_with_opcode_and_operand(chunk_vec->packed_subvecs, DUT_OPCODE_VECLOOP, dots_vec->repeat);
         }else{
-            pack_vec_with_opcode_and_operand(vec->packed_subvecs, DUT_OPCODE_VEC, dots_vec->repeat);
+            pack_subvecs_with_opcode_and_operand(chunk_vec->packed_subvecs, DUT_OPCODE_VEC, dots_vec->repeat);
         }
 
-        // Note: no need to swap the endianess of packed_subvecs because 64 bit words
+        // No need to swap the endianess of packed_subvecs because 64 bit words
         // are packed lsb to msb in the 1024 bit word in agent, dutcore and memcore.
         // The zynq fabric dma uses a 64 bit bus and uses little endian, so when it 
         // gets a 64 bit word it will load it in the register big endian and pass that
@@ -651,126 +808,21 @@ struct vec_chunk *stim_fill_chunk_by_config(struct stim *stim,
         // grab the 64 bit word when it reads memory. Also, the bus is from [1023:0] so 
         // we need to store high dut_io to low dut_io from msb to lsb in the 64 bit word.
         memcpy(chunk->vec_data+(chunk->cur_vec_id*STIM_VEC_SIZE), 
-                vec->packed_subvecs, STIM_VEC_SIZE);
+                chunk_vec->packed_subvecs, STIM_VEC_SIZE);
         chunk->cur_vec_id += 1;
 
-
         // free data structs
-        if(config->type == CONFIG_TYPE_BODY && data_subvecs != NULL){
+        if(get_next_data_subvecs != NULL && data_subvecs != NULL){
             free(data_subvecs);
             data_subvecs = NULL;
         }
         dots_vec = NULL;
+
+        // increment the dots vec for the next cycle
+        dots->cur_dots_vec += 1;
     }
 
-    vec = free_vec(vec);
-
-    return chunk;
-}
-
-
-/*
- * fill chunk with data starting at the current vector that needs to be loaded.
- * A chunk is packed after it has been loaded into memory, with data from the
- * source file.
- *
- *
- */
-struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
-    if(stim == NULL){
-        die("error: failed to fill chunk, pointer is NULL\n");
-    }
-    
-    if(stim->type == STIM_TYPE_NONE){
-        die("error: failed to fill chunk, stim type is none\n");
-    }
-
-    struct config *config = NULL;
-
-    bool is_first_chunk = false;
-    bool is_last_chunk = false;
-    if(chunk->id == 0){
-        is_first_chunk = true;
-    }
-    if(chunk->id == (stim->num_vec_chunks-1)){
-        is_last_chunk = true;
-    }
-
-    // TODO: stim initialized so if bitstream, load header and footer into vecs and
-    // set the cur_vec_id to right after the header so we can then 
-    if(stim->type == STIM_TYPE_RBT || stim->type == STIM_TYPE_BIN || stim->type == STIM_TYPE_BIT){
-        if(is_first_chunk){
-            config = create_config(CONFIG_TYPE_HEADER, 1, 0); 
-            if(config == NULL){
-                die("error: failed to get config header\n");
-            }
-            if((chunk = stim_fill_chunk_by_config(stim, chunk, config)) == NULL){
-                die("error: failed to fill chunk by config vecs\n");
-            }
-            config = free_config(config);
-        } 
-    }
-    
-    // If this is the last chunk, then the number of vectors also includes
-    // vecs for the footer so we need to adjust how many words we load.
-    // Note, filling chunk for header will increment cur_vec_id.
-    uint32_t start_num_vecs = chunk->cur_vec_id;
-    uint32_t end_num_vecs = 0;
-    if(is_last_chunk){
-        uint32_t footer_num_vecs = get_config_num_vecs_by_type(CONFIG_TYPE_FOOTER);
-        end_num_vecs = chunk->num_vecs - footer_num_vecs - stim->num_padding_vecs;
-    }else{
-        end_num_vecs = chunk->num_vecs;
-    }
-
-    uint32_t num_vecs_to_load = 0;
-    switch(stim->type){
-        case STIM_TYPE_NONE:
-            die("error: no stim type set\n");
-            break;
-        case STIM_TYPE_RBT:
-            die("error: rbt not supported yet\n");
-            break;
-        case STIM_TYPE_BIN:
-            num_vecs_to_load = end_num_vecs - start_num_vecs;
-            config = create_config(CONFIG_TYPE_BODY, num_vecs_to_load, 0); 
-            if(config == NULL){
-                die("error: pointer is NULL\n");
-            }
-            // fill chunk with one data word and the corresponding body config
-            if((chunk = stim_fill_chunk_by_config(stim, chunk, config)) == NULL){
-                die("error: failed to pack chunk by config vecs\n");
-            }
-            config = free_config(config);
-            break;
-        case STIM_TYPE_BIT:
-            die("error: bit not supported yet\n");
-            break;
-        case STIM_TYPE_DOTS:
-            die("error: dots not supported yet\n");
-            break;
-        case STIM_TYPE_RAW:
-            die("error: stim not supported yet\n");
-            break;
-        default:
-            break;
-    }
-
-    // if we're in the last chunk and we loaded all the data from the source
-    // file already, then copy the footer after
-    if(stim->type == STIM_TYPE_RBT || stim->type == STIM_TYPE_BIN || stim->type == STIM_TYPE_BIT){
-        if(is_last_chunk){
-            printf("number of padding vecs %i\n", stim->num_padding_vecs);
-            config = create_config(CONFIG_TYPE_FOOTER, 1, stim->num_padding_vecs); 
-            if(config == NULL){
-                die("error: pointer is NULL\n");
-            }
-            if((chunk = stim_fill_chunk_by_config(stim, chunk, config)) == NULL){
-                die("error: failed to pack chunk by config vecs\n");
-            }
-            config = free_config(config);
-        }
-    }
+    chunk_vec = free_vec(chunk_vec);
 
     return chunk;
 }
@@ -787,12 +839,14 @@ struct stim *open_stim(const char *profile_path, const char *path){
     struct stim * stim = NULL;
     int fd;
     FILE *fp = NULL;
-    off_t file_size;
+    off_t file_size = 0;
+    off_t bitstream_size = 0;
     struct profile *profile = NULL;
     uint32_t num_vecs = 0;
     uint32_t num_unrolled_vecs = 0;
     uint32_t num_pins = 0;
     struct profile_pin **pins = NULL;
+    char buffer[BUFFER_LENGTH];
 
     if((stim = create_stim()) == NULL){
         die("error: pointer is NULL\n");
@@ -822,17 +876,151 @@ struct stim *open_stim(const char *profile_path, const char *path){
         die("error: invalid file type given '%s'\n", file_ext);
     }
 
+    // save file handle data to stim so we can load chunks as needed
+    stim->is_open = true;
+    stim->fd = fd;
+    stim->fp = fp;
+    stim->file_size = file_size;
+    stim->map = (uint8_t*)mmap(NULL, file_size, PROT_READ, MAP_SHARED, fd, 0); 
+    stim->cur_map_byte = 0;
+
+    if(stim->map == MAP_FAILED){
+        close(stim->fd);
+        die("error: failed to map file\n");
+    }
+
+    // Find the endianness of the bitstream
+    if(stim->type == STIM_TYPE_RBT){
+        stim->is_little_endian = false;
+    }else if(stim->type == STIM_TYPE_BIN || stim->type == STIM_TYPE_BIT){
+        bool found = false;
+        while(1){
+            uint32_t word = read_map_32(stim, false);
+            if(word == 0xaa995566){
+                stim->is_little_endian = true;
+                found = true;
+                break;
+            }else if (word == 0x665599aa){
+                stim->is_little_endian = false;
+                found = true;
+                break;
+            }
+        }
+        if(!found){
+            die("invalid bitstream '%s'; failed to find sync word", path);
+        }else{
+            stim->cur_map_byte = 0;
+        }
+    }
+
+    // read rbt header and get number of bits from 7th line
+    if(stim->type == STIM_TYPE_RBT){
+        int32_t c = 0;
+        uint32_t line = 0;
+        uint32_t count = 0;
+        uint32_t word = 0;
+        while(cur_map_byte < file_size){
+            if(stim->map[stim->cur_map_byte+count] == '\n'){
+                if(count > BUFFER_LENGTH){
+                    die("buffer overflow; gross\n");
+                }
+                memset(buffer, '\0', BUFFER_LENGTH);
+                memcpy(buffer, (stim->map+stim->cur_map_byte), count);
+                stim->cur_map_byte += (count+1);
+                if((line++) == 6){
+                    while(c < BUFFER_LENGTH){
+                        if(isdigit(buffer[c++])){
+                            bitstream_size = atoi(&buffer[c-1]);
+                            printf("bitstream size: %i\n", bitstream_size);
+                            break;
+                        }
+                    }
+                    break;
+                }
+                count = 0;
+            }else{
+                count += 1;
+            }
+        }
+        if(bitstream_size == 0){
+            die("failed to read rbt size from header; it's zero\n");
+        }
+    // bin bitstream size is exactly the file size since no header
+    }else if(stim->type == STIM_TYPE_BIN){
+        bitstream_size = file_size;
+    // read bit header and get number of bits
+    } else if(stim->type == STIM_TYPE_BIT){
+        uint8_t byte = 0;
+        uint16_t halfword = 0;
+        uint32_t word = 0;
+
+        // check for <0009> header
+        halfword = read_map_16(stim, true);
+        if(halfword != 9){
+            die("missing <0009> header, not a bit file");
+        }
+        stim->cur_map_byte += halfword;
+
+        // check for <0001> header
+        halfword = read_map_16(stim, true);
+        if(halfword != 1){
+            die("missing <0001> header, not a bit file");
+        }
+
+        // check <a> design name header
+        byte = read_map_8(stim);
+        if(((char)byte) != 'a'){
+            die("missage <a> header, not a bit file");
+        }
+
+        // get design name
+        halfword = read_map_16(stim, true);
+        if(halfword > BUFFER_LENGTH){
+            die("design name longer than BUFFER_LENGTH bytes; don't like that")
+        }
+
+        // copy name into buffer
+        memset(buffer, '\0', BUFFER_LENGTH);
+        memcpy(buffer, (stim->map+stim->cur_map_byte), halfword);
+        stim->cur_map_byte += halfword;
+        printf("Design name: %s\n", buffer);
+
+        // read the header and break when body is reached
+        while(1){
+            byte = read_map_8(stim);
+            // e is bitstream data
+            if(((char)byte) == 'e'){
+                bitstream_size = read_map_32(stim, true);
+                printf("bitstream has %i bytes...\n", bitstream_size);
+                // Header has been read. Ready to read bitstream.
+                break;
+            // b is partname, c is date, d is time
+            }else if(((char)byte) == 'b' || ((char)byte) == 'c' || ((char)byte) == 'd'){
+                halfword = read_map_16(stim, true);
+                if(halfword > BUFFER_LENGTH){
+                    die("design name longer than BUFFER_LENGTH bytes; don't like that\n");
+                }
+                memset(buffer, '\0', BUFFER_LENGTH);
+                memcpy(buffer, (stim->map+stim->cur_map_byte), halfword);
+                stim->cur_map_byte += halfword;
+                printf("%s\n", buffer);
+            } else {
+                die("failed reading bit file; unexpected key\n");
+            }
+        }
+    }
+
     // get the pins, num_pins and num_vecs for each file type
     switch(stim->type){
         case STIM_TYPE_NONE:
             die("error: no stim type set\n");
             break;
-        case STIM_TYPE_DOTS:
-            die("error: dots not supported yet\n");
-            break;
         case STIM_TYPE_RBT:
         case STIM_TYPE_BIN:
         case STIM_TYPE_BIT:
+            if(bitstream_size == 0){
+                die("failed to get bitstream size; size is zero\n");
+            }
             if((pins = get_config_profile_pins(profile, &num_pins)) == NULL){
                 die("error: failed to get profile config pins\n");
             }
@@ -844,36 +1032,19 @@ struct stim *open_stim(const char *profile_path, const char *path){
             num_unrolled_vecs += get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_HEADER);
             num_unrolled_vecs += get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_FOOTER);
 
-            // figure out number of vectors for each bitstream type 
-            if(stim->type == STIM_TYPE_RBT){
-                // rbts are ascii encoded, 4 bits per char, exclude new line and header.
-                // TODO: figure out num vecs for rbt
-                die("error: rbts are not supported yet\n");
-            }else if(stim->type == STIM_TYPE_BIN){
-                // bin files have no header, it's just raw words ready to use.
-                uint32_t num_file_vecs = (file_size/sizeof(uint32_t));
-                if(file_size % sizeof(uint32_t) != 0){
-                    die("error: bit file given '%s' is not 32 bit word aligned\n", path);
-                }
-                uint32_t num_body_vecs = num_file_vecs*get_config_num_vecs_by_type(CONFIG_TYPE_BODY);
-                num_vecs += num_body_vecs; 
-
-                uint32_t num_unrolled_body_vecs = num_file_vecs*get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_BODY);
-                num_unrolled_vecs += num_unrolled_body_vecs;
-            }else if(stim->type == STIM_TYPE_BIT){
-                // bit files are bin files, with headers so take that into account.
-                uint32_t num_file_vecs = (file_size-CONFIG_BIT_HEADER_SIZE)/sizeof(uint32_t);
-                if((file_size-CONFIG_BIT_HEADER_SIZE) % sizeof(uint32_t) != 0){
-                    die("error: bin file given '%s' is not 32 bit word aligned\n", path);
-                }
-                // Have to toggle clock so two real vecs for every bitstream
-                // word, doubling the number of vectors.
-                uint32_t num_body_vecs = num_file_vecs*get_config_num_vecs_by_type(CONFIG_TYPE_BODY);
-                num_vecs += num_body_vecs; 
-
-                uint32_t num_unrolled_body_vecs = num_file_vecs*get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_BODY);
-                num_unrolled_vecs += num_unrolled_body_vecs;
+            // bin files have no header, it's just raw words ready to use.
+            uint32_t num_file_vecs = (bitstream_size/sizeof(uint32_t));
+            if(bitstream_size % sizeof(uint32_t) != 0){
+                die("error: bitstream given '%s' is not 32 bit word aligned\n", path);
             }
+            uint32_t num_body_vecs = num_file_vecs*get_config_num_vecs_by_type(CONFIG_TYPE_BODY);
+            num_vecs += num_body_vecs; 
+
+            uint32_t num_unrolled_body_vecs = num_file_vecs*get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_BODY);
+            num_unrolled_vecs += num_unrolled_body_vecs;
+            break;
+        case STIM_TYPE_DOTS:
+            die("error: dots not supported yet\n");
             break;
         case STIM_TYPE_RAW:
             die("error: stim not supported yet\n");
@@ -886,19 +1057,6 @@ struct stim *open_stim(const char *profile_path, const char *path){
     // initialize the stim with the pins and vec from the parsed file
     if((stim = init_stim(stim, pins, num_pins, num_vecs, num_unrolled_vecs)) == NULL){
         die("error: pointer is NULL\n");
-    }
-
-    // save file handle data to stim so we can load chunks as needed
-    stim->is_open = true;
-    stim->fd = fd;
-    stim->fp = fp;
-    stim->file_size = file_size;
-    stim->map = (uint8_t*)mmap(NULL, file_size, PROT_READ, MAP_SHARED, fd, 0); 
-    stim->map_word_offset = 0;
-
-    if(stim->map == MAP_FAILED){
-        close(stim->fd);
-        die("error: failed to map file\n");
     }
 
     // auto-close stim on exit
@@ -933,7 +1091,8 @@ void close_stim(int status, void *vstim){
     stim->fp = NULL;
     stim->file_size = 0;
     stim->map = NULL;
-    stim->map_word_offset = 0;
+    stim->map_bye_offset = 0;
+    stim->is_little_endian = true;
     return;
 }
 
@@ -962,9 +1121,6 @@ struct vec_chunk * free_vec_chunk(struct vec_chunk *chunk){
     if(chunk == NULL){
         return NULL;
     }
-    // free each vec_repeat struct then free the tree itself
-    TraverseAVL(chunk->vec_repeats, vec_repeat_free, NULL);
-    DestroyAVL(chunk->vec_repeats);
     free(chunk);
     return NULL;
 }

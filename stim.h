@@ -11,8 +11,12 @@ extern "C" {
 #endif
 
 // support for files larger than 2GB limit
+#ifndef _LARGEFILE_SOURCE
 #define _LARGEFILE_SOURCE
+#endif
+#ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
+#endif
 
 #include "profile.h"
 #include "config.h"
@@ -90,18 +94,6 @@ struct vec {
 } __attribute__ ((__packed__));
 
 /*
- * When using hardware repeats, this struct is stored in each chunk's
- * avl tree which maps vec id to repeat value if it has one. If none found
- * then repeat is 1. Don't want to store in vec struct since most don't
- * repeat so we'd waste memory.
- *
- */
-struct vec_repeat {
-    uint32_t id;
-    uint32_t repeat;
-};
-
-/*
  * Each vector is 128 bytes but only 100 are used for the actual vector.
  * the rest of the 28 bytes are used for the opcode and it's operand.
  *
@@ -138,7 +130,6 @@ struct vec_chunk {
     uint8_t *vec_data;
     size_t vec_data_size;
     size_t size;
-    AVLTree *vec_repeats;
 };
 
 /*
@@ -166,7 +157,8 @@ struct stim {
     FILE *fp;
     off_t file_size;
     uint8_t *map;
-    off_t map_word_offset;
+    off_t cur_map_byte;
+    bool is_little_endian;
 };
 
 
@@ -181,18 +173,20 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim);
 enum subvecs get_subvec_by_pin_id(struct vec *vec, uint32_t pin_id);
 
 // private
-void pack_vec_by_pin_id(uint8_t *packed_subvecs, uint32_t pin_id, enum subvecs subvec);
-void pack_vec_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum subvecs subvec);
+struct stim *init_stim(struct stim *stim, struct profile_pin **pins, 
+    uint32_t num_pins, uint32_t num_vecs, uint32_t num_unrolled_vecs);
+void close_stim(int status, void *vstim);
+
+struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk);
+struct vec_chunk *stim_fill_chunk_by_config(struct stim *stim,
+    struct vec_chunk *chunk, struct config *config);
+void stim_unload_chunk(struct vec_chunk *chunk);
+
+void pack_subvecs_by_pin_id(uint8_t *packed_subvecs, uint32_t pin_id, enum subvecs subvec);
+void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum subvecs subvec);
 enum subvecs *convert_bitstream_word_to_subvecs(uint32_t *word, 
     uint32_t *num_subvecs);
 uint32_t *stim_get_next_bitstream_word(struct stim *stim);
-struct stim *init_stim(struct stim *stim, struct profile_pin **pins, 
-    uint32_t num_pins, uint32_t num_vecs, uint32_t num_unrolled_vecs);
-void stim_unload_chunk(struct vec_chunk *chunk);
-struct vec_chunk *stim_fill_chunk_by_config(struct stim *stim,
-    struct vec_chunk *chunk, struct config *config);
-struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk);
-void close_stim(int status, void *vstim);
 
 struct stim *create_stim();
 struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs);

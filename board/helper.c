@@ -7,11 +7,11 @@
 #define _LARGEFILE_SOURCE
 #define _LARGEFILE64_SOURCE
 
+#include "../util.h"
 #include "helper.h"
-#include "util.h"
 #include "subcore.h"
 
-#include "../driver/gemini_core.h"
+#include "../../driver/gcore_common.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,7 +61,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
     bool agent_did_startup = false;
 
     // Need to check for error
-    regs = gcore_get_regs();
+    regs = helper_get_gcore_regs();
     if(regs != NULL){
 
         if(artix_select == A1){
@@ -99,7 +99,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
         print_packet(&packet, "start: ");
 
         // Need to check for error
-        regs = gcore_get_regs();
+        regs = helper_get_gcore_regs();
         if(regs != NULL){
             if((regs->status & GCORE_STATUS_INIT_ERROR_MASK) == GCORE_STATUS_INIT_ERROR_MASK){
                 print_regs(regs);
@@ -558,4 +558,24 @@ void print_memcore_state(enum memcore_states memcore_state, char *pre){
     return;
 }
 
+/*
+ * Gets all values of the registers.
+ */
+struct gcore_registers* helper_get_gcore_regs(){
+    struct gcore_registers *regs;
+
+    if((regs = (struct gcore_registers *) malloc(sizeof(struct gcore_registers))) == NULL){
+        die("error: malloc failed");
+    }
+    regs->control = (u32) 0;
+	regs->status = (u32) 0;
+	regs->addr = (u32) 0;
+	regs->data = (u32) 0;
+	regs->a1_status = (u32) 0;
+	regs->a2_status = (u32) 0;
+    if(ioctl(gcore_fd, GCORE_REGS_READ, regs) < 0){
+		die("gcorelib: error regs_read failed");
+	}
+    return regs;
+}
 

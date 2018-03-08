@@ -2,8 +2,12 @@
 #define __JSMN_H_
 
 // support for files larger than 2GB limit
+#ifndef _LARGEFILE_SOURCE
 #define _LARGEFILE_SOURCE
+#endif
+#ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
+#endif
 
 #include <stddef.h>
 

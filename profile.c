@@ -6,8 +6,12 @@
 // TODO: support multiple DUTs in profile and api
 
 // support for files larger than 2GB limit
+#ifndef _LARGEFILE_SOURCE
 #define _LARGEFILE_SOURCE
+#endif
+#ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
+#endif
 
 #include "profile.h"
 #include "util.h"

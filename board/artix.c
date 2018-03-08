@@ -10,16 +10,16 @@
 
 #define PROGRESS_BYTES (536870912)
 
-#include "common.h"
+#include "../common.h"
+#include "../util.h"
+#include "../stim.h"
+#include "../profile.h"
 #include "artix.h"
 #include "helper.h"
-#include "util.h"
-#include "stim.h"
-#include "profile.h"
 #include "dma.h"
 #include "subcore.h"
 
-#include "../driver/gemini_core.h"
+#include "../../driver/gcore_common.h"
 #include "lib/progress/progressbar.h"
 #include "lib/progress/statusbar.h"
 
@@ -535,6 +535,38 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     return;
 }
 
+/*
+ * Given a stim and an artix select, check to see if the
+ * pin's dut_io_ids are within range for given artix unit.
+ *
+ */
+static void assert_dut_io_range(struct stim *stim, enum artix_selects artix_select) {
+    struct profile_pin *pin = NULL;
+    uint32_t range_low = 0;
+    uint32_t range_high = 0;
+
+    if(stim == NULL){
+        die("error: pointer is NULL\n");
+    }
+
+    // check for correct dut_io_id based on artix unit 
+    if(artix_select == A1){
+        range_low = 0;
+        range_high = DUT_NUM_PINS-1;
+    }else if(artix_select == A2){
+        range_low = DUT_NUM_PINS;
+        range_high = DUT_TOTAL_NUM_PINS-1;
+    }
+
+    for(int pin_id=0; pin_id<stim->num_pins; pin_id++){
+        pin = stim->pins[pin_id];
+        if(pin->dut_io_id < range_low || pin->dut_io_id > range_high){
+            die("error: dut_io_id %i is out of range for artix unit\n", pin->dut_io_id);
+        }
+    }
+    return;
+}
+
 //
 // Given a dots, rbt, bin, bit or stim path, create a stim file and
 // prep for vec chunks to be loaded. For each loaded chunk, fill the
@@ -558,39 +590,24 @@ void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *f
     struct profile_pin *pin = NULL;
 	bool test_failed = false;
 	uint32_t test_cycle = 0;
+    struct stim *stim = NULL;
 
     // stim file can be dots, rbt, bin, bit or stim file.
-    struct stim *stim = open_stim(profile_path, file_path);   
-
-    if(stim == NULL){
+    if((stim = open_stim(profile_path, file_path)) == NULL){
         die("error: pointer is NULL\n");
     }
 
-    // check for correct dut_io_id based on artix unit 
-    uint32_t range_low = 0;
-    uint32_t range_high = 0;
-    if(artix_select == A1){
-        range_low = 0;
-        range_high = DUT_NUM_PINS-1;
-    }else if(artix_select == A2){
-        range_low = DUT_NUM_PINS;
-        range_high = DUT_TOTAL_NUM_PINS-1;
-    }
-
-    for(int pin_id=0; pin_id<stim->num_pins; pin_id++){
-        pin = stim->pins[pin_id];
-        if(pin->dut_io_id < range_low || pin->dut_io_id > range_high){
-            die("error: dut_io_id %i is out of range for artix unit\n", pin->dut_io_id);
-        }
-    }
-
+    // check if dut_io_id is within range for given artix
+    assert_dut_io_range(stim, artix_select);
+    
+    // perform test init
     helper_dutcore_load_run(artix_select, TEST_INIT);
-	
     packet.rank_select = 0;
     packet.addr = 0;
     packet.data = stim->num_vecs;
     helper_dutcore_packet_write(artix_select, &packet);
 
+    // perform test setup by writing enable_pins burst
     helper_dutcore_load_run(artix_select, TEST_SETUP);
     helper_agent_load_run(artix_select, DUT_WRITE);
 
@@ -618,10 +635,6 @@ void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *f
     // turn on only the pins we're using based on the found dut_io_ids
     for(int pin_id=0; pin_id<stim->num_pins; pin_id++){
         pin = stim->pins[pin_id];
-
-        if(pin->dut_io_id < range_low || pin->dut_io_id > range_high){
-            die("error: dut_io_id %i is out of range for artix unit\n", pin->dut_io_id);
-        }
 
         // clamp the id from 0 to 200 since we're only writing to one
         // dut at a time and so packed_subvecs will always be len of 200
@@ -665,6 +678,10 @@ void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *f
     printf("writing vectors to memory...\n");
     // load one chunk at a time and dma the vecs to artix memory
     while((chunk = stim_load_next_chunk(stim)) != NULL){
+
+        if((chunk = stim_fill_chunk(stim, chunk)) == NULL){
+            die("failed to fill chunk\n");
+        }
 
         // copy over the vec data buffer
         printf("writing %i vecs (%zu bytes) to dma buffer...\n", chunk->num_vecs, chunk->vec_data_size);

@@ -14,7 +14,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "../driver/gemini_core.h"
+#include "../../driver/gcore_common.h"
 
 #define BUS_IN_BYTES 8
 #define BUS_BURST 16

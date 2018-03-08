@@ -7,11 +7,11 @@
 #define _LARGEFILE_SOURCE
 #define _LARGEFILE64_SOURCE
 
-#include "common.h"
+#include "../common.h"
+#include "../util.h"
 #include "subcore.h"
-#include "util.h"
 
-#include "../driver/gemini_core.h"
+#include "../../driver/gcore_common.h"
 
 #include <stdio.h>
 #include <stdlib.h>

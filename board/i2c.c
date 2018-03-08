@@ -8,10 +8,10 @@
 #define _LARGEFILE_SOURCE
 #define _LARGEFILE64_SOURCE
 
-#include "common.h"
+#include "../common.h"
 #include "i2c.h"
 
-#include "../driver/gemini_core.h"
+#include "../../driver/gcore_common.h"
 
 #include <time.h>
 #include <stdio.h>

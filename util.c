@@ -4,13 +4,16 @@
  */
 
 // support for files larger than 2GB limit
+#ifndef _LARGEFILE_SOURCE
 #define _LARGEFILE_SOURCE
+#endif
+#ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
+#endif
 
 #include "common.h"
 #include "util.h"
 
-#include "../driver/gemini_core.h"
 #include "lib/jsmn/jsmn.h"
 
 #include <libgen.h>
@@ -247,25 +250,6 @@ const char *util_get_file_ext_by_path(const char *path) {
     return strdup(dot + 1);
 }
 
-/*
- * Gets all values of the registers.
- */
-struct gcore_registers* gcore_get_regs(){
-    struct gcore_registers *regs;
 
-    if((regs = (struct gcore_registers *) malloc(sizeof(struct gcore_registers))) == NULL){
-        die("error: malloc failed");
-    }
-    regs->control = (u32) 0;
-	regs->status = (u32) 0;
-	regs->addr = (u32) 0;
-	regs->data = (u32) 0;
-	regs->a1_status = (u32) 0;
-	regs->a2_status = (u32) 0;
-    if(ioctl(gcore_fd, GCORE_REGS_READ, regs) < 0){
-		die("gcorelib: error regs_read failed");
-	}
-    return regs;
-}
 
 
