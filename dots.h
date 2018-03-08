@@ -64,7 +64,7 @@ void append_dots_vec_by_vec_str(struct dots *dots,
 void expand_dots_vec_str(struct dots_vec *dots_vec, enum subvecs *data_subvecs, 
     uint32_t num_data_subvecs);
 struct dots_vec *get_dots_vec_by_real_id(struct dots *dots, uint32_t id);
-struct dots_vec *create_dots_vec();
+struct dots_vec *create_dots_vec(void);
 struct dots *free_dots(struct dots *dots);
 struct dots_vec *free_dots_vec(struct dots_vec *dots_vec);
 

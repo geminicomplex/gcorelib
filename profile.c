@@ -282,11 +282,11 @@ struct profile *get_profile_by_path(const char *path){
         die("fopen failed\n");
     }
 
-    if((data = (char*)malloc(file_size)) == NULL){
+    if((data = (char*)malloc((size_t)file_size)) == NULL){
         die("error: failed to malloc struct.\n");
     }
 
-    fread(data, sizeof(uint8_t), file_size, fp);
+    fread(data, sizeof(uint8_t), (size_t)file_size, fp);
 
     profile = create_profile();
     profile->path = realpath(path, NULL);

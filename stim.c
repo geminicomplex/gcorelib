@@ -11,6 +11,7 @@
 #define _LARGEFILE64_SOURCE
 #endif
 
+#include "common.h"
 #include "stim.h"
 #include "util.h"
 #include "profile.h"
@@ -28,6 +29,7 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <ctype.h>
 
 // Mac OS X / Darwin features
 #if defined(__APPLE__)
@@ -260,10 +262,11 @@ static inline uint32_t read_map_32(struct stim *stim, bool swap_endian){
 uint32_t stim_get_next_bitstream_word(struct stim *stim){
     uint32_t word = 0;
     char buffer[BUFFER_LENGTH];
+    int32_t c = 0;
+    uint32_t count = 0;
     switch(stim->type){
         case STIM_TYPE_RBT:
-            int32_t c = 0;
-            uint32_t count = 0;
+            
             while(stim->cur_map_byte < stim->file_size){
                 if(stim->map[stim->cur_map_byte+count] == '\n'){
                     if(count > BUFFER_LENGTH){
@@ -282,8 +285,7 @@ uint32_t stim_get_next_bitstream_word(struct stim *stim){
                         }else if(buffer[c] == '1'){
                             word += (1<<((count-1)-c));
                         }else{
-                            die("invalid rbt bitstream at byte %i\n",
-                                stim->cur_map_byte+c);
+                            die("invalid rbt bitstream\n");
                         }
                     }
                     stim->cur_map_byte += (count+1);
@@ -298,7 +300,7 @@ uint32_t stim_get_next_bitstream_word(struct stim *stim){
         case STIM_TYPE_BIN:
         case STIM_TYPE_BIT:
             if(stim->cur_map_byte > (stim->file_size-1)){
-                return NULL;
+                return 0;
             } else {
                 if(stim->is_little_endian){
                     word = read_map_32(stim, false);
@@ -462,11 +464,11 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     
     // get vector size and total size
     bool last_chunk_partial = false;
-    size_t vecs_size = stim->num_vecs*STIM_VEC_SIZE;
+    uint64_t vecs_size = stim->num_vecs*STIM_VEC_SIZE;
     
     // calculate the number of chunks needed based on vecs_size
     if(vecs_size > STIM_CHUNK_SIZE){
-        stim->num_vec_chunks = vecs_size / STIM_CHUNK_SIZE;
+        stim->num_vec_chunks = (uint32_t)(vecs_size / STIM_CHUNK_SIZE);
         if(vecs_size % STIM_CHUNK_SIZE != 0){
             stim->num_vec_chunks++;
             last_chunk_partial = true;
@@ -487,9 +489,9 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         if((i == stim->num_vec_chunks-1) && last_chunk_partial){
             if(vecs_size > STIM_CHUNK_SIZE){
                 size_t mod_size = (vecs_size % STIM_CHUNK_SIZE);
-                vecs_per_chunk = mod_size/STIM_VEC_SIZE;
+                vecs_per_chunk = (uint32_t)(mod_size/STIM_VEC_SIZE);
             }else if (vecs_size <= STIM_CHUNK_SIZE){
-                vecs_per_chunk = vecs_size/STIM_VEC_SIZE;
+                vecs_per_chunk = (uint32_t)(vecs_size/STIM_VEC_SIZE);
             }
         } else {
             vecs_per_chunk = STIM_CHUNK_SIZE/STIM_VEC_SIZE;
@@ -593,7 +595,7 @@ void stim_unload_chunk(struct vec_chunk *chunk){
  * to get bitstream subvecs when filling the body section of a dots.
  *
  */
-static void stim_get_next_bitstream_subvecs(stuct stim *stim, 
+static void stim_get_next_bitstream_subvecs(struct stim *stim, 
         enum subvecs **subvecs, uint32_t *num_subvecs){
     if(stim == NULL || subvecs == NULL || num_subvecs == NULL){
         die("pointer is NULL\n");
@@ -602,7 +604,7 @@ static void stim_get_next_bitstream_subvecs(stuct stim *stim,
     uint32_t word = stim_get_next_bitstream_word(stim);
 
     // converts word to subvecs (D0 to D31 same as profile_pins)
-    (*subvecs) = convert_bitstream_word_to_subvecs(word, num_subvecs);
+    (*subvecs) = convert_bitstream_word_to_subvecs(&word, num_subvecs);
 
     return;
 }
@@ -717,7 +719,8 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
 struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         struct vec_chunk *chunk, struct dots *dots, 
         uint32_t num_dots_vecs_to_load,
-        void (*get_next_data_subvecs)(struct stim *, enum subvecs **, uint32_t*)){
+        void (*get_next_data_subvecs)(struct stim *, enum subvecs **, uint32_t*)
+){
     struct dots_vec *dots_vec = NULL;
     enum subvecs *data_subvecs = NULL;
     uint32_t num_data_subvecs = 0;
@@ -736,11 +739,8 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
     }
 
     if((dots->cur_dots_vec+num_dots_vecs_to_load) > dots->num_dots_vecs){
-        die("failed to load chunk; trying to load too many dots vecs 
-            %i > %i num_dots_vecs\n", 
-            (dots->cur_dots_vec+num_dots_vecs_to_load),
-            dots->num_dots_vecs
-        );
+        die("failed to load chunk; trying to load too many dots vecs %i > %i num_dots_vecs\n", 
+            (dots->cur_dots_vec+num_dots_vecs_to_load), dots->num_dots_vecs);
     }
 
     while(dots->cur_dots_vec < num_dots_vecs_to_load){ 
@@ -881,7 +881,7 @@ struct stim *open_stim(const char *profile_path, const char *path){
     stim->fd = fd;
     stim->fp = fp;
     stim->file_size = file_size;
-    stim->map = (uint8_t*)mmap(NULL, file_size, PROT_READ, MAP_SHARED, fd, 0); 
+    stim->map = (uint8_t*)mmap(NULL, (size_t)file_size, PROT_READ, MAP_SHARED, fd, 0); 
     stim->cur_map_byte = 0;
 
     if(stim->map == MAP_FAILED){
@@ -918,8 +918,7 @@ struct stim *open_stim(const char *profile_path, const char *path){
         int32_t c = 0;
         uint32_t line = 0;
         uint32_t count = 0;
-        uint32_t word = 0;
-        while(cur_map_byte < file_size){
+        while(stim->cur_map_byte < file_size){
             if(stim->map[stim->cur_map_byte+count] == '\n'){
                 if(count > BUFFER_LENGTH){
                     die("buffer overflow; gross\n");
@@ -931,7 +930,7 @@ struct stim *open_stim(const char *profile_path, const char *path){
                     while(c < BUFFER_LENGTH){
                         if(isdigit(buffer[c++])){
                             bitstream_size = atoi(&buffer[c-1]);
-                            printf("bitstream size: %i\n", bitstream_size);
+                            printf("bitstream size: %i\n", (int)bitstream_size);
                             break;
                         }
                     }
@@ -952,7 +951,6 @@ struct stim *open_stim(const char *profile_path, const char *path){
     } else if(stim->type == STIM_TYPE_BIT){
         uint8_t byte = 0;
         uint16_t halfword = 0;
-        uint32_t word = 0;
 
         // check for <0009> header
         halfword = read_map_16(stim, true);
@@ -991,7 +989,7 @@ struct stim *open_stim(const char *profile_path, const char *path){
             // e is bitstream data
             if(((char)byte) == 'e'){
                 bitstream_size = read_map_32(stim, true);
-                printf("bitstream has %i bytes...\n", bitstream_size);
+                printf("bitstream has %i bytes...\n", (int)bitstream_size);
                 // Header has been read. Ready to read bitstream.
                 break;
             // b is partname, c is date, d is time
@@ -1033,7 +1031,7 @@ struct stim *open_stim(const char *profile_path, const char *path){
             num_unrolled_vecs += get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_FOOTER);
 
             // bin files have no header, it's just raw words ready to use.
-            uint32_t num_file_vecs = (bitstream_size/sizeof(uint32_t));
+            uint32_t num_file_vecs = (uint32_t)(bitstream_size/sizeof(uint32_t));
             if(bitstream_size % sizeof(uint32_t) != 0){
                 die("error: bitstream given '%s' is not 32 bit word aligned\n", path);
             }
@@ -1059,9 +1057,6 @@ struct stim *open_stim(const char *profile_path, const char *path){
         die("error: pointer is NULL\n");
     }
 
-    // auto-close stim on exit
-    on_exit(&close_stim, (void*)stim);
-
     return stim;
 }
 
@@ -1079,7 +1074,7 @@ void close_stim(int status, void *vstim){
         fprintf(stderr, "warning: no need to close stim manually, done automatically\n");
         return;
     }
-    if(munmap(stim->map, stim->file_size) == -1){
+    if(munmap(stim->map, (size_t)(stim->file_size)) == -1){
         die("error: failed to munmap file\n");
     }
     fclose(stim->fp);
@@ -1091,7 +1086,7 @@ void close_stim(int status, void *vstim){
     stim->fp = NULL;
     stim->file_size = 0;
     stim->map = NULL;
-    stim->map_bye_offset = 0;
+    stim->cur_map_byte = 0;
     stim->is_little_endian = true;
     return;
 }

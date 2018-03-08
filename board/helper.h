@@ -22,7 +22,6 @@ extern "C" {
 
 #include "../../driver/gcore_common.h"
 
-#define BURST_BYTES (1024)
 #define ARTIX_READ_FIFO_BYTES (2097152)
 
 void helper_subcore_load_run(enum artix_selects artix_select,

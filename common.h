@@ -33,6 +33,8 @@ extern "C" {
 // max size we can send due to memory limitations
 #define MAX_CHUNK_SIZE (536870912/2)
 
+// number of bytes per dma burst
+#define BURST_BYTES (1024)
 
 #ifdef __cplusplus
 }

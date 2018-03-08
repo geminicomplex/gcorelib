@@ -65,7 +65,7 @@ struct config {
 uint32_t get_config_num_vecs_by_type(enum config_types type);
 uint32_t get_config_unrolled_num_vecs_by_type(enum config_types type);
 uint32_t get_config_num_profile_pins_by_tag(enum profile_tags tag);
-uint32_t get_config_num_profile_pins();
+uint32_t get_config_num_profile_pins(void);
 struct profile_pin **get_config_profile_pins(struct profile *profile, uint32_t *found_num_pins);
 struct config *create_config(enum config_types type, uint32_t num_loop_vecs, uint32_t num_padding_vecs);
 struct config *free_config(struct config *config);

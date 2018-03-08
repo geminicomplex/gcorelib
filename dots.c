@@ -82,7 +82,7 @@ void expand_dots_vec_str(struct dots_vec *dots_vec, enum subvecs *data_subvecs,
     }
 
     // len should only be config pins except data pins
-    vec_str_len = strlen(dots_vec->vec_str);
+    vec_str_len = (uint32_t)strlen(dots_vec->vec_str);
 
     // if dots represents a bitstream, check if vec length accounts for
     // the data pins

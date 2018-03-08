@@ -74,7 +74,7 @@ struct profile {
  */
 struct profile_pin *create_profile_pin(struct profile_pin *copy_pin);
 struct profile_pin **create_profile_pins(uint32_t num_pins);
-struct profile *create_profile();
+struct profile *create_profile(void);
 struct profile_pin *free_profile_pin(struct profile_pin *pin);
 struct profile_pin **free_profile_pins(struct profile_pin **pins, uint32_t num_pins);
 struct profile *free_profile(struct profile *p);

@@ -178,19 +178,21 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins,
 void close_stim(int status, void *vstim);
 
 struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk);
-struct vec_chunk *stim_fill_chunk_by_config(struct stim *stim,
-    struct vec_chunk *chunk, struct config *config);
+struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
+        struct vec_chunk *chunk, struct dots *dots, 
+        uint32_t num_dots_vecs_to_load,
+        void (*get_next_data_subvecs)(struct stim *, enum subvecs **, uint32_t*));
 void stim_unload_chunk(struct vec_chunk *chunk);
 
 void pack_subvecs_by_pin_id(uint8_t *packed_subvecs, uint32_t pin_id, enum subvecs subvec);
 void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum subvecs subvec);
 enum subvecs *convert_bitstream_word_to_subvecs(uint32_t *word, 
     uint32_t *num_subvecs);
-uint32_t *stim_get_next_bitstream_word(struct stim *stim);
+uint32_t stim_get_next_bitstream_word(struct stim *stim);
 
-struct stim *create_stim();
+struct stim *create_stim(void);
 struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs);
-struct vec *create_vec();
+struct vec *create_vec(void);
 struct stim *free_stim(struct stim *stim);
 struct vec_chunk *free_vec_chunk(struct vec_chunk *chunk);
 struct vec *free_vec(struct vec *vec);

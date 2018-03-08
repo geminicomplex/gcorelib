@@ -7,6 +7,7 @@
 #define _LARGEFILE_SOURCE
 #define _LARGEFILE64_SOURCE
 
+#include "../common.h"
 #include "../util.h"
 #include "helper.h"
 #include "subcore.h"
