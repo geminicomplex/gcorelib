@@ -92,6 +92,7 @@ void gcore_subcore_mode_state(uint32_t *mode_state){
 	}
     regs = gcore_get_regs();
     (*mode_state) = (uint32_t)regs->data;
+    regs = gcore_free_regs(regs);
     return;
 }
 
@@ -132,4 +133,47 @@ void gcore_ctrl_read(struct gcore_ctrl_packet *packet){
 	}
     return;
 }
+
+/*
+ * Gets all values of the registers.
+ */
+struct gcore_registers* gcore_get_regs(){
+    struct gcore_registers *regs;
+
+    if((regs = (struct gcore_registers *) malloc(sizeof(struct gcore_registers))) == NULL){
+        die("error: malloc failed");
+    }
+    regs->control = (u32) 0;
+	regs->status = (u32) 0;
+	regs->addr = (u32) 0;
+	regs->data = (u32) 0;
+	regs->a1_status = (u32) 0;
+	regs->a2_status = (u32) 0;
+    if(ioctl(gcore_fd, GCORE_REGS_READ, regs) < 0){
+		die("gcorelib: error regs_read failed");
+	}
+    return regs;
+}
+
+/*
+ * Free the allocated regs.
+ *
+ */
+struct gcore_registers *gcore_free_regs(struct gcore_registers *regs){
+    if(regs == NULL){
+        die("pointer is NULL\n");
+    }
+
+    regs->control = (u32) 0;
+	regs->status = (u32) 0;
+	regs->addr = (u32) 0;
+	regs->data = (u32) 0;
+	regs->a1_status = (u32) 0;
+	regs->a2_status = (u32) 0;
+    free(regs);
+
+    return NULL;
+}
+
+
 

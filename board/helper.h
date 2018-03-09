@@ -45,7 +45,6 @@ void print_packet(struct gcore_ctrl_packet *packet, char *pre);
 void print_agent_state(enum agent_states agent_state, char *pre);
 void print_dutcore_state(enum dutcore_states dutcore_state, char *pre);
 void print_memcore_state(enum memcore_states memcore_state, char *pre);
-struct gcore_registers* helper_get_gcore_regs();
 
 #ifdef __cplusplus
 }

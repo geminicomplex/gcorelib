@@ -23,7 +23,10 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <string.h>
-#include <linux/i2c-dev.h>
+
+// pulled from <linux/i2c.h>
+#define I2C_SLAVE	0x0703	/* Change slave address			*/
+				            /* Attn.: Slave address is 7 or 10 bits */
 
 /*
  * Perform a raw i2c read or write given an addr and reg.

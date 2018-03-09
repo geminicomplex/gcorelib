@@ -19,17 +19,14 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "lib/progress/progressbar.h"
-#include "lib/progress/statusbar.h"
-
 #include "util.h"
 #include "config.h"
 #include "dma.h"
 #include "dots.h"
 #include "profile.h"
+#include "stim.h"
 
 #include "board/helper.h"
-#include "board/stim.h"
 #include "board/i2c.h"
 #include "board/gpio.h"
 #include "board/subcore.h"

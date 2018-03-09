@@ -19,11 +19,13 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <fcntl.h>
 #include <inttypes.h>
+
 
 /*
  * when subcore is in an idle state, load subcore with a given
@@ -57,12 +59,11 @@ void helper_agent_load_run(enum artix_selects artix_select,
     enum agent_states agent_state){
     struct gcore_ctrl_packet packet;
     enum subcore_states subcore_state;
-    struct gcore_registers *regs;
-
+    struct gcore_registers *regs = NULL;
     bool agent_did_startup = false;
 
     // Need to check for error
-    regs = helper_get_gcore_regs();
+    regs = gcore_get_regs();
     if(regs != NULL){
 
         if(artix_select == A1){
@@ -77,6 +78,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
             die("error: no artix unit given\n");
         }
     }
+    regs = gcore_free_regs(regs);
 
     /*
      * Only run state once. Each time it runs it asserts artix_reset_b and
@@ -100,7 +102,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
         print_packet(&packet, "start: ");
 
         // Need to check for error
-        regs = helper_get_gcore_regs();
+        regs = gcore_get_regs();
         if(regs != NULL){
             if((regs->status & GCORE_STATUS_INIT_ERROR_MASK) == GCORE_STATUS_INIT_ERROR_MASK){
                 print_regs(regs);
@@ -108,6 +110,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
                 exit(1);
             }
         }
+        regs = gcore_free_regs(regs);
     }
     
     // fill packet
@@ -557,26 +560,5 @@ void print_memcore_state(enum memcore_states memcore_state, char *pre){
             break;
     }
     return;
-}
-
-/*
- * Gets all values of the registers.
- */
-struct gcore_registers* helper_get_gcore_regs(){
-    struct gcore_registers *regs;
-
-    if((regs = (struct gcore_registers *) malloc(sizeof(struct gcore_registers))) == NULL){
-        die("error: malloc failed");
-    }
-    regs->control = (u32) 0;
-	regs->status = (u32) 0;
-	regs->addr = (u32) 0;
-	regs->data = (u32) 0;
-	regs->a1_status = (u32) 0;
-	regs->a2_status = (u32) 0;
-    if(ioctl(gcore_fd, GCORE_REGS_READ, regs) < 0){
-		die("gcorelib: error regs_read failed");
-	}
-    return regs;
 }
 

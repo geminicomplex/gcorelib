@@ -8,8 +8,6 @@
  *
  */
 
-#define PROGRESS_BYTES (536870912)
-
 #include "../common.h"
 #include "../util.h"
 #include "../stim.h"
@@ -20,8 +18,6 @@
 #include "subcore.h"
 
 #include "../../driver/gcore_common.h"
-#include "lib/progress/progressbar.h"
-#include "lib/progress/statusbar.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,10 +56,7 @@ static void subcore_prep_dma_write(enum artix_selects artix_select, uint32_t num
 }
 
 void artix_mem_write(enum artix_selects artix_select,
-        uint64_t addr, uint64_t *write_data, size_t write_size)
-{
-	int max = 0;
-	progressbar *smooth = NULL;
+        uint64_t addr, uint64_t *write_data, size_t write_size){
     struct gcore_ctrl_packet packet;
 	uint64_t *dma_buf;
 
@@ -76,7 +69,7 @@ void artix_mem_write(enum artix_selects artix_select,
     // can't allocate more than 250MB in one write chunk
     if(write_size > MAX_CHUNK_SIZE){
         die("error: write size %zu is greater than"
-            "the max size we can allocate %zu.\n", write_size, MAX_CHUNK_SIZE);
+            "the max size we can allocate %zu.\n", write_size, (size_t)MAX_CHUNK_SIZE);
     }
 
     // each burst is 1024 bytes
@@ -121,11 +114,6 @@ void artix_mem_write(enum artix_selects artix_select,
         dma_buf = (uint64_t *)gcore_dma_alloc(DMA_SIZE, sizeof(uint8_t));
         memset(dma_buf, 0, DMA_SIZE);
 
-		if(write_size >= PROGRESS_BYTES){
-			max = (write_size/DMA_SIZE)+1;
-			smooth = progressbar_new("Smooth",max);
-		}
-
 		uint32_t num_chunks = (write_size/DMA_SIZE);
 
         // send chunks of max buffer size
@@ -135,9 +123,6 @@ void artix_mem_write(enum artix_selects artix_select,
             memcpy(dma_buf, ((uint8_t*)write_data)+(i*DMA_SIZE), DMA_SIZE);
             gcore_dma_prep(dma_buf, DMA_SIZE, NULL, 0);
 			gcore_dma_start(GCORE_WAIT_TX);
-			if(write_size >= PROGRESS_BYTES){
-				progressbar_inc(smooth);
-			}
         }
 
         // send rest of data
@@ -147,9 +132,6 @@ void artix_mem_write(enum artix_selects artix_select,
             memcpy(dma_buf, ((uint8_t*)write_data)+(write_size-data_mod), data_mod);
             gcore_dma_prep(dma_buf, data_mod, NULL, 0);
 			gcore_dma_start(GCORE_WAIT_TX);
-			if(write_size >= PROGRESS_BYTES){
-				progressbar_inc(smooth);
-			}
         }
 
         // get burst count from dutcore
@@ -159,9 +141,6 @@ void artix_mem_write(enum artix_selects artix_select,
             (num_chunks*DMA_SIZE)+data_mod, 
             dutcore_burst_count*BURST_BYTES);
 
-		if(write_size >= PROGRESS_BYTES){
-			progressbar_finish(smooth);
-		}
     }else{
         // this always ensures that what we read is a multiple of a burst
         // since num_bursts is calculated based on write_size
@@ -231,17 +210,14 @@ static void subcore_prep_dma_read(enum artix_selects artix_select, uint32_t num_
 }
 
 void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
-    uint64_t *read_data, size_t read_size)
-{
-	int max = 0;
-	progressbar *smooth = NULL;
+        uint64_t *read_data, size_t read_size){
 	uint64_t *dma_buf;
     struct gcore_ctrl_packet packet;
 
     // 
     if(read_size > MAX_CHUNK_SIZE){
         die("error: read size %zu is greater than"
-            "the max size we can allocate %zu.\n", read_size, MAX_CHUNK_SIZE);
+            "the max size we can allocate %zu.\n", read_size, (size_t)MAX_CHUNK_SIZE);
     }
 
 	// kernel sends bursts of 128 bytes to subcore.
@@ -276,11 +252,6 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         dma_buf = (uint64_t *)gcore_dma_alloc(DMA_SIZE, sizeof(uint8_t));
         memset(dma_buf, 0, DMA_SIZE);
 
-		if(read_size >= PROGRESS_BYTES){
-			max = (read_size/DMA_SIZE)+1;
-			smooth = progressbar_new("Smooth", max);
-		}
-
 		uint32_t num_chunks = (read_size/DMA_SIZE);
 
 		// receive chunks of DMA_SIZE
@@ -291,9 +262,6 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 			subcore_prep_dma_read(artix_select, DMA_SIZE/BURST_BYTES);
 			gcore_dma_start(GCORE_WAIT_RX);
             memcpy(((uint8_t*)read_data)+(i*DMA_SIZE), dma_buf, DMA_SIZE);
-			if(read_size >= PROGRESS_BYTES){
-				progressbar_inc(smooth);
-			}
         }
 
         // send the rest
@@ -304,9 +272,6 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 			subcore_prep_dma_read(artix_select, data_mod/BURST_BYTES);
 			gcore_dma_start(GCORE_WAIT_RX);
             memcpy(((uint8_t*)read_data)+(read_size-data_mod), dma_buf, data_mod);
-			if(read_size >= PROGRESS_BYTES){
-				progressbar_inc(smooth);
-			}
         }
 
         // get burst count from dutcore
@@ -315,10 +280,6 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         printf("received %zu total bytes (actual %i).\n", 
             (num_chunks*DMA_SIZE)+data_mod, 
             dutcore_burst_count*BURST_BYTES);
-
-		if(read_size >= PROGRESS_BYTES){
-			progressbar_finish(smooth);
-		}
     }else{
         // this always ensures that what we read is a multiple of a burst
         // since num_bursts is calculated based on read_size
@@ -775,9 +736,10 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
             die("error: failed to configure artix, init_error is high.\n");
         }
     }
+    regs = gcore_free_regs(regs);
 
     // dma over the data from start of dma buffer sending file_size bytes
-    printf("configuring with %jd bytes...", file_size);
+    printf("configuring with %jd bytes...", (size_t)file_size);
     fflush(stdout);
     gcore_dma_prep_start(GCORE_WAIT_TX, dma_buf, (size_t)file_size, NULL, 0);
     printf("done.\n");
@@ -813,6 +775,8 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
             }
         }
     }
+
+    regs = gcore_free_regs(regs);
 
     return;
 }
