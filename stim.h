@@ -171,6 +171,7 @@ struct stim {
 struct stim *open_stim(const char *profile_path, const char *path);
 struct vec_chunk *stim_load_next_chunk(struct stim *stim);
 enum subvecs get_subvec_by_pin_id(struct vec *vec, uint32_t pin_id);
+enum stim_types get_stim_type_by_path(const char *path);
 
 // private
 struct stim *init_stim(struct stim *stim, struct profile_pin **pins, 

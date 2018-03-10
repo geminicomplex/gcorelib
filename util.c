@@ -31,29 +31,6 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
-static int gcore_fd;
-static bool is_initialized = false;
-
-__attribute__((constructor))
-static void gcore_util_init() {
-    gcore_fd = open(MMAP_PATH, O_RDONLY, 0);
-	if(gcore_fd == -1){
-		die("gcorelib: opening file for writing");
-    }
-    is_initialized = true;
-    return;
-}
-
-__attribute__((destructor))
-static void gcore_util_destroy() {
-    if(!is_initialized){
-        die("gcorelib: failed to exit, gcore not initialized");
-    }
-	close(gcore_fd);
-    is_initialized = false;
-	return;
-}
-
 /*
  * Helper file open function that performs checks.
  *

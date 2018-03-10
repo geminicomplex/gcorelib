@@ -827,6 +827,23 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
     return chunk;
 }
 
+enum stim_types get_stim_type_by_path(const char *path){
+    enum stim_types type = STIM_TYPE_NONE;
+    const char *file_ext = util_get_file_ext_by_path(path);
+    if(strcmp(file_ext, "rbt") == 0){
+        type = STIM_TYPE_RBT;
+    }else if(strcmp(file_ext, "bin") == 0){
+        type = STIM_TYPE_BIN;
+    }else if(strcmp(file_ext, "bit") == 0){
+        type = STIM_TYPE_BIT;
+    }else if(strcmp(file_ext, "dots") == 0){
+        type = STIM_TYPE_DOTS;
+    }else if(strcmp(file_ext, "stim") == 0){
+        type = STIM_TYPE_RAW;
+    }
+    return type;
+}
+
 
 /*
  * Creates a new stim object, mmap the file, and save handles to stim.
@@ -861,18 +878,8 @@ struct stim *open_stim(const char *profile_path, const char *path){
         die("error: failed to open file '%s'\n", path);
     }
     
-    const char *file_ext = util_get_file_ext_by_path(path);
-    if(strcmp(file_ext, "rbt") == 0){
-        stim->type = STIM_TYPE_RBT;
-    }else if(strcmp(file_ext, "bin") == 0){
-        stim->type = STIM_TYPE_BIN;
-    }else if(strcmp(file_ext, "bit") == 0){
-        stim->type = STIM_TYPE_BIT;
-    }else if(strcmp(file_ext, "dots") == 0){
-        stim->type = STIM_TYPE_DOTS;
-    }else if(strcmp(file_ext, "stim") == 0){
-        stim->type = STIM_TYPE_RAW;
-    }else{
+    if((stim->type = get_stim_type_by_path(path)) == STIM_TYPE_NONE){
+        const char *file_ext = util_get_file_ext_by_path(path);
         die("error: invalid file type given '%s'\n", file_ext);
     }
 
