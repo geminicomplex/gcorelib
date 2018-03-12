@@ -228,5 +228,48 @@ const char *util_get_file_ext_by_path(const char *path) {
 }
 
 
+size_t util_str_split(char* a_str, const char a_delim, char*** results){
+    size_t count = 0;
+    char* tmp = a_str;
+    char* last_delim = 0;
+    char delim[2];
+    size_t idx  = 0;
+
+    delim[0] = a_delim;
+    delim[1] = '\0';
+
+    /* Count how many elements will be extracted. */
+    while (*tmp){
+        if (a_delim == *tmp){
+            count++;
+            last_delim = tmp;
+        }
+        tmp++;
+    }
+
+    /* Add space for trailing token. */
+    count += last_delim < (a_str + strlen(a_str) - 1);
+
+    if(((*results) = malloc(sizeof(char*) * count)) == NULL){
+        die("malloc failed for count %zu\n", count);
+    }
+
+    char* token = strtok(a_str, delim);
+
+    while(token){
+        if(idx >= count){
+            die("str split failed; idx %zu >= count %zu\n", idx, count);
+        }
+        *((*results) + idx++) = strdup(token);
+        token = strtok(0, delim);
+    }
+
+    if(idx != count){
+        die("str split failed; idx %zu != count - 1: %zu\n", idx, count);
+    }
+
+    return count;
+}
+
 
 

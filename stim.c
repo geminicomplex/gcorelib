@@ -1026,7 +1026,9 @@ struct stim *open_stim(const char *profile_path, const char *path){
             if(bitstream_size == 0){
                 die("failed to get bitstream size; size is zero\n");
             }
-            if((pins = get_config_profile_pins(profile, &num_pins)) == NULL){
+            // TODO: dut_id = -1 filters by all duts. Pass the correct dut_id when supported multiple-duts.
+            int32_t dut_id = -1;
+            if((pins = get_config_profile_pins(profile, dut_id, &num_pins)) == NULL){
                 die("error: failed to get profile config pins\n");
             }
             // need to prep fpga for rbt and need to do post config checks

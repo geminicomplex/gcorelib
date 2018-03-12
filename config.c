@@ -179,10 +179,10 @@ uint32_t get_config_num_profile_pins(){
 
 /*
  * Return the PROFILE_NUM_CONFIG_PINS config pins needed to configure the DUT in the order of the 
- * config_tags array.
+ * config_tags array. You can optionally pass a dut_id to filter by dut or pass -1 to return all pins.
  *
  */
-struct profile_pin **get_config_profile_pins(struct profile *profile, uint32_t *found_num_pins){
+struct profile_pin **get_config_profile_pins(struct profile *profile, int32_t dut_id, uint32_t *found_num_pins){
     // we need 39 pins, cclk, reset_b, csi_b, rdwr_b, program_b, init_b, done, 32 data,
     uint32_t num_config_pins = get_config_num_profile_pins();
     struct profile_pin **config_pins = create_profile_pins(num_config_pins);
@@ -191,12 +191,18 @@ struct profile_pin **get_config_profile_pins(struct profile *profile, uint32_t *
     struct profile_pin **pins = NULL;
     uint32_t num_tags = sizeof(config_tags)/sizeof(config_tags[0]);
 
+    if(dut_id < -1){
+        die("invalid dut_id given %i; less than -1\n", dut_id);
+    }else if(dut_id >= 0 && (dut_id+1) > profile->num_duts){
+        die("invalid dut_id given %i; greater than num duts %i\n", dut_id, profile->num_duts);
+    }
+
     // reset found pins
     (*found_num_pins) = 0;
 
     // get pins for each tag type, and copy them to config_pins
     for(int i=0; i<num_tags; i++){
-        pins = get_profile_pins_by_tag(profile, config_tags[i], &num_pins);
+        pins = get_profile_pins_by_tag(profile, dut_id, config_tags[i], &num_pins);
         if(pins == NULL){
             die("error: pointer is NULL\n");
         }
