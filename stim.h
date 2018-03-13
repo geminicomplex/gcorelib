@@ -1,5 +1,22 @@
 /*
- * dots & rbt/bit
+ * Stim File
+ *
+ * A stim file is comprised of multiple chunks. Each chunk holds a number of
+ * vecs. Chunks can be in a loaded or unloaded state, meaning that memory is
+ * currently allocated to store given pre-set number of vecs. Chunks don't
+ * hold vec structs directly, but the packed vec_data itself, which is ready
+ * to be DMAed to the artix units. If the vec_data is ready, the chunk is said
+ * to be filled.
+ *
+ * The gemini board has 400 dut io pins that the stim has access to. Each
+ * artix unit manages 200 pins. A vector comprises of subvecs, which 
+ * corresponds to one of the pins. Each subvec is a nibble or 4 bits. Each
+ * vector is 128 bytes or 256 nibbles. The 200 lsb nibbles store the vectors
+ * and the remaining 56 nibbles are used for the opcode and operand, which
+ * will later be utilized to support more features.
+ *
+ * In other words, each chunk and it's vec_data is only compatible with one
+ * artix unit.
  *
  */
 
@@ -30,9 +47,9 @@ extern "C" {
 #define DUT_TOTAL_NUM_PINS (400)
 #define DUT_MAX_VECTORS (67108864)
 
-// a vector is 128 bytes or 256 nibbles
-// a subvec is stored in a nibble and we have 
-// 200 subvecs for 200 pins
+// A vector is 128 bytes or 256 nibbles. A subvec is stored in a nibble and we
+// have 200 subvecs for 200 pins. Rest of the 56 nibbles are used for opcode
+// and operand.
 #define STIM_VEC_SIZE (128)
 
 // 4 byte word, 1024 byte burst and 4096 byte page aligned
@@ -64,9 +81,7 @@ enum stim_types {
 };
 
 /*
- * A 4 bit subvec holds the stimulus, expect and result
- * for one pin. Result held in bit[3], stim/expect held
- * in bit[2:0].
+ * A 4 bit subvec holds the stimulus and expect for one pin. 
  *
  */
 enum subvecs {
@@ -81,17 +96,15 @@ enum subvecs {
 
 
 /*
- * Each vec represents a variable length vector based on the 
- * number of pins, but not exceeding the max length of 400.
  * Each pin is represented by a subvec, and to conserve space
  * 4 bit subvecs are packed into a byte, thus needing half the
  * space. If odd number of pins, will add one to have enough.
- *
  *
  */
 struct vec {
     uint8_t *packed_subvecs;
 } __attribute__ ((__packed__));
+
 
 /*
  * Each vector is 128 bytes but only 100 are used for the actual vector.
@@ -105,6 +118,7 @@ enum vec_opcode {
     DUT_OPCODE_VECCLK   = 0x03
 } __attribute__ ((__packed__));
 
+
 /*
  * vec_chunk holds a group of vecs, not exceeding STIM_CHUNK_SIZE
  * in total size. Chunks also get dynamically loaded and unloaded
@@ -113,29 +127,31 @@ enum vec_opcode {
  * mmap.
  *
  * id : id of the chunk
- * is_loaded : loaded in memory yet
  * num_vecs : number of vectors
  * vecs : vector array
- * cur_vec_id : when filling vecs, used to inc
+ * cur_chunk_vec_id : when filling vecs, used to inc
  * size : chunk size in bytes, including vecs
- * repeats : avl tree holding a repeat value for a given vec if it has one
- * 
+ * is_loaded : loaded in memory yet
+ * is_filled : vecs filled in
  *
  */
 struct vec_chunk {
     uint8_t id;
-    bool is_loaded;
     uint32_t num_vecs;
     uint32_t cur_vec_id;
     uint8_t *vec_data;
     size_t vec_data_size;
     size_t size;
+    bool is_loaded;
+    bool is_filled;
 };
+
 
 /*
  * A stimulus object represents a dots, rbt, bin, bit or raw stim file.
  * It's comprised of vec_chunk objects, which get dynamically loaded and
- * unloaded as needed, for the purpose of not filling up memory.
+ * unloaded as needed, so as to not fill up memory on the memory constrained
+ * Gemini board.
  *
  */
 struct stim {
@@ -180,13 +196,15 @@ void close_stim(int status, void *vstim);
 
 struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk);
 struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
-        struct vec_chunk *chunk, struct dots *dots, 
-        uint32_t num_dots_vecs_to_load,
-        void (*get_next_data_subvecs)(struct stim *, enum subvecs **, uint32_t*));
+    struct vec_chunk *chunk, struct dots *dots, 
+    void (*get_next_data_subvecs)(struct stim *, enum subvecs **, 
+    uint32_t*));
 void stim_unload_chunk(struct vec_chunk *chunk);
 
-void pack_subvecs_by_pin_id(uint8_t *packed_subvecs, uint32_t pin_id, enum subvecs subvec);
-void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum subvecs subvec);
+void pack_subvecs_by_pin_id(uint8_t *packed_subvecs, 
+    uint32_t pin_id, enum subvecs subvec);
+void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, 
+    uint32_t dut_io_id, enum subvecs subvec);
 enum subvecs *convert_bitstream_word_to_subvecs(uint32_t *word, 
     uint32_t *num_subvecs);
 uint32_t stim_get_next_bitstream_word(struct stim *stim);

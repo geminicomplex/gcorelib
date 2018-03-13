@@ -47,7 +47,7 @@ void append_dots_vec_by_vec_str(struct dots *dots,
         die("error: pointer is NULL\n");
     }
 
-    if(dots->cur_appended_dots_vec >= dots->num_dots_vecs){
+    if(dots->cur_appended_dots_vec_id >= dots->num_dots_vecs){
         die("error: failed to append dots vec exceeded \
             allocated limit of %i", dots->num_dots_vecs);
     }
@@ -55,7 +55,7 @@ void append_dots_vec_by_vec_str(struct dots *dots,
     dots_vec = create_dots_vec();
     dots_vec->repeat = atoi(repeat);
     dots_vec->vec_str = strdup(vec_str);
-    dots->dots_vecs[dots->cur_appended_dots_vec++] = dots_vec;
+    dots->dots_vecs[dots->cur_appended_dots_vec_id++] = dots_vec;
 
     return;
 }
@@ -183,8 +183,8 @@ struct dots *create_dots(uint32_t num_dots_vecs){
         die("error: failed to calloc dots_vecs\n");
     }
 
-    dots->cur_appended_dots_vec = 0;
-    dots->cur_dots_vec = 0;
+    dots->cur_appended_dots_vec_id = 0;
+    dots->cur_dots_vec_id = 0;
 
     return dots;
 }
@@ -227,14 +227,14 @@ struct dots *free_dots(struct dots *dots){
         die("error: pointer is NULL\n");
     }
     
-    for(int i=0; i<dots->cur_appended_dots_vec; i++){
+    for(int i=0; i<dots->cur_appended_dots_vec_id; i++){
         dots->dots_vecs[i] = free_dots_vec(dots->dots_vecs[i]);
     }
     free(dots->dots_vecs);
     dots->num_dots_vecs = 0;
     dots->dots_vecs = NULL;
-    dots->cur_appended_dots_vec = 0;
-    dots->cur_dots_vec = 0;
+    dots->cur_appended_dots_vec_id = 0;
+    dots->cur_dots_vec_id = 0;
     free(dots);
     return NULL;
 }

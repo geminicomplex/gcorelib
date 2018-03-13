@@ -1,5 +1,5 @@
 /*
- * parse dots and rbt/bit files into native structs
+ * Stim File
  *
  */
 
@@ -363,7 +363,6 @@ struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs){
     }
 
     chunk->id = vec_chunk_id;
-    chunk->is_loaded = false;
     chunk->num_vecs = num_vecs;
 
     // don't malloc until we load the chunk to save on memory
@@ -374,6 +373,9 @@ struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs){
     
     // number of bytes for loaded vecs
     chunk->size = 0;
+
+    chunk->is_loaded = false;
+    chunk->is_filled = false;
 
     return chunk;
 }
@@ -445,7 +447,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     }
 
     if(stim->num_pins > DUT_TOTAL_NUM_PINS){
-        die("error: failed to init stim, num_pins > %i\n", DUT_TOTAL_NUM_PINS);
+        die("error: failed to init stim, num_profile_pins %i > %i\n", stim->num_pins, DUT_TOTAL_NUM_PINS);
     }
 
     if(stim->num_vecs == 0){
@@ -498,6 +500,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         }
         stim->vec_chunks[i] = create_vec_chunk(i, vecs_per_chunk);
         stim->vec_chunks[i]->is_loaded = false;
+        stim->vec_chunks[i]->is_filled = false;
     }
 
     // make sure only dut_io pins are being used
@@ -506,7 +509,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     for(int i=0; i<stim->num_pins; i++){
         if(pins[i]->dut_io_id >= 0){
             stim->pins_active[pins[i]->dut_io_id] = true;
-            stim->pins[j++] = pins[i];
+            stim->pins[j++] = create_profile_pin(pins[i]);
         }else{
             die("error: failed to init stim, pin '%s' doesn't"
                 "have a valid dut_io_id\n", pins[i]->net_name);
@@ -534,6 +537,10 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim){
     }
 
     if(stim->cur_vec_chunk_id != -1){
+        if(!stim->vec_chunks[stim->cur_vec_chunk_id]->is_loaded){
+            die("current chunk %i has never been loaded;"
+                    " failed to unload\n", stim->cur_vec_chunk_id);
+        }
         stim_unload_chunk(stim->vec_chunks[stim->cur_vec_chunk_id]);
     }
 
@@ -554,19 +561,18 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim){
             have partially filled bursts, just pad NOP vecs\n", next_chunk->num_vecs);
     }
 
-
     // allocate vecs array
     if((next_chunk->vec_data = (uint8_t *)calloc(next_chunk->vec_data_size, sizeof(uint8_t))) == NULL){
         die("error: failed to calloc vec chunk's vecs\n");
     }
 
+    // subvecs with 0xff don't get processed by artix units
     memset(next_chunk->vec_data, 0xff, next_chunk->vec_data_size);
 
     // set the size of the vecs in bytes
-    // NOTE: this size does not represent the size we dma over since
-    // we only store num_pins in each vec, but when we dma we send
-    // a full 200 pin vec over to each artix
     next_chunk->size = next_chunk->num_vecs*STIM_VEC_SIZE;
+
+    next_chunk->is_loaded = true;
 
     return next_chunk;
 }
@@ -633,6 +639,11 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         die("pointer is NULL\n");
     }
 
+    if(chunk->is_filled == true){
+        die("chunk %i already filled; cannot refill before "
+            "calling unload", chunk->id);
+    }
+
     printf("filling chunk %i with %i vecs (%zu bytes)...\n", 
             chunk->id, chunk->num_vecs, chunk->size);
     
@@ -653,8 +664,8 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
             if((config = create_config(CONFIG_TYPE_HEADER, 1, 0)) == NULL){
                 die("error: pointer is NULL\n");
             }
-            if((chunk = stim_fill_chunk_by_dots(stim, chunk, config->dots, 
-                    config->dots->num_dots_vecs, NULL)) == NULL){
+            if((chunk = stim_fill_chunk_by_dots(stim, chunk, 
+                    config->dots, NULL)) == NULL){
                 die("error: failed to fill chunk by config vecs\n");
             }
             config = free_config(config);
@@ -678,7 +689,7 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         }
         // TODO: stim->pins must be based on config_tags
         if((chunk = stim_fill_chunk_by_dots(stim, chunk, config->dots, 
-                config->dots->num_dots_vecs, &stim_get_next_bitstream_subvecs)) == NULL){
+                &stim_get_next_bitstream_subvecs)) == NULL){
             die("error: failed to pack chunk by config vecs\n");
         }
         config = free_config(config);
@@ -690,8 +701,8 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
             if((config = create_config(CONFIG_TYPE_FOOTER, 1, stim->num_padding_vecs)) == NULL){
                 die("error: pointer is NULL\n");
             }
-            if((chunk = stim_fill_chunk_by_dots(stim, chunk, config->dots, 
-                    config->dots->num_dots_vecs, NULL)) == NULL){
+            if((chunk = stim_fill_chunk_by_dots(stim, chunk, 
+                    config->dots, NULL)) == NULL){
                 die("error: failed to pack chunk by config vecs\n");
             }
             config = free_config(config);
@@ -710,7 +721,7 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
 
 /*
  * Given a dots, fills the chunk with given amount of dots vecs to load.
- * The dots has an internal cur_dots_vecs which keeps track of how many
+ * The dots has an internal cur_dots_vec_ids which keeps track of how many
  * vecs were read from the dots. This is called by stim_fill_chunk if
  * the stim file was loaded by mmap. Otherwise, this can be called directly
  * if loading the stim through the api.
@@ -718,7 +729,6 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
  */
 struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         struct vec_chunk *chunk, struct dots *dots, 
-        uint32_t num_dots_vecs_to_load,
         void (*get_next_data_subvecs)(struct stim *, enum subvecs **, uint32_t*)
 ){
     struct dots_vec *dots_vec = NULL;
@@ -738,15 +748,31 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         die("error: pointer is NULL\n");
     }
 
-    if((dots->cur_dots_vec+num_dots_vecs_to_load) > dots->num_dots_vecs){
-        die("failed to load chunk; trying to load too many dots vecs %i > %i num_dots_vecs\n", 
-            (dots->cur_dots_vec+num_dots_vecs_to_load), dots->num_dots_vecs);
+    if(chunk->is_filled == true){
+        die("chunk %i already filled; cannot refill before "
+            "calling unload", chunk->id);
     }
 
-    while(dots->cur_dots_vec < num_dots_vecs_to_load){ 
-        dots_vec = dots->dots_vecs[dots->cur_dots_vec];
+    //
+    // Fill the chunk with as many vectors as possible. When the chunk fills
+    // up it will break and exit preserving the cur_dots_vec_id and cur_chunk_vec.
+    //
+    while(1){ 
+
+        // Only load as many dots vecs as the dots has. If none left then break. 
+        if(dots->cur_dots_vec_id >= dots->num_dots_vecs){
+            break;
+        }
+
+        // Chunk has filled up so bounce. Rest of the vectors will go into
+        // the next chunk.
+        if(chunk->cur_vec_id >= chunk->num_vecs){
+            break;
+        }
+
+        dots_vec = dots->dots_vecs[dots->cur_dots_vec_id];
         if(dots_vec ==  NULL){
-            die("error: failed to get dots_vec by real id %i\n", dots->cur_dots_vec);
+            die("error: failed to get dots_vec by real id %i\n", dots->cur_dots_vec_id);
         }
 
         if(dots_vec->num_subvecs != stim->num_pins){
@@ -800,13 +826,15 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             pack_subvecs_with_opcode_and_operand(chunk_vec->packed_subvecs, DUT_OPCODE_VEC, dots_vec->repeat);
         }
 
-        // No need to swap the endianess of packed_subvecs because 64 bit words
-        // are packed lsb to msb in the 1024 bit word in agent, dutcore and memcore.
-        // The zynq fabric dma uses a 64 bit bus and uses little endian, so when it 
-        // gets a 64 bit word it will load it in the register big endian and pass that
-        // down the wire. So we fill the vector from 0 to 199, but the dma will correctly
-        // grab the 64 bit word when it reads memory. Also, the bus is from [1023:0] so 
-        // we need to store high dut_io to low dut_io from msb to lsb in the 64 bit word.
+        // No need to swap the endianess of packed_subvecs because 64 bit
+        // words are packed lsb to msb in the 1024 bit word in agent, dutcore
+        // and memcore. The zynq fabric dma uses a 64 bit bus and uses little
+        // endian, so when it gets a 64 bit word it will load it in the
+        // register big endian and pass that down the wire. So we fill the
+        // vector from 0 to 199, but the dma will correctly grab the 64 bit
+        // word when it reads memory. Also, the bus is from [1023:0] so we
+        // need to store high dut_io to low dut_io from msb to lsb in the 64
+        // bit word.
         memcpy(chunk->vec_data+(chunk->cur_vec_id*STIM_VEC_SIZE), 
                 chunk_vec->packed_subvecs, STIM_VEC_SIZE);
         chunk->cur_vec_id += 1;
@@ -819,10 +847,13 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         dots_vec = NULL;
 
         // increment the dots vec for the next cycle
-        dots->cur_dots_vec += 1;
+        dots->cur_dots_vec_id += 1;
     }
 
     chunk_vec = free_vec(chunk_vec);
+
+    // chunk has been loaded with the full amount of vecs it can hold
+    chunk->is_filled = true;
 
     return chunk;
 }
@@ -836,7 +867,7 @@ enum stim_types get_stim_type_by_path(const char *path){
         type = STIM_TYPE_BIN;
     }else if(strcmp(file_ext, "bit") == 0){
         type = STIM_TYPE_BIT;
-    }else if(strcmp(file_ext, "dots") == 0){
+    }else if(strcmp(file_ext, "s") == 0){
         type = STIM_TYPE_DOTS;
     }else if(strcmp(file_ext, "stim") == 0){
         type = STIM_TYPE_RAW;
@@ -1141,8 +1172,8 @@ struct stim * free_stim(struct stim *stim){
         die("warning: failed to free stim, pins is NULL\n");
     }
 
-    if(stim->vec_chunks == NULL){
-        die("warning: failed to free stim, vecs is NULL\n");
+    if(stim->num_vec_chunks > 0 && stim->vec_chunks == NULL){
+        die("warning: failed to free stim, vec_chunks is NULL\n");
     }
     stim->pins = free_profile_pins(stim->pins, stim->num_pins);
     for(int i=0; i<stim->num_vec_chunks; i++){

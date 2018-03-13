@@ -62,6 +62,10 @@ struct profile_pin *create_profile_pin(struct profile_pin *copy_pin){
         profile_pin->tag_data = copy_pin->tag_data;
         profile_pin->dut_io_id = copy_pin->dut_io_id;
         profile_pin->num_dest_pin_names = copy_pin->num_dest_pin_names;
+
+        if((profile_pin->dest_pin_names = (char **)calloc(profile_pin->num_dest_pin_names, sizeof(char*))) == NULL){
+            die("error: failed to malloc struct.\n");
+        }
         for(uint32_t i=0; i<profile_pin->num_dest_pin_names; i++){
             profile_pin->dest_pin_names[i] = strdup(copy_pin->dest_pin_names[i]);
         }
@@ -124,7 +128,10 @@ struct profile_pin *free_profile_pin(struct profile_pin *pin){
     pin->dut_io_id = -1;
     for(uint32_t i=0; i<pin->num_dest_pin_names; i++){
         free(pin->dest_pin_names[i]);
+        pin->dest_pin_names[i] = NULL;
     }
+    free(pin->dest_pin_names);
+    pin->dest_pin_names = NULL;
     pin->num_dest_pin_names = 0;
     free(pin);
     return NULL;
@@ -136,6 +143,7 @@ struct profile_pin **free_profile_pins(struct profile_pin **pins, uint32_t num_p
     }
     for(int i=0; i<num_pins; i++){
         pins[i] = free_profile_pin(pins[i]);
+        pins[i] = NULL;
     }
     free(pins);
     return NULL;
