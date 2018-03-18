@@ -66,6 +66,11 @@ enum profile_tags {
  *                  A pin can have many destination loads, if for example 
  *                  it's a 'shorted pin'. 
  *
+ * TODO: A profile_pin can drive many dest_pin_names, but only within it's 
+ *       own dut. If more than one dut, profile_pin cannot drive some in
+ *       it's own dut and some in another dut. Add a check in code and
+ *       in the netlist profile generator script.
+ *
  *
  */
 struct profile_pin {

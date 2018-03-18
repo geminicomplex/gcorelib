@@ -52,7 +52,7 @@ void append_dots_vec_by_vec_str(struct dots *dots,
             allocated limit of %i", dots->num_dots_vecs);
     }
 
-    dots_vec = create_dots_vec();
+    dots_vec = create_dots_vec(dots);
     dots_vec->repeat = atoi(repeat);
     dots_vec->vec_str = strdup(vec_str);
     dots->dots_vecs[dots->cur_appended_dots_vec_id++] = dots_vec;
@@ -64,9 +64,8 @@ void append_dots_vec_by_vec_str(struct dots *dots,
  * Expands a vector string into an array of un-packed subvecs. 
  *
  */
-void expand_dots_vec_str(struct dots_vec *dots_vec, enum subvecs *data_subvecs, 
+void expand_dots_vec_str(struct dots *dots, struct dots_vec *dots_vec, enum subvecs *data_subvecs, 
         uint32_t num_data_subvecs){
-    uint32_t num_pins = get_config_num_profile_pins();
     uint32_t vec_str_len = 0;
 
     if(dots_vec == NULL){
@@ -87,15 +86,15 @@ void expand_dots_vec_str(struct dots_vec *dots_vec, enum subvecs *data_subvecs,
     // if dots represents a bitstream, check if vec length accounts for
     // the data pins
     if(data_subvecs != NULL){
-        if((vec_str_len+PROFILE_NUM_DATA_PINS) != num_pins){
+        if((vec_str_len+PROFILE_NUM_DATA_PINS) != dots->num_pins){
             die("error: (vec_len + num_data_pins) %i != "
-                "num_pins %i\n", (vec_str_len+PROFILE_NUM_DATA_PINS), num_pins);
+                "num_pins %i\n", (vec_str_len+PROFILE_NUM_DATA_PINS), dots->num_pins);
         }
     }
 
-    if(dots_vec->num_subvecs != num_pins){
+    if(dots_vec->num_subvecs != dots->num_pins){
         die("error: num subvecs for dots_vec %i != "
-            "num_pins %i\n", dots_vec->num_subvecs, num_pins);
+            "num_pins %i\n", dots_vec->num_subvecs, dots->num_pins);
     }
 
     for(int i=0; i<vec_str_len; i++){
@@ -124,17 +123,17 @@ void expand_dots_vec_str(struct dots_vec *dots_vec, enum subvecs *data_subvecs,
 
     // for body, inject the data subvecs from the stim
     if(data_subvecs != NULL){
-        if((vec_str_len+num_data_subvecs) != num_pins){
-            die("error: num_subvecs %i != num_pins %i\n", (vec_str_len+num_data_subvecs), num_pins);
+        if((vec_str_len+num_data_subvecs) != dots->num_pins){
+            die("error: num_subvecs %i != num_pins %i\n", (vec_str_len+num_data_subvecs), dots->num_pins);
         }
         // fill rest of subvecs, but start at index 0 for data_subvecs
         int j = 0;
-        for(int i=vec_str_len; i<num_pins; i++){
+        for(int i=vec_str_len; i<dots->num_pins; i++){
             dots_vec->subvecs[i] = data_subvecs[j++];
         }
     // for header or footer just don't drive on the D pins
     }else{
-        for(int i=vec_str_len; i<num_pins; i++){
+        for(int i=vec_str_len; i<dots->num_pins; i++){
             dots_vec->subvecs[i] = DUT_SUBVEC_X;
         }
     }
@@ -168,10 +167,36 @@ struct dots_vec *get_dots_vec_by_real_id(struct dots *dots, uint32_t id){
 }
 
 /*
- * Allocates a new dots object.
+ * Iterates through dots_vecs and adds up the repeat
+ * value to get the total unrolled vec count.
  *
  */
-struct dots *create_dots(uint32_t num_dots_vecs){
+uint32_t get_num_unrolled_dots_vecs(struct dots *dots){
+    uint32_t num_unrolled_vecs = 0;
+
+    if(dots == NULL){
+        die("pointer is NULL\n");
+    }
+
+    for(int i=0; i<dots->num_dots_vecs; i++){
+        if(dots->dots_vecs[i] == NULL){
+            die("pointer is NULL\n");
+        }
+        num_unrolled_vecs += dots->dots_vecs[i]->repeat;
+    }
+
+    return num_unrolled_vecs;
+}
+
+
+/*
+ * Allocates a new dots object. Pins and num_pins are optional and are usually
+ * not set if the dots was generated for a bitstream by config.c.
+ * 
+ *
+ */
+struct dots *create_dots(uint32_t num_dots_vecs, struct profile_pin **pins, 
+        uint32_t num_pins){
     struct dots *dots = NULL;
     if((dots = (struct dots*)malloc(sizeof(struct dots))) == NULL){
         die("error: failed to malloc struc\n");
@@ -183,8 +208,18 @@ struct dots *create_dots(uint32_t num_dots_vecs){
         die("error: failed to calloc dots_vecs\n");
     }
 
-    dots->cur_appended_dots_vec_id = 0;
+    dots->num_pins = num_pins;
+
+    if((dots->pins = (struct profile_pin **)calloc(dots->num_pins, sizeof(struct profile_pin*))) == NULL){
+        die("error: failed to calloc profile pins\n");
+    }
+
+    for(uint32_t i=0; i<dots->num_pins; i++){
+        dots->pins[i] = create_profile_pin(pins[i]);
+    }
+
     dots->cur_dots_vec_id = 0;
+    dots->cur_appended_dots_vec_id = 0;
 
     return dots;
 }
@@ -193,16 +228,20 @@ struct dots *create_dots(uint32_t num_dots_vecs){
  * Allocates a new dots_vec object.
  *
  */
-struct dots_vec *create_dots_vec(){
+struct dots_vec *create_dots_vec(struct dots *dots){
     struct dots_vec *dots_vec;
-    uint32_t num_pins = get_config_num_profile_pins();
+
+    if(dots == NULL){
+        die("pointer is NULL\n");
+    }
+
     if((dots_vec = (struct dots_vec*)malloc(sizeof(struct dots_vec))) == NULL){
         die("error: failed to malloc struc\n");
     }
     dots_vec->repeat = 0;
     dots_vec->vec_str = NULL;
     dots_vec->is_expanded = false;
-    dots_vec->num_subvecs = num_pins;
+    dots_vec->num_subvecs = dots->num_pins;
     dots_vec->subvecs = NULL;
 
     if((dots_vec->subvecs = (enum subvecs *)calloc(dots_vec->num_subvecs, sizeof(enum subvecs))) == NULL){
@@ -227,14 +266,23 @@ struct dots *free_dots(struct dots *dots){
         die("error: pointer is NULL\n");
     }
     
-    for(int i=0; i<dots->cur_appended_dots_vec_id; i++){
+    for(uint32_t i=0; i<dots->cur_appended_dots_vec_id; i++){
         dots->dots_vecs[i] = free_dots_vec(dots->dots_vecs[i]);
     }
     free(dots->dots_vecs);
-    dots->num_dots_vecs = 0;
     dots->dots_vecs = NULL;
+    dots->num_dots_vecs = 0;
     dots->cur_appended_dots_vec_id = 0;
     dots->cur_dots_vec_id = 0;
+
+    if(dots->pins != NULL){
+        for(uint32_t i=0; i<dots->num_pins; i++){
+            free_profile_pin(dots->pins[i]);
+        }
+        free(dots->pins);
+    }
+    dots->pins = NULL;
+    dots->num_pins = 0;
     free(dots);
     return NULL;
 }

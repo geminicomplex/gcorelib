@@ -37,7 +37,7 @@ extern "C" {
 
 #include "profile.h"
 #include "config.h"
-#include "lib/avl/avl.h"
+#include "dots.h"
 
 #include <stdio.h>
 #include <inttypes.h>
@@ -128,9 +128,12 @@ enum vec_opcode {
  *
  * id : id of the chunk
  * num_vecs : number of vectors
- * vecs : vector array
- * cur_chunk_vec_id : when filling vecs, used to inc
- * size : chunk size in bytes, including vecs
+ * cur_vec_id : when filling vecs, used to inc
+ * vec_data : compiled raw vector data that DMAs over
+ * vec_data_size : chunk size in bytes, including vecs
+ * vec_data_compressed : lz4 compressed byte stream
+ * vec_data_compressed_size : if chunk is lz4 compressed this will 
+ *                            be the number of bytes.
  * is_loaded : loaded in memory yet
  * is_filled : vecs filled in
  *
@@ -141,7 +144,8 @@ struct vec_chunk {
     uint32_t cur_vec_id;
     uint8_t *vec_data;
     size_t vec_data_size;
-    size_t size;
+    uint8_t *vec_data_compressed;
+    size_t vec_data_compressed_size;
     bool is_loaded;
     bool is_filled;
 };
@@ -155,11 +159,20 @@ struct vec_chunk {
  *
  */
 struct stim {
+    // TODO: Store data for both a1 and a2 in a stim. Right now it only stores
+    //       vec chunks for one unit. Obviously, if stim has vec data for both,
+    //       it will not work in multi-dut mode.
+    // TODO: Stims are board (profile) specific. A stim can run single-dut
+    //       mode or multi-dut mode if each artix unit goes to it's own dut.
+    //       If multi-mode, the stim can only have vec chunks for one unit.
+    //       Store which dut_ids the stim supports. 
+    // TODO: Save the paths for reference when we serialize.
+    // TODO: Save the stim api revision.
+
     // public
     enum stim_types type;
     uint16_t num_pins;
     struct profile_pin **pins;
-    bool pins_active[DUT_TOTAL_NUM_PINS];
     uint32_t num_vecs;
     uint32_t num_unrolled_vecs;
     uint32_t num_vec_chunks;
@@ -175,6 +188,8 @@ struct stim {
     uint8_t *map;
     off_t cur_map_byte;
     bool is_little_endian;
+    struct profile *profile;
+    struct dots *dots;
 };
 
 
@@ -184,15 +199,26 @@ struct stim {
  */
 
 // public
-struct stim *open_stim(const char *profile_path, const char *path);
+
+// load an rbt, bin, bit or stim. Actual dots file not supported yet.
+struct stim *get_stim_by_path(const char *profile_path, const char *path);
+
+// Load a dots object. Must be fully populated with vectors but not expanded. 
+struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots);
+
+// Load and fills the next chunk. Always unloads current chunk. 
 struct vec_chunk *stim_load_next_chunk(struct stim *stim);
 enum subvecs get_subvec_by_pin_id(struct vec *vec, uint32_t pin_id);
 enum stim_types get_stim_type_by_path(const char *path);
 
+// Serialization of raw stim files
+void stim_serialize_to_path(struct stim *stim, const char *path);
+struct stim *stim_deserialize(struct stim *stim);
+struct vec_chunk *stim_decompress_vec_chunk(struct vec_chunk *chunk);
+
 // private
 struct stim *init_stim(struct stim *stim, struct profile_pin **pins, 
     uint32_t num_pins, uint32_t num_vecs, uint32_t num_unrolled_vecs);
-void close_stim(int status, void *vstim);
 
 struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk);
 struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
@@ -210,6 +236,7 @@ enum subvecs *convert_bitstream_word_to_subvecs(uint32_t *word,
 uint32_t stim_get_next_bitstream_word(struct stim *stim);
 
 struct stim *create_stim(void);
+struct vec_chunk **create_vec_chunks(uint32_t num_vec_chunks);
 struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs);
 struct vec *create_vec(void);
 struct stim *free_stim(struct stim *stim);

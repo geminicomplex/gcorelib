@@ -184,12 +184,23 @@ uint32_t get_config_num_profile_pins(){
  */
 struct profile_pin **get_config_profile_pins(struct profile *profile, int32_t dut_id, uint32_t *found_num_pins){
     // we need 39 pins, cclk, reset_b, csi_b, rdwr_b, program_b, init_b, done, 32 data,
-    uint32_t num_config_pins = get_config_num_profile_pins();
-    struct profile_pin **config_pins = create_profile_pins(num_config_pins);
+    uint32_t num_config_pins = 0;
+    struct profile_pin **config_pins = NULL;
     uint32_t num_pins = 0;
     uint32_t num_found_pins = 0;
     struct profile_pin **pins = NULL;
     uint32_t num_tags = sizeof(config_tags)/sizeof(config_tags[0]);
+
+    if(profile == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(found_num_pins == NULL){
+        die("pointer is NULL\n");
+    }
+
+    num_config_pins = get_config_num_profile_pins();
+    config_pins = create_profile_pins(num_config_pins);
 
     if(dut_id < -1){
         die("invalid dut_id given %i; less than -1\n", dut_id);
@@ -202,8 +213,9 @@ struct profile_pin **get_config_profile_pins(struct profile *profile, int32_t du
 
     // get pins for each tag type, and copy them to config_pins
     for(int i=0; i<num_tags; i++){
-        pins = get_profile_pins_by_tag(profile, dut_id, config_tags[i], &num_pins);
-        if(pins == NULL){
+        num_pins = 0;
+        pins = NULL;
+        if((pins = get_profile_pins_by_tag(profile, dut_id, config_tags[i], &num_pins)) == NULL){
             die("error: pointer is NULL\n");
         }
         for(int j=0; j<num_pins; j++){
@@ -233,8 +245,10 @@ struct profile_pin **get_config_profile_pins(struct profile *profile, int32_t du
  * set only once.
  *
  */
-struct config *create_config(enum config_types type, uint32_t num_loop_vecs, uint32_t num_padding_vecs){
+struct config *create_config(struct profile *profile, enum config_types type, uint32_t num_loop_vecs, uint32_t num_padding_vecs){
     struct config *config = NULL;
+    uint32_t num_pins = 0;
+    struct profile_pin **pins = NULL;
 
     if(type == CONFIG_TYPE_NONE){
         die("error: no config type given\n");
@@ -258,7 +272,12 @@ struct config *create_config(enum config_types type, uint32_t num_loop_vecs, uin
         die("error: for config type body, only supports one vector in the template\n");
     }
 
-    config->dots = create_dots((num_loop_vecs*num_dots_vecs)+num_padding_vecs);
+    // TODO: dut_id = -1 filters by all duts. Pass the correct dut_id when supported multiple-duts.
+    int32_t dut_id = -1;
+    if((pins = get_config_profile_pins(profile, dut_id, &num_pins)) == NULL){
+        die("error: failed to get profile config pins\n");
+    }
+    config->dots = create_dots((num_loop_vecs*num_dots_vecs)+num_padding_vecs, pins, num_pins);
 
     // save order of config pins, so stim can iterate through correct
     // order when accessing it's pins

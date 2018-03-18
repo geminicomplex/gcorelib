@@ -107,6 +107,21 @@ struct profile *create_profile(){
     return profile;
 }
 
+struct profile_pin **free_profile_pins(struct profile_pin **pins, uint32_t num_pins){
+    if(pins == NULL){
+        die("pointer is NULL\n");
+    }
+    if(num_pins == 0){
+        return NULL;
+    }
+
+    for(uint32_t i=0; i<num_pins; i++){
+        pins[i] = free_profile_pin(pins[i]);
+    }
+    free(pins);
+    return NULL;
+}
+
 /*
  * Deallocate the profile_pin struct and all internal members.
  *
@@ -116,36 +131,36 @@ struct profile_pin *free_profile_pin(struct profile_pin *pin){
         return NULL;
     }
     pin->dut_id = -1;
-    free(pin->pin_name);
-    pin->pin_name = NULL;
-    free(pin->comp_name);
-    pin->comp_name = NULL;
-    free(pin->net_name);
-    pin->net_name = NULL;
-    free(pin->net_alias);
-    pin->net_alias = NULL;
+    if(pin->pin_name != NULL){
+        free(pin->pin_name);
+        pin->pin_name = NULL;
+    }
+    if(pin->comp_name != NULL){
+        free(pin->comp_name);
+        pin->comp_name = NULL;
+    }
+    if(pin->net_name != NULL){
+        free(pin->net_name);
+        pin->net_name = NULL;
+    }
+    if(pin->net_alias != NULL){
+        free(pin->net_alias);
+        pin->net_alias = NULL;
+    }
     pin->tag = PROFILE_TAG_NONE;
     pin->dut_io_id = -1;
     for(uint32_t i=0; i<pin->num_dest_pin_names; i++){
-        free(pin->dest_pin_names[i]);
-        pin->dest_pin_names[i] = NULL;
+        if(pin->dest_pin_names != NULL){
+            free(pin->dest_pin_names[i]);
+            pin->dest_pin_names[i] = NULL;
+        }
     }
-    free(pin->dest_pin_names);
-    pin->dest_pin_names = NULL;
+    if(pin->dest_pin_names != NULL){
+        free(pin->dest_pin_names);
+        pin->dest_pin_names = NULL;
+    }
     pin->num_dest_pin_names = 0;
     free(pin);
-    return NULL;
-}
-
-struct profile_pin **free_profile_pins(struct profile_pin **pins, uint32_t num_pins){
-    if(pins == NULL){
-        return NULL;
-    }
-    for(int i=0; i<num_pins; i++){
-        pins[i] = free_profile_pin(pins[i]);
-        pins[i] = NULL;
-    }
-    free(pins);
     return NULL;
 }
 
@@ -157,14 +172,26 @@ struct profile *free_profile(struct profile *profile){
     if(profile == NULL){
         return NULL;
     }
-    free(profile->path);
-    profile->path = NULL;
-    free(profile->board_name);
-    profile->board_name = NULL;
-    free(profile->description);
-    profile->description = NULL;
+    if(profile->path != NULL){
+        free(profile->path);
+        profile->path = NULL;
+    }
+    if(profile->board_name != NULL){
+        free(profile->board_name);
+        profile->board_name = NULL;
+    }
+    if(profile->description != NULL){
+        free(profile->description);
+        profile->description = NULL;
+    }
     profile->revision = 0;
-    profile->pins = free_profile_pins(profile->pins, profile->num_pins);
+    if(profile->pins != NULL){
+        for(uint32_t i=0; i<profile->num_pins; i++){
+            profile->pins[i] = free_profile_pin(profile->pins[i]);
+        }
+        free(profile->pins);
+        profile->pins = NULL;
+    }
     profile->num_pins = 0;
     profile->num_duts = 0;
     free(profile);
@@ -354,14 +381,16 @@ struct profile *get_profile_by_path(const char *path){
         die("fopen failed\n");
     }
 
+    if((profile = create_profile()) == NULL){
+        die("pointer is NULL\n");
+    }
+    profile->path = realpath(path, NULL);
+
     if((data = (char*)malloc((size_t)file_size)) == NULL){
-        die("error: failed to malloc struct.\n");
+        die("error: failed to malloc data.\n");
     }
 
     fread(data, sizeof(uint8_t), (size_t)file_size, fp);
-
-    profile = create_profile();
-    profile->path = realpath(path, NULL);
 
     jsmn_init(&json_parser);
 	num_tokens = jsmn_parse(&json_parser, data, strlen(data), t, sizeof(t)/sizeof(t[0]));
@@ -445,6 +474,9 @@ struct profile *get_profile_by_path(const char *path){
     }
     DestroyAVL(tree);
 
+    free(data);
+    data = NULL;
+
     return profile;
 }
 
@@ -454,10 +486,23 @@ struct profile *get_profile_by_path(const char *path){
  *
  */
 struct profile_pin **sort_profile_pins_by_tag_data(struct profile_pin **pins, uint32_t num_pins){
-    struct profile_pin **sorted_pins = create_profile_pins(num_pins); 
+    struct profile_pin **sorted_pins = NULL;
+    
+    if(pins == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(num_pins == 0){
+        return pins;
+    }
+
+    // array to hold the sorted pointers
+    if((sorted_pins = (struct profile_pin **)calloc(num_pins, sizeof(struct profile_pin*))) == NULL){
+        die("error: failed to calloc struct.\n");
+    }
 
     // check if every pin has tag_data and make sure it's not greater than num_pins
-    for(int i=0; i<num_pins; i++){
+    for(uint32_t i=0; i<num_pins; i++){
         if(pins[i]->tag_data < 0){
             die("error: failed to sort profile pins by "
                 "tag, tag_data %i is invalid\n", pins[i]->tag_data);
@@ -472,19 +517,18 @@ struct profile_pin **sort_profile_pins_by_tag_data(struct profile_pin **pins, ui
     for(int i=0; i<num_pins; i++){
         for(int j=0; j<num_pins; j++){
             if(pins[j]->tag_data == i){
-                sorted_pins[i] = create_profile_pin(pins[j]); 
+                sorted_pins[i] = pins[j]; 
             }
         }
     }
 
-    // free old profile pins and set the sorted, copied pins
+    // set sorted pins back to original
     for(int i=0; i<num_pins; i++){
-        pins[i] = free_profile_pin(pins[i]);
-        pins[i] = create_profile_pin(sorted_pins[i]);
+        pins[i] = sorted_pins[i];
     }
 
-    // free sorted_pins
-    sorted_pins = free_profile_pins(sorted_pins, num_pins);
+    // free the array but not the pointers
+    free(sorted_pins);
     return pins;
 }
 
@@ -497,6 +541,10 @@ struct profile_pin **get_profile_pins_by_tag(struct profile *profile,
         int32_t dut_id, enum profile_tags tag, uint32_t *found_num_pins){
     struct profile_pin ** pins = NULL;
     (*found_num_pins) = 0;
+
+    if(profile == NULL){
+        die("pointer is NULL\n");
+    }
 
     if(dut_id < -1){
         die("invalid dut_id given %i; less than -1\n", dut_id);
@@ -513,7 +561,7 @@ struct profile_pin **get_profile_pins_by_tag(struct profile *profile,
         }
     }
 
-    if((pins = (struct profile_pin**)calloc((*found_num_pins), sizeof(struct profile_pin*))) == NULL){
+    if((pins = create_profile_pins((*found_num_pins))) == NULL){
         die("error: failed to allocate pins by tag\n");
     }
 
@@ -526,7 +574,7 @@ struct profile_pin **get_profile_pins_by_tag(struct profile *profile,
                 if(dut_id >= 0 && profile->pins[i]->dut_id != dut_id){
                     continue;
                 }
-                pins[j] = profile->pins[i];
+                pins[j] = create_profile_pin(profile->pins[i]);
                 j++;
             }
         }
@@ -579,11 +627,11 @@ struct profile_pin *get_profile_pin_by_pin_name(struct profile *profile, char *p
     }
 
     for(int i=0; i<profile->num_pins; i++){
-        if(profile->pins[i]->pin_name == pin_name){
+        if(strcmp(profile->pins[i]->pin_name, pin_name) == 0){
             if(found_pin != NULL){
                 die("found multiple pins for pin_name '%s'\n", pin_name);
             }else{
-                found_pin = profile->pins[i];
+                found_pin = create_profile_pin(profile->pins[i]);
             }
         }
     }
@@ -625,7 +673,7 @@ struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, in
                     die("dest_pin_name '%s' is driven by multiple pins for profile '%s'\n", 
                             dest_pin_name, profile->path);
                 }else{
-                    found_pin = profile->pins[i];
+                    found_pin = create_profile_pin(profile->pins[i]);
                 }
             }
         }

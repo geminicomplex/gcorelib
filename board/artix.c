@@ -554,7 +554,7 @@ void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *f
     struct stim *stim = NULL;
 
     // stim file can be dots, rbt, bin, bit or stim file.
-    if((stim = open_stim(profile_path, file_path)) == NULL){
+    if((stim = get_stim_by_path(profile_path, file_path)) == NULL){
         die("error: pointer is NULL\n");
     }
 
@@ -639,10 +639,6 @@ void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *f
     printf("writing vectors to memory...\n");
     // load one chunk at a time and dma the vecs to artix memory
     while((chunk = stim_load_next_chunk(stim)) != NULL){
-
-        if((chunk = stim_fill_chunk(stim, chunk)) == NULL){
-            die("failed to fill chunk\n");
-        }
 
         // copy over the vec data buffer
         printf("writing %i vecs (%zu bytes) to dma buffer...\n", chunk->num_vecs, chunk->vec_data_size);

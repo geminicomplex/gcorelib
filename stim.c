@@ -16,7 +16,9 @@
 #include "util.h"
 #include "profile.h"
 #include "config.h"
-#include "lib/avl/avl.h"
+#include "serialize/stim.capnp.h"
+#include "lib/capnp/capnp_c.h"
+#include "lib/lz4/lz4.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +44,28 @@
 #endif
 
 #define BUFFER_LENGTH (4096)
+
+/*
+ * Convert c string to capn_text;
+ *
+ */
+static capn_text chars_to_text(const char *chars) {
+  return (capn_text) {
+    .len = (int) strlen(chars),
+    .str = chars,
+    .seg = NULL,
+  };
+}
+
+/*
+ * capn_write_fd write callback funciton.
+ *
+ */
+ssize_t write_fd(int fd, const void *p, size_t count){
+    ssize_t bytes = 0;
+    bytes = write(fd, p, count);
+    return bytes;
+}
 
 /*
  * Given a vector , pack the subvec for the given dut_io_id.
@@ -345,10 +369,22 @@ struct vec *create_vec(){
     return vec;
 }
 
+/*
+ * Creates an array of vec chunk pointers.
+ *
+ */
+struct vec_chunk **create_vec_chunks(uint32_t num_vec_chunks){
+    struct vec_chunk **vec_chunks = NULL;
+    if((vec_chunks = (struct vec_chunk**)calloc(num_vec_chunks, sizeof(struct vec_chunk*))) == NULL){
+        die("error: failed to calloc stim vec_chunks\n");
+    }
+    return vec_chunks;
+}
+
 /* 
  * Create new vec_chunk object. Because we can only store so many vectors 
  * in memory at a time, we split them into chunks and load them as needed
- * from an mmap source.
+ * from an mmap source. 
  *
  */
 struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs){
@@ -368,12 +404,15 @@ struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs){
     // don't malloc until we load the chunk to save on memory
     chunk->cur_vec_id = 0;
 
+    // raw compiled vectors that get DMAed to artix units
     chunk->vec_data = NULL;
     chunk->vec_data_size = 0;
-    
-    // number of bytes for loaded vecs
-    chunk->size = 0;
 
+    // If raw stim, pointer to lz4 compressed data on disk
+    // from capn. Do not free this pointer.
+    chunk->vec_data_compressed = NULL;
+    chunk->vec_data_compressed_size = 0;
+    
     chunk->is_loaded = false;
     chunk->is_filled = false;
 
@@ -391,17 +430,10 @@ struct stim *create_stim(){
         die("error: failed to malloc stim struct\n.");
     }
 
-    if((stim->pins = (struct profile_pin **)calloc(DUT_TOTAL_NUM_PINS, sizeof(struct profile_pin*))) == NULL){
-        die("error: failed to calloc stim vecs\n");
-    }
-
-    for(int i=0; i<DUT_TOTAL_NUM_PINS; i++){
-        stim->pins_active[i] = false;
-        stim->pins[i] = NULL;
-    }
+    stim->pins = NULL;
+    stim->num_pins = 0;
 
     stim->type = STIM_TYPE_NONE;
-    stim->num_pins = 0;
     stim->num_vecs = 0;
     stim->num_unrolled_vecs = 0;
     stim->num_vec_chunks = 0;
@@ -423,15 +455,25 @@ struct stim *create_stim(){
     stim->cur_map_byte = 0;
     stim->is_little_endian = true;
 
+    // Set if STIM_TYPE_DOTS. If loading from file, will
+    // convert to dots struct, else if get stim by dots,
+    // will get set there.  
+    // 
+    stim->dots = NULL;
+
     return stim;
 }
 
 
 /*
- * Also allocates the needed amount of vector
- * chunks based on the num_vecs given and the max chunk size. Note that
- * the chunk is variable in length but always less than or equal to the
- * max chunk size.
+ * Also allocates the needed amount of vector chunks based on the num_vecs
+ * given and the max chunk size. Note that the chunk is variable in length but
+ * always less than or equal to the max chunk size. 
+ *
+ * We pass pins and num_pins because when the stim gets serialized, stim->dots won't get
+ * serialized, if it even is set and we want to save the pins to validate when we 
+ * de-serialize.
+ *
  */
 struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t num_pins, uint32_t num_vecs, uint32_t num_unrolled_vecs){
     if(stim == NULL){
@@ -442,12 +484,30 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     stim->num_vecs = num_vecs;
     stim->num_unrolled_vecs = num_unrolled_vecs;
 
+    if(pins == NULL){
+        die("pointer is NULL;");
+    }
+
     if(stim->num_pins == 0){
         die("error: failed to init stim, num_pins == 0\n");
     }
 
     if(stim->num_pins > DUT_TOTAL_NUM_PINS){
         die("error: failed to init stim, num_profile_pins %i > %i\n", stim->num_pins, DUT_TOTAL_NUM_PINS);
+    }
+
+    if((stim->pins = (struct profile_pin **)calloc(stim->num_pins, sizeof(struct profile_pin*))) == NULL){
+        die("error: failed to calloc profile pins\n");
+    }
+
+    // Copy pins to stim. Freeing the pins passed in is not our responsibility.
+    for(uint32_t i=0, j=0; i<stim->num_pins; i++){
+        if(pins[i]->dut_io_id >= 0){
+            stim->pins[j++] = create_profile_pin(pins[i]);
+        }else{
+            die("error: failed to init stim, pin '%s' doesn't"
+                "have a valid dut_io_id\n", pins[i]->net_name);
+        }
     }
 
     if(stim->num_vecs == 0){
@@ -480,8 +540,8 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         last_chunk_partial = true;
     }
 
-    if((stim->vec_chunks = (struct vec_chunk**)calloc(stim->num_vec_chunks, sizeof(struct vec_chunk*))) == NULL){
-        die("error: failed to calloc stim vec_chunks\n");
+    if((stim->vec_chunks = create_vec_chunks(stim->num_vec_chunks)) == NULL){
+        die("pointer is NULL\n");
     }
 
     // calculate how many vectors we can fit in a chunk and 
@@ -503,26 +563,14 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         stim->vec_chunks[i]->is_filled = false;
     }
 
-    // make sure only dut_io pins are being used
-    // Note: both arrays are allocated to 400 num_pins is checked above
-    int j = 0;
-    for(int i=0; i<stim->num_pins; i++){
-        if(pins[i]->dut_io_id >= 0){
-            stim->pins_active[pins[i]->dut_io_id] = true;
-            stim->pins[j++] = create_profile_pin(pins[i]);
-        }else{
-            die("error: failed to init stim, pin '%s' doesn't"
-                "have a valid dut_io_id\n", pins[i]->net_name);
-        }
-    }
-
     return stim;
 }
 
 /*
  * Loads the next available chunk and unloads the previous chunk. Return NULL
  * if there are no more chunks to load or on error. Loading a chunk consists
- * of allocating enough memory for the vectors.
+ * of allocating enough memory for the vectors. Calling this will also fill
+ * the chunk.
  *
  */
 struct vec_chunk *stim_load_next_chunk(struct stim *stim){
@@ -569,10 +617,11 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim){
     // subvecs with 0xff don't get processed by artix units
     memset(next_chunk->vec_data, 0xff, next_chunk->vec_data_size);
 
-    // set the size of the vecs in bytes
-    next_chunk->size = next_chunk->num_vecs*STIM_VEC_SIZE;
-
     next_chunk->is_loaded = true;
+    
+    if((next_chunk = stim_fill_chunk(stim, next_chunk)) == NULL){
+        die("failed to fill chunk\n");
+    }
 
     return next_chunk;
 }
@@ -588,11 +637,12 @@ void stim_unload_chunk(struct vec_chunk *chunk){
     if(chunk->is_loaded == false){
         return;
     }
+    chunk->cur_vec_id = 0;
     free(chunk->vec_data);
     chunk->vec_data = NULL;
     chunk->vec_data_size = 0;
-    chunk->size = 0;
     chunk->is_loaded = false;
+    chunk->is_filled = false;
     return;
 }
 
@@ -616,11 +666,10 @@ static void stim_get_next_bitstream_subvecs(struct stim *stim,
 }
 
 /*
- * fill chunk with data starting at the current vector that needs to be loaded.
- * A chunk is packed after it has been loaded into memory, with data from the
- * source file. This only fills the chunk if open_stim was called and the file
- * type supports mmap loading.
- *
+ * fill chunk with data starting at the current vector that needs to be
+ * loaded. A chunk is packed after it has been loaded into memory, with data
+ * from the source file. Don't call stim_fill_chunk_by_dots directly, but call
+ * this instead.
  *
  */
 struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
@@ -645,7 +694,7 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
     }
 
     printf("filling chunk %i with %i vecs (%zu bytes)...\n", 
-            chunk->id, chunk->num_vecs, chunk->size);
+            chunk->id, chunk->num_vecs, chunk->vec_data_size);
     
     if(stim->type == STIM_TYPE_NONE){
         die("error: failed to fill chunk, stim type is none\n");
@@ -661,7 +710,7 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
     if(stim->type == STIM_TYPE_RBT || stim->type == STIM_TYPE_BIN || stim->type == STIM_TYPE_BIT){
         // first chunk so fill it with the config header
         if(is_first_chunk){
-            if((config = create_config(CONFIG_TYPE_HEADER, 1, 0)) == NULL){
+            if((config = create_config(stim->profile, CONFIG_TYPE_HEADER, 1, 0)) == NULL){
                 die("error: pointer is NULL\n");
             }
             if((chunk = stim_fill_chunk_by_dots(stim, chunk, 
@@ -684,10 +733,9 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         num_vecs_to_load = end_num_vecs - start_num_vecs;
          
         // fill chunk with one data word and the corresponding body config
-        if((config = create_config(CONFIG_TYPE_BODY, num_vecs_to_load, 0)) == NULL){
+        if((config = create_config(stim->profile, CONFIG_TYPE_BODY, num_vecs_to_load, 0)) == NULL){
             die("error: pointer is NULL\n");
         }
-        // TODO: stim->pins must be based on config_tags
         if((chunk = stim_fill_chunk_by_dots(stim, chunk, config->dots, 
                 &stim_get_next_bitstream_subvecs)) == NULL){
             die("error: failed to pack chunk by config vecs\n");
@@ -698,7 +746,7 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         // file already, then copy the footer after
         if(is_last_chunk){
             printf("number of padding vecs %i\n", stim->num_padding_vecs);
-            if((config = create_config(CONFIG_TYPE_FOOTER, 1, stim->num_padding_vecs)) == NULL){
+            if((config = create_config(stim->profile, CONFIG_TYPE_FOOTER, 1, stim->num_padding_vecs)) == NULL){
                 die("error: pointer is NULL\n");
             }
             if((chunk = stim_fill_chunk_by_dots(stim, chunk, 
@@ -708,9 +756,17 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
             config = free_config(config);
         }
     }else if(stim->type == STIM_TYPE_DOTS){
-        die("mmap loading of dots not supported yet\n");
+        if(stim->dots != NULL){
+            if((chunk = stim_fill_chunk_by_dots(stim, chunk, stim->dots, NULL)) == NULL){
+                die("failed to fill chunk by dots\n");
+            }
+        }else{
+            die("mmap loading of dots not supported yet\n");
+        }
     }else if(stim->type == STIM_TYPE_RAW){
-        die("mmap loading of stim not supported yet\n");
+        if((chunk = stim_decompress_vec_chunk(chunk)) == NULL){
+            die("failed to decompress vec chunk\n");
+        }
     }else {
         die("invalid stim type\n");
     }
@@ -722,9 +778,9 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
 /*
  * Given a dots, fills the chunk with given amount of dots vecs to load.
  * The dots has an internal cur_dots_vec_ids which keeps track of how many
- * vecs were read from the dots. This is called by stim_fill_chunk if
- * the stim file was loaded by mmap. Otherwise, this can be called directly
- * if loading the stim through the api.
+ * vecs were read from the dots. This is called by stim_fill_chunk, which
+ * will handle both if the file is from mmap or if from a dots struct. Don't
+ * call this directly.
  *
  */
 struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
@@ -750,7 +806,7 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
 
     if(chunk->is_filled == true){
         die("chunk %i already filled; cannot refill before "
-            "calling unload", chunk->id);
+            "calling unload\n", chunk->id);
     }
 
     //
@@ -792,8 +848,8 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         // get data subvecs if we need to inject them into the vector
         if(get_next_data_subvecs != NULL){
             if(dots_vec->repeat != 1){
-                die("error: dots vec for body must have a repeat of one\
-                    but it has a repeat of %d\n", dots_vec->repeat);
+                die("error: dots vec for body must have a repeat of one "
+                    "but it has a repeat of %d\n", dots_vec->repeat);
             }
             (*get_next_data_subvecs)(stim, &data_subvecs, &num_data_subvecs);
             if(data_subvecs == NULL){
@@ -803,7 +859,7 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
 
         // Convert the dots_vec's vec_str into subvecs. If bitstream inject
         // the data subvecs for the data pins.
-        expand_dots_vec_str(dots_vec, data_subvecs, num_data_subvecs); 
+        expand_dots_vec_str(dots, dots_vec, data_subvecs, num_data_subvecs); 
 
         // clear the chunk's vec
         for(int j=0; j<STIM_VEC_SIZE; j++){
@@ -812,7 +868,7 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
 
         // pack chunk vec with subvecs (which represent pins)
         for(int pin_id=0; pin_id<dots_vec->num_subvecs; pin_id++){
-            struct profile_pin *pin = stim->pins[pin_id];
+            struct profile_pin *pin = dots->pins[pin_id];
             enum subvecs subvec = dots_vec->subvecs[pin_id];
             pack_subvecs_by_dut_io_id(chunk_vec->packed_subvecs, pin->dut_io_id, subvec);
         }
@@ -852,8 +908,10 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
 
     chunk_vec = free_vec(chunk_vec);
 
-    // chunk has been loaded with the full amount of vecs it can hold
-    chunk->is_filled = true;
+    // check if chunk has been loaded with the full amount of vecs it can hold
+    if(chunk->cur_vec_id+1 >= chunk->num_vecs){
+        chunk->is_filled = true;
+    }
 
     return chunk;
 }
@@ -883,25 +941,27 @@ enum stim_types get_stim_type_by_path(const char *path){
  *
  *
  */
-struct stim *open_stim(const char *profile_path, const char *path){
+struct stim *get_stim_by_path(const char *profile_path, const char *path){
     struct stim * stim = NULL;
     int fd;
     FILE *fp = NULL;
     off_t file_size = 0;
     off_t bitstream_size = 0;
-    struct profile *profile = NULL;
-    uint32_t num_vecs = 0;
-    uint32_t num_unrolled_vecs = 0;
     uint32_t num_pins = 0;
     struct profile_pin **pins = NULL;
+    uint32_t num_vecs = 0;
+    uint32_t num_unrolled_vecs = 0;
     char buffer[BUFFER_LENGTH];
+
+    if(profile_path == NULL){
+        die("pointer is NULL\n");
+    }
 
     if((stim = create_stim()) == NULL){
         die("error: pointer is NULL\n");
     }
 
-    profile = get_profile_by_path(profile_path);
-    if(profile == NULL){
+    if((stim->profile = get_profile_by_path(profile_path)) == NULL){
         die("error: pointer is NULL\n");
     }
 
@@ -1057,11 +1117,14 @@ struct stim *open_stim(const char *profile_path, const char *path){
             if(bitstream_size == 0){
                 die("failed to get bitstream size; size is zero\n");
             }
-            // TODO: dut_id = -1 filters by all duts. Pass the correct dut_id when supported multiple-duts.
+
+            // TODO: dut_id = -1 filters by all duts. Which only works if there is one dut.
+            //       Pass the correct dut_id when supported multiple-duts.
             int32_t dut_id = -1;
-            if((pins = get_config_profile_pins(profile, dut_id, &num_pins)) == NULL){
+            if((pins = get_config_profile_pins(stim->profile, dut_id, &num_pins)) == NULL){
                 die("error: failed to get profile config pins\n");
             }
+            
             // need to prep fpga for rbt and need to do post config checks
             num_vecs += get_config_num_vecs_by_type(CONFIG_TYPE_HEADER);
             num_vecs += get_config_num_vecs_by_type(CONFIG_TYPE_FOOTER);
@@ -1080,62 +1143,98 @@ struct stim *open_stim(const char *profile_path, const char *path){
 
             uint32_t num_unrolled_body_vecs = num_file_vecs*get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_BODY);
             num_unrolled_vecs += num_unrolled_body_vecs;
+
+            // must get the profile pins from the particular file we're loading
+            if(pins == NULL || num_pins == 0){
+                die("failed to get_stim_by_path; no pins were set\n");
+            }
+
+            // initialize the stim with the pins and vec from the parsed file
+            if((stim = init_stim(stim, pins, num_pins, num_vecs, num_unrolled_vecs)) == NULL){
+                die("error: pointer is NULL\n");
+            }
             break;
         case STIM_TYPE_DOTS:
             die("error: dots not supported yet\n");
             break;
         case STIM_TYPE_RAW:
-            die("error: stim not supported yet\n");
+            if((stim = stim_deserialize(stim)) == NULL){
+                die("failed to deserialize stim");
+            }
             break;
         default:
             die("error: failed to handle stim type\n");
             break;
     }
 
-    // initialize the stim with the pins and vec from the parsed file
-    if((stim = init_stim(stim, pins, num_pins, num_vecs, num_unrolled_vecs)) == NULL){
-        die("error: pointer is NULL\n");
-    }
-
     return stim;
 }
 
 /*
- * Close and un-map the stim's file. No need to call
- * this directly. It's called by on_exit.
+ * Returns a stim from a dots object.
  *
  */
-void close_stim(int status, void *vstim){
-    struct stim *stim = vstim;
-    if(stim == NULL){
+struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots){
+    struct stim *stim = NULL;
+    uint32_t num_unrolled_vecs = 0;
+    struct profile *profile = NULL;
+
+    if((profile = get_profile_by_path(profile_path)) == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(dots == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(dots->pins == NULL || dots->num_pins == 0){
+        die("dots has no pins\n");
+    }
+
+    for(uint32_t i=0; i<dots->num_pins; i++){
+        if(dots->pins[i] == NULL){
+            die("pointer is NULL\n");
+        }
+    }
+
+    if(dots->dots_vecs == NULL || dots->num_dots_vecs == 0){
+        die("dots has no vevs\n");
+    }
+
+    if(dots->num_dots_vecs > 0){
+        for(uint32_t i=0; i<dots->num_dots_vecs; i++){
+            if(dots->dots_vecs[i] == NULL){
+                die("dots has %i num_dots_vecs, but no vecs were "
+                        "appended\n", dots->num_dots_vecs);
+            }
+        }
+    }
+
+    if((stim = create_stim()) == NULL){
+        die("pointer is NULL\n");
+    }
+
+    stim->profile = profile;
+    stim->type = STIM_TYPE_DOTS;
+    stim->dots = dots;
+
+    num_unrolled_vecs = get_num_unrolled_dots_vecs(stim->dots);
+    
+
+    if((stim = init_stim(stim, dots->pins, dots->num_pins, 
+                dots->num_dots_vecs, num_unrolled_vecs)) == NULL){
         die("error: pointer is NULL\n");
     }
-    if(stim->is_open == false){
-        fprintf(stderr, "warning: no need to close stim manually, done automatically\n");
-        return;
-    }
-    if(munmap(stim->map, (size_t)(stim->file_size)) == -1){
-        die("error: failed to munmap file\n");
-    }
-    fclose(stim->fp);
-    close(stim->fd);
-
-    // clear handles
-    stim->is_open = false;
-    stim->fd = 0;
-    stim->fp = NULL;
-    stim->file_size = 0;
-    stim->map = NULL;
-    stim->cur_map_byte = 0;
-    stim->is_little_endian = true;
-    return;
+    
+    return stim;
 }
+
 
 /*
  * Free vec object memory.
  *
  */
-struct vec * free_vec(struct vec *vec){
+struct vec *free_vec(struct vec *vec){
     if(vec == NULL){
         return NULL;
     }
@@ -1152,10 +1251,15 @@ struct vec * free_vec(struct vec *vec){
  * Free vec chunk object memory.
  *
  */
-struct vec_chunk * free_vec_chunk(struct vec_chunk *chunk){
+struct vec_chunk *free_vec_chunk(struct vec_chunk *chunk){
     if(chunk == NULL){
         return NULL;
     }
+    stim_unload_chunk(chunk);
+    chunk->id = 0;
+    chunk->num_vecs = 0;
+    // don't free vec_data_compressed since it points to
+    // the mmap pointer on disk.
     free(chunk);
     return NULL;
 }
@@ -1164,25 +1268,370 @@ struct vec_chunk * free_vec_chunk(struct vec_chunk *chunk){
  * Free stim object memory.
  *
  */
-struct stim * free_stim(struct stim *stim){
+struct stim *free_stim(struct stim *stim){
     if(stim == NULL){
-        return NULL;
+        die("pointer is NULL\n");
     }
+
     if(stim->pins == NULL){
-        die("warning: failed to free stim, pins is NULL\n");
+        die("pointer is NULL\n");
     }
 
     if(stim->num_vec_chunks > 0 && stim->vec_chunks == NULL){
-        die("warning: failed to free stim, vec_chunks is NULL\n");
+        die("num_vec_chunks is %i but vec_chunks is NULL\n", stim->num_vec_chunks);
     }
-    stim->pins = free_profile_pins(stim->pins, stim->num_pins);
-    for(int i=0; i<stim->num_vec_chunks; i++){
+
+    if(stim->num_pins > 0 && stim->pins == NULL){
+        die("num_pins is %i but pins is NULL\n", stim->num_pins);
+    }
+
+    // free pins
+    for(uint32_t i=0; i<stim->num_pins; i++){
+        stim->pins[i] = free_profile_pin(stim->pins[i]);
+    }
+    free(stim->pins);
+    stim->pins = NULL;
+
+    // free chunks
+    for(uint32_t i=0; i<stim->num_vec_chunks; i++){
         stim->vec_chunks[i] = free_vec_chunk(stim->vec_chunks[i]);
     }
     free(stim->vec_chunks);
     stim->vec_chunks = NULL;
+
+    // close mmap
+    if(stim->is_open == true){
+        if(munmap(stim->map, (size_t)(stim->file_size)) == -1){
+            die("error: failed to munmap file\n");
+        }
+        fclose(stim->fp);
+        close(stim->fd);
+    }
+
+    stim->cur_vec_chunk_id = 0;
+    stim->num_unrolled_vecs = 0;
+    stim->is_open = false;
+    stim->fd = 0;
+    stim->fp = NULL;
+    stim->file_size = 0;
+    stim->map = NULL;
+    stim->cur_map_byte = 0;
+    stim->is_little_endian = true;
+
+    // Don't free dots here. It was passed externally by get_stim_by_dots so
+    // it's not our responsibility.
+    stim->dots = NULL;
+
+    free_profile(stim->profile);
+    stim->profile = NULL;
+
     free(stim);
     return NULL;
+}
+
+/*
+ * Takes a stim, converts it into capn objects and writes it to
+ * a file.
+ *
+ */
+void stim_serialize_to_path(struct stim *stim, const char *path){
+    if(stim == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(path == NULL){
+        die("pointer is NULL\n");
+    }
+
+    int fd = 0;
+    ssize_t sz = 0;
+    struct capn c;
+    capn_init_malloc(&c);
+    capn_ptr cr = capn_root(&c);
+    struct capn_segment *cs = cr.seg;
+
+    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	if (fd == -1) {
+        die("failed to open stim path %s for writing\n", path);
+	}
+
+    enum SerialStim_StimTypes stimType = SerialStim_StimTypes_stimTypeNone;
+    switch(stim->type){
+        case STIM_TYPE_NONE:
+            die("cannot serialize stim of type NONE\n");
+            break;
+        case STIM_TYPE_RBT:
+            stimType = SerialStim_StimTypes_stimTypeRbt;
+            break;
+        case STIM_TYPE_BIN:
+            stimType = SerialStim_StimTypes_stimTypeBin;
+            break;
+        case STIM_TYPE_BIT:
+            stimType = SerialStim_StimTypes_stimTypeBit;
+            break;
+        case STIM_TYPE_DOTS:
+            stimType = SerialStim_StimTypes_stimTypeDots;
+            break;
+        case STIM_TYPE_RAW:
+            stimType = SerialStim_StimTypes_stimTypeRaw;
+            break;
+        default:
+            die("invalid stim type %i\n", stim->type);
+            break;
+    }
+
+    struct SerialStim serialStim = {
+        .type = stimType,
+        .numPins = stim->num_pins,
+        .numVecs = stim->num_vecs,
+        .numUnrolledVecs = stim->num_unrolled_vecs,
+        .numVecChunks = stim->num_vec_chunks,
+    };
+
+    //
+    // Set the profile pins
+    //
+    serialStim.pins = new_ProfilePin_list(cs, stim->num_pins);
+
+    for(int i=0; i<stim->num_pins; i++){
+        struct profile_pin *profile_pin = stim->pins[i];
+        enum ProfilePin_ProfileTags profileTag = 0; 
+        switch(profile_pin->tag){
+            case PROFILE_TAG_NONE:
+                profileTag = ProfilePin_ProfileTags_profileTagNone;
+                break;
+            case PROFILE_TAG_CCLK:
+                profileTag = ProfilePin_ProfileTags_profileTagCclk;
+                break;
+            case PROFILE_TAG_RESET_B:
+                profileTag = ProfilePin_ProfileTags_profileTagResetB;
+                break;
+            case PROFILE_TAG_CSI_B:
+                profileTag = ProfilePin_ProfileTags_profileTagCsiB;
+                break;
+            case PROFILE_TAG_RDWR_B:
+                profileTag = ProfilePin_ProfileTags_profileTagRdwrB;
+                break;
+            case PROFILE_TAG_PROGRAM_B:
+                profileTag = ProfilePin_ProfileTags_profileTagProgramB;
+                break;
+            case PROFILE_TAG_INIT_B:
+                profileTag = ProfilePin_ProfileTags_profileTagInitB;
+                break;
+            case PROFILE_TAG_DONE:
+                profileTag = ProfilePin_ProfileTags_profileTagDone;
+                break;
+            case PROFILE_TAG_DATA:
+                profileTag = ProfilePin_ProfileTags_profileTagData;
+                break;
+            case PROFILE_TAG_GPIO:
+                profileTag = ProfilePin_ProfileTags_profileTagGpio;
+                break;
+            default:
+                die("invalid profile pin tag %i\n", profile_pin->tag);
+        }
+    
+        struct ProfilePin profilePin = {
+            .dutId = profile_pin->dut_id,
+            .pinName = chars_to_text(profile_pin->pin_name),
+            .compName = chars_to_text(profile_pin->comp_name),
+            .netName = chars_to_text(profile_pin->net_name),
+            .netAlias = chars_to_text(profile_pin->net_alias),
+            .tag = profileTag,
+            .tagData = profile_pin->tag_data,
+            .dutIoId = profile_pin->dut_io_id,
+            .numDestPinNames = profile_pin->num_dest_pin_names,
+        };
+
+        profilePin.destPinNames = new_String_list(cs, profile_pin->num_dest_pin_names);
+        
+        for(int j=0; j<profile_pin->num_dest_pin_names; j++){
+            struct String string = {
+                .string = chars_to_text(profile_pin->dest_pin_names[j]),
+            };
+            set_String(&string, profilePin.destPinNames, j);
+        }
+
+    }
+
+    //
+    // Set the vec_chunks
+    //
+    serialStim.vecChunks = new_VecChunk_list(cs, stim->num_vec_chunks);
+
+    struct vec_chunk *chunk = NULL;
+    char *compressed_data = NULL;
+    int compressed_data_size = 0;
+    while((chunk = stim_load_next_chunk(stim)) != NULL){
+        struct VecChunk vecChunk = {
+            .id = chunk->id,
+            .numVecs = chunk->num_vecs,
+            .vecDataSize = chunk->vec_data_size,
+        };
+
+        int max_dst_size = LZ4_compressBound(chunk->vec_data_size);
+        if((compressed_data = malloc(max_dst_size)) == NULL){
+            die("failed to malloc\n");
+        }
+        compressed_data_size = LZ4_compress_default((char*)chunk->vec_data, 
+                compressed_data, chunk->vec_data_size, max_dst_size);
+
+        if(compressed_data <= 0){
+            die("compression failed\n");
+        }
+        if((compressed_data = (char*)realloc(compressed_data, 
+                compressed_data_size)) == NULL){
+            die("re-alloc failed\n");
+        }
+        printf("compressed chunk %i by %zu bytes\n", chunk->id, 
+                (chunk->vec_data_size-compressed_data_size));
+        
+        // copy the data and set it
+        capn_list8 list = capn_new_list8(cs, compressed_data_size);
+        capn_setv8(list, 0, (uint8_t*)compressed_data, compressed_data_size);
+        capn_data vecData = {
+            .p = list.p,
+        };
+        vecChunk.vecData = vecData;
+        set_VecChunk(&vecChunk, serialStim.vecChunks, chunk->id);
+    }
+
+    SerialStim_ptr serialStimPtr = new_SerialStim(cs);
+    write_SerialStim(&serialStim, serialStimPtr);
+    int setp_ret = capn_setp(capn_root(&c), 0, serialStimPtr.p);
+    if(setp_ret != 0){
+        die("capn setp failed\n");
+    }
+    sz = capn_write_fd(&c, &write_fd, fd, 0 /* packed */);
+    capn_free(&c);
+
+    close(fd);
+    return;
+}
+
+/*
+ * Deserializes a type raw stim file.
+ *
+ */
+struct stim *stim_deserialize(struct stim *stim){
+    if(stim == NULL){
+        die("pointer is NULL\n");
+    }
+    struct capn *capn = NULL;
+
+    if(stim->is_open == false || stim->map == NULL){
+        die("failed to deserialize stim; map is not open\n");
+    }
+
+    if(capn_init_mem(capn, stim->map, stim->file_size, 0 /* packed */) != 0){
+        die("cap init mem failed\n");
+    }
+
+    SerialStim_ptr serialStim_ptr; 
+    struct SerialStim serialStim;
+
+    serialStim_ptr.p = capn_getp(capn_root(capn), 
+            0 /* off */, 1 /* resolve */);
+    read_SerialStim(&serialStim, serialStim_ptr);
+
+    stim->type = (enum stim_types)serialStim.type;
+    stim->num_pins = serialStim.numPins;
+    stim->num_vecs = serialStim.numVecs;
+    stim->num_unrolled_vecs = serialStim.numUnrolledVecs;
+    stim->num_vec_chunks = serialStim.numVecChunks;
+
+    //
+    // Set the profile pins
+    //
+    stim->pins = create_profile_pins(stim->num_pins);
+
+    for(int i=0; i<stim->num_pins; i++){
+        struct ProfilePin profilePin;
+        struct profile_pin *pin = create_profile_pin(NULL);
+        
+        get_ProfilePin(&profilePin, serialStim.pins, i);
+        stim->pins[i]->dut_id = profilePin.dutId;
+        pin->pin_name = strndup(profilePin.pinName.str, 
+                profilePin.pinName.len);
+        pin->comp_name = strndup(profilePin.compName.str,
+                profilePin.compName.len);
+        pin->net_name = strndup(profilePin.netName.str,
+                profilePin.netName.len);
+        pin->net_alias = strndup(profilePin.netAlias.str,
+                profilePin.netAlias.len);
+        pin->tag = (enum profile_tags)profilePin.tag;
+        pin->tag_data = profilePin.tagData;
+        pin->dut_io_id = profilePin.dutIoId;
+        pin->num_dest_pin_names = profilePin.numDestPinNames;
+
+        for(int j=0; j<pin->num_dest_pin_names; j++){
+            struct String string;
+            get_String(&string, profilePin.destPinNames, j);
+            pin->dest_pin_names[j] = strndup(string.string.str, 
+                    string.string.len);
+        }
+
+        stim->pins[i] = pin;
+    }
+
+    //
+    // Set the vec_chunks
+    //
+    stim->vec_chunks = create_vec_chunks(stim->num_vec_chunks);
+    
+    for(uint32_t i=0; i<stim->num_vec_chunks; i++){
+        struct vec_chunk *chunk = NULL;
+        struct VecChunk vecChunk;
+        get_VecChunk(&vecChunk, serialStim.vecChunks, i);
+        chunk = create_vec_chunk(i, stim->num_vec_chunks);
+
+        chunk->id = vecChunk.id;
+        chunk->num_vecs = vecChunk.numVecs;
+        chunk->vec_data = NULL;
+        chunk->vec_data_size = vecChunk.vecDataSize;
+        chunk->vec_data_compressed = (uint8_t*)vecChunk.vecData.p.data;
+        chunk->vec_data_compressed_size = vecChunk.vecData.p.len;
+
+        stim->vec_chunks[i] = chunk;
+    }
+
+
+    // TODO: save capn so we can free it later
+
+    return stim;
+}
+
+/*
+ * If the stim file is raw, then the stim struct pointers will be populated
+ * with pointers from the MMAPed file when de-serializing the capn structs,
+ * since it doesn't copy data.  
+ *
+ */
+struct vec_chunk *stim_decompress_vec_chunk(struct vec_chunk *chunk){
+    if(chunk == NULL){
+        die("pointer is NULL\n");
+    }
+    if(chunk->vec_data == NULL){
+        die("failed to decompress chunk; vec_data not allocated\n");
+    }
+    if(chunk->vec_data_size == 0){
+        die("failed to decompress chunk; vec_data_size is 0\n");
+    }
+    if(chunk->vec_data_compressed == NULL){
+        die("failed to decompress chunk; chunk is not compressed\n");
+    }
+    if(chunk->vec_data_compressed_size == 0){
+        die("failed to decompress chunk; compress size is 0\n");
+    }
+
+    int decompressed_size = LZ4_decompress_safe((char*)chunk->vec_data_compressed,
+            (char*)chunk->vec_data, chunk->vec_data_compressed_size, chunk->vec_data_size);
+
+    if(decompressed_size <= 0){
+        die("chunk decompression failed\n");
+    }
+
+    return chunk;
 }
 
 
