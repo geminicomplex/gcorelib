@@ -692,9 +692,6 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         die("chunk %i already filled; cannot refill before "
             "calling unload", chunk->id);
     }
-
-    printf("filling chunk %i with %i vecs (%zu bytes)...\n", 
-            chunk->id, chunk->num_vecs, chunk->vec_data_size);
     
     if(stim->type == STIM_TYPE_NONE){
         die("error: failed to fill chunk, stim type is none\n");
@@ -705,6 +702,15 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
     }
     if(chunk->id == (stim->num_vec_chunks-1)){
         is_last_chunk = true;
+    }
+    
+
+    if(is_last_chunk){
+        printf("filling chunk %i with %i vecs (%i padding vecs) (%zu bytes)...\n", 
+            chunk->id, chunk->num_vecs, stim->num_padding_vecs, chunk->vec_data_size);
+    }else{
+        printf("filling chunk %i with %i vecs (%zu bytes)...\n", 
+            chunk->id, chunk->num_vecs, chunk->vec_data_size);
     }
 
     if(stim->type == STIM_TYPE_RBT || stim->type == STIM_TYPE_BIN || stim->type == STIM_TYPE_BIT){
@@ -745,7 +751,6 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         // if we're in the last chunk and we loaded all the data from the source
         // file already, then copy the footer after
         if(is_last_chunk){
-            printf("number of padding vecs %i\n", stim->num_padding_vecs);
             if((config = create_config(stim->profile, CONFIG_TYPE_FOOTER, 1, stim->num_padding_vecs)) == NULL){
                 die("error: pointer is NULL\n");
             }
@@ -1355,33 +1360,8 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         die("failed to open stim path %s for writing\n", path);
 	}
 
-    enum SerialStim_StimTypes stimType = SerialStim_StimTypes_stimTypeNone;
-    switch(stim->type){
-        case STIM_TYPE_NONE:
-            die("cannot serialize stim of type NONE\n");
-            break;
-        case STIM_TYPE_RBT:
-            stimType = SerialStim_StimTypes_stimTypeRbt;
-            break;
-        case STIM_TYPE_BIN:
-            stimType = SerialStim_StimTypes_stimTypeBin;
-            break;
-        case STIM_TYPE_BIT:
-            stimType = SerialStim_StimTypes_stimTypeBit;
-            break;
-        case STIM_TYPE_DOTS:
-            stimType = SerialStim_StimTypes_stimTypeDots;
-            break;
-        case STIM_TYPE_RAW:
-            stimType = SerialStim_StimTypes_stimTypeRaw;
-            break;
-        default:
-            die("invalid stim type %i\n", stim->type);
-            break;
-    }
-
     struct SerialStim serialStim = {
-        .type = stimType,
+        .type = SerialStim_StimTypes_stimTypeRaw,
         .numPins = stim->num_pins,
         .numVecs = stim->num_vecs,
         .numUnrolledVecs = stim->num_unrolled_vecs,
@@ -1452,6 +1432,8 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
             set_String(&string, profilePin.destPinNames, j);
         }
 
+        set_ProfilePin(&profilePin, serialStim.pins, i);
+
     }
 
     //
@@ -1462,6 +1444,7 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
     struct vec_chunk *chunk = NULL;
     char *compressed_data = NULL;
     int compressed_data_size = 0;
+    size_t total_saved_size = 0;
     while((chunk = stim_load_next_chunk(stim)) != NULL){
         struct VecChunk vecChunk = {
             .id = chunk->id,
@@ -1486,6 +1469,8 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         printf("compressed chunk %i by %zu bytes\n", chunk->id, 
                 (chunk->vec_data_size-compressed_data_size));
         
+        total_saved_size += (chunk->vec_data_size-compressed_data_size);
+
         // copy the data and set it
         capn_list8 list = capn_new_list8(cs, compressed_data_size);
         capn_setv8(list, 0, (uint8_t*)compressed_data, compressed_data_size);
@@ -1495,6 +1480,8 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         vecChunk.vecData = vecData;
         set_VecChunk(&vecChunk, serialStim.vecChunks, chunk->id);
     }
+
+    printf("compression saved %zu bytes\n", total_saved_size);
 
     SerialStim_ptr serialStimPtr = new_SerialStim(cs);
     write_SerialStim(&serialStim, serialStimPtr);
@@ -1517,20 +1504,20 @@ struct stim *stim_deserialize(struct stim *stim){
     if(stim == NULL){
         die("pointer is NULL\n");
     }
-    struct capn *capn = NULL;
+    struct capn capn;
 
     if(stim->is_open == false || stim->map == NULL){
         die("failed to deserialize stim; map is not open\n");
     }
 
-    if(capn_init_mem(capn, stim->map, stim->file_size, 0 /* packed */) != 0){
+    if(capn_init_mem(&capn, stim->map, stim->file_size, 0 /* packed */) != 0){
         die("cap init mem failed\n");
     }
 
     SerialStim_ptr serialStim_ptr; 
     struct SerialStim serialStim;
 
-    serialStim_ptr.p = capn_getp(capn_root(capn), 
+    serialStim_ptr.p = capn_getp(capn_root(&capn), 
             0 /* off */, 1 /* resolve */);
     read_SerialStim(&serialStim, serialStim_ptr);
 
@@ -1550,7 +1537,7 @@ struct stim *stim_deserialize(struct stim *stim){
         struct profile_pin *pin = create_profile_pin(NULL);
         
         get_ProfilePin(&profilePin, serialStim.pins, i);
-        stim->pins[i]->dut_id = profilePin.dutId;
+        pin->dut_id = profilePin.dutId;
         pin->pin_name = strndup(profilePin.pinName.str, 
                 profilePin.pinName.len);
         pin->comp_name = strndup(profilePin.compName.str,
@@ -1627,6 +1614,8 @@ struct vec_chunk *stim_decompress_vec_chunk(struct vec_chunk *chunk){
     int decompressed_size = LZ4_decompress_safe((char*)chunk->vec_data_compressed,
             (char*)chunk->vec_data, chunk->vec_data_compressed_size, chunk->vec_data_size);
 
+    printf("decompressed chunk %i (%zu bytes -> %zu bytes)\n", chunk->id, 
+            chunk->vec_data_compressed_size, chunk->vec_data_size);
     if(decompressed_size <= 0){
         die("chunk decompression failed\n");
     }

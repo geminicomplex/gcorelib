@@ -52,6 +52,10 @@ struct profile_pin *create_profile_pin(struct profile_pin *copy_pin){
     profile_pin->num_dest_pin_names = 0;
     profile_pin->dest_pin_names = NULL;
 
+    if((profile_pin->dest_pin_names = (char **)calloc(profile_pin->num_dest_pin_names, sizeof(char*))) == NULL){
+        die("error: failed to malloc struct.\n");
+    }
+
     if(copy_pin != NULL){
         profile_pin->dut_id = copy_pin->dut_id;
         profile_pin->pin_name = strdup(copy_pin->pin_name);
@@ -62,10 +66,6 @@ struct profile_pin *create_profile_pin(struct profile_pin *copy_pin){
         profile_pin->tag_data = copy_pin->tag_data;
         profile_pin->dut_io_id = copy_pin->dut_io_id;
         profile_pin->num_dest_pin_names = copy_pin->num_dest_pin_names;
-
-        if((profile_pin->dest_pin_names = (char **)calloc(profile_pin->num_dest_pin_names, sizeof(char*))) == NULL){
-            die("error: failed to malloc struct.\n");
-        }
         for(uint32_t i=0; i<profile_pin->num_dest_pin_names; i++){
             profile_pin->dest_pin_names[i] = strdup(copy_pin->dest_pin_names[i]);
         }
@@ -367,7 +367,7 @@ struct profile *get_profile_by_path(const char *path){
     int fd;
     FILE *fp = NULL;
     off_t file_size;
-    struct profile *profile;
+    struct profile *profile = NULL;
     jsmn_parser json_parser;
     jsmntok_t t[2048*2];
     int32_t num_tokens;
@@ -377,16 +377,17 @@ struct profile *get_profile_by_path(const char *path){
         die("error: failed to get profile by path, pointer is NULL\n");
     }
 
-    if(util_fopen(path, &fd, &fp, &file_size) != 0){
-        die("fopen failed\n");
-    }
-
     if((profile = create_profile()) == NULL){
         die("pointer is NULL\n");
     }
-    profile->path = realpath(path, NULL);
 
-    if((data = (char*)malloc((size_t)file_size)) == NULL){
+    profile->path = strdup(realpath(path, NULL));
+
+    if(util_fopen(profile->path, &fd, &fp, &file_size) != 0){
+        die("fopen failed\n");
+    }
+
+    if((data = (char*)calloc((size_t)file_size, sizeof(char))) == NULL){
         die("error: failed to malloc data.\n");
     }
 
@@ -476,6 +477,9 @@ struct profile *get_profile_by_path(const char *path){
 
     free(data);
     data = NULL;
+
+    fclose(fp);
+    close(fd);
 
     return profile;
 }
