@@ -531,7 +531,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     // Copy pins to stim. Freeing the pins passed in is not our responsibility.
     for(uint32_t i=0, j=0; i<stim->num_pins; i++){
         if(pins[i]->dut_io_id >= 0){
-            stim->pins[j++] = create_profile_pin(pins[i], pins[i]->num_dests);
+            stim->pins[j++] = create_profile_pin_from_pin(pins[i]);
         }else{
             die("error: failed to init stim, pin '%s' doesn't"
                 "have a valid dut_io_id\n", pins[i]->net_name);
@@ -1839,7 +1839,7 @@ struct stim *stim_deserialize(struct stim *stim){
         struct ProfilePin profilePin;
         get_ProfilePin(&profilePin, serialStim.pins, i);
 
-        struct profile_pin *pin = create_profile_pin(NULL, profilePin.numDests);
+        struct profile_pin *pin = create_profile_pin(profilePin.numDests);
         
         pin->pin_name = strndup(profilePin.pinName.str, 
                 profilePin.pinName.len);

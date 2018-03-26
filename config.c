@@ -220,7 +220,7 @@ struct profile_pin **get_config_profile_pins(struct profile *profile, int32_t du
         }
         for(int j=0; j<num_pins; j++){
             if((*found_num_pins) < num_config_pins){
-                config_pins[(*found_num_pins)++] = create_profile_pin(pins[j], pins[j]->num_dests);
+                config_pins[(*found_num_pins)++] = create_profile_pin_from_pin(pins[j]);
             }else{
                 die("error: failed to get config pins, length exceeded.\n");
             }

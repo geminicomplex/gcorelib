@@ -259,7 +259,7 @@ struct dots *create_dots(uint32_t num_dots_vecs, struct profile_pin **pins,
     }
 
     for(uint32_t i=0; i<dots->num_pins; i++){
-        dots->pins[i] = create_profile_pin(pins[i], pins[i]->num_dests);
+        dots->pins[i] = create_profile_pin_from_pin(pins[i]);
     }
 
     dots->cur_appended_dots_vec_id = 0;

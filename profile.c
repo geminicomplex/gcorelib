@@ -36,11 +36,13 @@
  * Allocate a new profile pin object.
  *
  */
-struct profile_pin *create_profile_pin(struct profile_pin *copy_pin, uint32_t num_dests){
+struct profile_pin *create_profile_pin(uint32_t num_dests){
     struct profile_pin *profile_pin = NULL;
+
     if((profile_pin = (struct profile_pin*)malloc(sizeof(struct profile_pin))) == NULL){
         die("error: failed to malloc struct.\n");
     }
+
     profile_pin->pin_name = NULL;
     profile_pin->comp_name = NULL;
     profile_pin->net_name = NULL;
@@ -61,25 +63,42 @@ struct profile_pin *create_profile_pin(struct profile_pin *copy_pin, uint32_t nu
         }
     }
 
-    if(copy_pin != NULL){
-        profile_pin->pin_name = strdup(copy_pin->pin_name);
-        profile_pin->comp_name = strdup(copy_pin->comp_name);
-        profile_pin->net_name = strdup(copy_pin->net_name);
-        profile_pin->net_alias = strdup(copy_pin->net_alias);
-        profile_pin->tag = copy_pin->tag;
-        profile_pin->tag_data = copy_pin->tag_data;
-        profile_pin->dut_io_id = copy_pin->dut_io_id;
-        profile_pin->num_dests = copy_pin->num_dests;
+    return profile_pin;
+}
 
-        
-        for(uint32_t i=0; i<profile_pin->num_dests; i++){
-            profile_pin->dest_dut_ids[i] = copy_pin->dest_dut_ids[i];
-            profile_pin->dest_pin_names[i] = strdup(copy_pin->dest_pin_names[i]);
-        }
+/*
+ * Allocate a new profile pin object.
+ *
+ */
+struct profile_pin *create_profile_pin_from_pin(struct profile_pin *copy_pin){
+    struct profile_pin *profile_pin = NULL;
+
+    if(copy_pin == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if((profile_pin = create_profile_pin(copy_pin->num_dests)) == NULL){
+        die("error: failed to malloc struct.\n");
+    }
+    
+    profile_pin->pin_name = strdup(copy_pin->pin_name);
+    profile_pin->comp_name = strdup(copy_pin->comp_name);
+    profile_pin->net_name = strdup(copy_pin->net_name);
+    profile_pin->net_alias = strdup(copy_pin->net_alias);
+    profile_pin->tag = copy_pin->tag;
+    profile_pin->tag_data = copy_pin->tag_data;
+    profile_pin->dut_io_id = copy_pin->dut_io_id;
+    profile_pin->num_dests = copy_pin->num_dests;
+
+    
+    for(uint32_t i=0; i<profile_pin->num_dests; i++){
+        profile_pin->dest_dut_ids[i] = copy_pin->dest_dut_ids[i];
+        profile_pin->dest_pin_names[i] = strdup(copy_pin->dest_pin_names[i]);
     }
 
     return profile_pin;
 }
+
 
 /*
  * Allocate an array of profile pin pointers given num_pins.
@@ -467,7 +486,7 @@ struct profile *get_profile_by_path(const char *path){
                     continue;
                 }
                 // don't allocate dests since we don't know yet
-                struct profile_pin *pin = create_profile_pin(NULL, 0);
+                struct profile_pin *pin = create_profile_pin(0);
                 for(int k=1; k < (pins->size*2)+1; k=k+2){
                     jsmntok_t *key = &pins[k+0];
                     jsmntok_t *v = &pins[k+1];
@@ -646,7 +665,7 @@ struct profile_pin **get_profile_pins_by_tag(struct profile *profile,
                         continue;
                     }
                 }
-                pins[j] = create_profile_pin(profile->pins[i], profile->pins[i]->num_dests);
+                pins[j] = create_profile_pin_from_pin(profile->pins[i]);
                 j++;
             }
         }
@@ -703,7 +722,7 @@ struct profile_pin *get_profile_pin_by_pin_name(struct profile *profile, char *p
             if(found_pin != NULL){
                 die("found multiple pins for pin_name '%s'\n", pin_name);
             }else{
-                found_pin = create_profile_pin(profile->pins[i], profile->pins[i]->num_dests);
+                found_pin = create_profile_pin_from_pin(profile->pins[i]);
             }
         }
     }
@@ -744,7 +763,7 @@ struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, in
                     die("dest_pin_name '%s' is driven by multiple pins for profile '%s'\n", 
                             dest_pin_name, profile->path);
                 }else{
-                    found_pin = create_profile_pin(profile->pins[i], profile->pins[i]->num_dests);
+                    found_pin = create_profile_pin_from_pin(profile->pins[i]);
                 }
             }
         }

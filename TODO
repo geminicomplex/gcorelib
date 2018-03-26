@@ -1,0 +1,41 @@
+
+
+
+>> profile pin to multiple duts
+
+A profile pin can go to multiple duts. The dut id is associated with the
+dest_pin_name. Code needs to handle multiple tags of the same kind if
+we have two duts for example. Note that you can technically program multiple
+duts with the same config pins. This only works because we are writing and
+not reading, since it's a fanout. A dots file however writes and reads and
+so the pins used must not be shared in the fanout but physically seperated
+to different sets of dut_io profile pins per dut.
+
+For bitstream you can select dut 0 and 1 if board is wired this way. Probably 
+better to split out the config pins per dut when designing board. Of course,
+you could program all n duts with one shot and then run the dots for each
+dut seperately. Then you need to specify in flowfile dut_ids per bitstream
+or dots, versus for all patterns in flow if each are split out.
+
+one shot design:
+    CCLK ---------- DUT 0
+                |
+                --- DUT 1
+
+split out design:
+    CCLK ---------- DUT 0
+    CCLK ---------- DUT 1
+
+Must select dut 0 since we read
+    DIN (L9) ----- DUT 0
+    DOUT (L10) --- DUT 0
+
+Must select dut 1 since we read
+    DIN (L9) ----- DUT 1
+    DOUT (L10) --- DUT 1
+
+
+
+
+
+
