@@ -511,10 +511,10 @@ static void assert_dut_io_range(struct stim *stim, enum artix_selects artix_sele
     }
 
     // check for correct dut_io_id based on artix unit 
-    if(artix_select == A1){
+    if(artix_select == ARTIX_SELECT_A1){
         range_low = 0;
         range_high = DUT_NUM_PINS-1;
-    }else if(artix_select == A2){
+    }else if(artix_select == ARTIX_SELECT_A2){
         range_low = DUT_NUM_PINS;
         range_high = DUT_TOTAL_NUM_PINS-1;
     }
@@ -541,8 +541,10 @@ static void assert_dut_io_range(struct stim *stim, enum artix_selects artix_sele
 // have a simple virtual machine running so we can do jumps in memory to
 // perform loops in hardware.
 //
+// returns -1 if pass or failing cycle number (zero indexed)
 //
-void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *file_path){
+//
+int64_t artix_dut_test(enum artix_selects artix_select, struct stim *stim){
     struct gcore_ctrl_packet packet;
 	uint64_t *dma_buf;
     uint32_t num_bursts;
@@ -550,12 +552,15 @@ void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *f
     struct vec_chunk *chunk;
     struct profile_pin *pin = NULL;
 	bool test_failed = false;
-	uint32_t test_cycle = 0;
-    struct stim *stim = NULL;
+	int64_t test_cycle = -1;
+    uint32_t ret_test_cycle = 0;
 
-    // stim file can be dots, rbt, bin, bit or stim file.
-    if((stim = get_stim_by_path(profile_path, file_path)) == NULL){
-        die("error: pointer is NULL\n");
+    if(stim == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(stim->profile == NULL){
+        die("no profile set for stim\n");
     }
 
     // check if dut_io_id is within range for given artix
@@ -638,7 +643,7 @@ void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *f
 
     printf("writing vectors to memory...\n");
     // load one chunk at a time and dma the vecs to artix memory
-    while((chunk = stim_load_next_chunk(stim)) != NULL){
+    while((chunk = stim_load_next_chunk(stim, artix_select)) != NULL){
 
         // copy over the vec data buffer
         printf("writing %i vecs (%zu bytes) to dma buffer...\n", chunk->num_vecs, chunk->vec_data_size);
@@ -668,7 +673,7 @@ void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *f
         }else{
             if(counter >= 0x000000ff){
                 helper_get_agent_status(artix_select, &packet);
-                test_cycle = packet.addr;
+                ret_test_cycle = packet.addr;
                 helper_print_agent_status(artix_select);
                 counter = 0;
                 break;
@@ -680,7 +685,7 @@ void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *f
 
     // grab number of test cycles and if it failed
     helper_get_agent_status(artix_select, &packet);
-    test_cycle = (packet.addr & 0x0fffffff);
+    ret_test_cycle = (packet.addr & 0x0fffffff);
     if((packet.data & 0x000f0000) == 0x00010000){
         test_failed = true;
     }
@@ -688,14 +693,15 @@ void artix_dut_test(enum artix_selects artix_select, char *profile_path, char *f
         printf("warning: read fifo stalled during test\n");
     }
     if(test_failed){
-        printf("test failed at vector %d out of %i :(\n", test_cycle, stim->num_unrolled_vecs);
+        printf("test failed at vector %d out of %i :(\n", ret_test_cycle, stim->num_unrolled_vecs);
+        test_cycle = ret_test_cycle;
     }else{
-        printf("test PASS (executed %i of %i vectors)!\n", test_cycle, stim->num_unrolled_vecs);
+        printf("test PASS (executed %i of %i vectors)!\n", ret_test_cycle, stim->num_unrolled_vecs);
     }
 
     printf("done!\n");
 
-    return;
+    return test_cycle;
 }
 
 /*
@@ -756,13 +762,13 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
         if((regs->status & GCORE_STATUS_DONE_ERROR_MASK) == GCORE_STATUS_DONE_ERROR_MASK){
             printf("error: failed to configure, done error is high.\n");
         }else{
-            if(artix_select == A1){
+            if(artix_select == ARTIX_SELECT_A1){
                 if((regs->a1_status & GCORE_AGENT_DONE_MASK) != GCORE_AGENT_DONE_MASK){
                     printf("no done error, but a1 done pin did NOT go high.\n");
                 }else{
                     printf("a1 done went high!\n");
                 }
-            }else if (artix_select == A2){
+            }else if (artix_select == ARTIX_SELECT_A2){
                 if((regs->a2_status & GCORE_AGENT_DONE_MASK) != GCORE_AGENT_DONE_MASK){
                     printf("no done error, but a2 done pin did NOT go high.\n");
                 }else{

@@ -36,6 +36,10 @@ void helper_subcore_load_run(enum artix_selects artix_select,
         enum subcore_states subcore_state){
     struct gcore_cfg gcfg;
 
+    if (artix_select == ARTIX_SELECT_BOTH) {
+        die("error: selecting both artix units not allowed\n");
+    }
+
     // subcore must be in IDLE state to load and run
     gcore_subcore_idle();
     
@@ -66,14 +70,16 @@ void helper_agent_load_run(enum artix_selects artix_select,
     regs = gcore_get_regs();
     if(regs != NULL){
 
-        if(artix_select == A1){
+        if(artix_select == ARTIX_SELECT_A1){
             if((regs->a1_status & GCORE_AGENT_STARTUP_DONE_MASK) == GCORE_AGENT_STARTUP_DONE_MASK){
                 agent_did_startup = true;
             }
-        } else if (artix_select == A2) {
+        } else if (artix_select == ARTIX_SELECT_A2) {
             if((regs->a2_status & GCORE_AGENT_STARTUP_DONE_MASK) == GCORE_AGENT_STARTUP_DONE_MASK){
                 agent_did_startup = true;
             }
+        } else if (artix_select == ARTIX_SELECT_BOTH) {
+            die("error: no artix unit given; selecting both not allowed\n");
         } else {
             die("error: no artix unit given\n");
         }
@@ -86,7 +92,11 @@ void helper_agent_load_run(enum artix_selects artix_select,
      *
      */
     if(!agent_did_startup) {
-        printf("initializing agent...");
+        if(artix_select == ARTIX_SELECT_A1){
+            printf("initializing agent a1...");
+        }else if(artix_select == ARTIX_SELECT_A2){
+            printf("initializing agent a2...");
+        }
         fflush(stdout);
         // wait for pll and mmcms to lock
         // init and calibrate ddr
@@ -117,9 +127,6 @@ void helper_agent_load_run(enum artix_selects artix_select,
     packet.rank_select = 0;
     packet.addr = 0;
     packet.data = agent_state;
-    //if(agent_state != STATUS) {
-    //    print_agent_state(agent_state, "agent: ");
-    //}
 
     // set subcore to proxy ctrl data
     subcore_state = CTRL_WRITE;
@@ -386,13 +393,17 @@ void sprint_subcore_mode_state(char *mode_state_str) {
     switch(mode_state & 0xf0000000){
         case GCORE_ARTIX_SELECT_NONE:
             strcpy(mode_str, "none");
-        break;
+            break;
         case GCORE_ARTIX_SELECT_A1:
             strcpy(mode_str, "A1");
-        break;
+            break;
         case GCORE_ARTIX_SELECT_A2:
             strcpy(mode_str, "A2");
-        break;
+            break;
+        default:
+            // TODO: log warning here
+            strcpy(mode_str, "invalid unit");
+            break;
     };
 
     switch(mode_state & 0x0fffffff){

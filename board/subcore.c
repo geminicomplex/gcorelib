@@ -27,25 +27,29 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
-static int gcore_fd;
+static int gcore_fd = -1;
 static bool is_initialized = false;
 
 __attribute__((constructor))
 static void gcore_subcore_init() {
+#ifdef __arm__
     gcore_fd = open(MMAP_PATH, O_RDONLY, 0);
 	if(gcore_fd == -1){
 		die("gcorelib: opening file for writing");
     }
+#endif
     is_initialized = true;
     return;
 }
 
 __attribute__((destructor))
 static void gcore_subcore_destroy() {
+#ifdef __arm__
     if(!is_initialized){
         die("gcorelib: failed to exit, gcore not initialized");
     }
 	close(gcore_fd);
+#endif
     is_initialized = false;
 	return;
 }
@@ -138,7 +142,7 @@ void gcore_ctrl_read(struct gcore_ctrl_packet *packet){
  * Gets all values of the registers.
  */
 struct gcore_registers* gcore_get_regs(){
-    struct gcore_registers *regs;
+    struct gcore_registers *regs = NULL;
 
     if((regs = (struct gcore_registers *) malloc(sizeof(struct gcore_registers))) == NULL){
         die("error: malloc failed");

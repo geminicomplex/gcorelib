@@ -21,6 +21,8 @@ extern "C" {
 #include <inttypes.h>
 #include <stdbool.h>
 
+#include "common.h"
+
 // number if xilinx config data pins
 #define PROFILE_NUM_DATA_PINS 32
 
@@ -74,7 +76,6 @@ enum profile_tags {
  *
  */
 struct profile_pin {
-    int32_t dut_id;
     char *pin_name;
     char *comp_name;
     char *net_name;
@@ -82,7 +83,8 @@ struct profile_pin {
     enum profile_tags tag;
     int32_t tag_data;
     int32_t dut_io_id;
-    uint32_t num_dest_pin_names;
+    uint32_t num_dests;
+    uint32_t *dest_dut_ids;
     char **dest_pin_names;
 };
 
@@ -106,7 +108,7 @@ struct profile {
  * Prototypes
  *
  */
-struct profile_pin *create_profile_pin(struct profile_pin *copy_pin);
+struct profile_pin *create_profile_pin(struct profile_pin *copy_pin, uint32_t num_dests);
 struct profile_pin **create_profile_pins(uint32_t num_pins);
 struct profile *create_profile(void);
 struct profile_pin *free_profile_pin(struct profile_pin *pin);
@@ -126,6 +128,10 @@ struct profile_pin *get_profile_pin_by_pin_name(struct profile *profile,
         char *pin_name);
 struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, 
         int32_t dut_id, char *dest_pin_name);
+enum artix_selects get_artix_select_by_profile_pin(struct profile_pin *pin);
+enum artix_selects get_artix_select_by_profile_pins(
+        struct profile_pin **pins, uint32_t num_pins);
+
 
 #ifdef __cplusplus
 }

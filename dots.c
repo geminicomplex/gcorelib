@@ -64,7 +64,7 @@ void append_dots_vec_by_vec_str(struct dots *dots,
  * Expands a vector string into an array of un-packed subvecs. 
  *
  */
-void expand_dots_vec_str(struct dots *dots, struct dots_vec *dots_vec, enum subvecs *data_subvecs, 
+void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, enum subvecs *data_subvecs, 
         uint32_t num_data_subvecs){
     uint32_t vec_str_len = 0;
 
@@ -95,6 +95,18 @@ void expand_dots_vec_str(struct dots *dots, struct dots_vec *dots_vec, enum subv
     if(dots_vec->num_subvecs != dots->num_pins){
         die("error: num subvecs for dots_vec %i != "
             "num_pins %i\n", dots_vec->num_subvecs, dots->num_pins);
+    }
+
+    if(dots_vec->subvecs != NULL){
+        die("failed to expand dots_vec; subvecs is already allocated");
+    }
+
+    if((dots_vec->subvecs = (enum subvecs *)calloc(dots_vec->num_subvecs, sizeof(enum subvecs))) == NULL){
+        die("error: failed to calloc dots_vecs' vecs\n");
+    }
+
+    for(int i=0; i<dots_vec->num_subvecs; i++){
+        dots_vec->subvecs[i] = DUT_SUBVEC_X;
     }
 
     for(int i=0; i<vec_str_len; i++){
@@ -143,13 +155,36 @@ void expand_dots_vec_str(struct dots *dots, struct dots_vec *dots_vec, enum subv
     return;
 }
 
+/*
+ * Frees the dots_vec subvecs memory.
+ *
+ */
+void unexpand_dots_vec_subvecs(struct dots_vec *dots_vec){
+    if(dots_vec == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(dots_vec->is_expanded == false){
+        return;
+    }
+
+    if(dots_vec->subvecs != NULL){
+        free(dots_vec->subvecs);
+        dots_vec->subvecs = NULL; 
+    }
+
+    dots_vec->is_expanded = false;
+
+    return;
+}
+
 
 /*
  * Config stores the vectors in a compressed form based on the repeat value.
  * Return which vector bucket the id falls into.
  *
  */
-struct dots_vec *get_dots_vec_by_real_id(struct dots *dots, uint32_t id){
+struct dots_vec *get_dots_vec_by_unrolled_id(struct dots *dots, uint32_t id){
     struct dots_vec *dots_vec = NULL;
     uint32_t start = 0;
     if(dots == NULL){
@@ -198,6 +233,15 @@ uint32_t get_num_unrolled_dots_vecs(struct dots *dots){
 struct dots *create_dots(uint32_t num_dots_vecs, struct profile_pin **pins, 
         uint32_t num_pins){
     struct dots *dots = NULL;
+
+    if(pins == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(num_pins == 0){
+        die("cannot create a dots with zero pins\n");
+    }
+
     if((dots = (struct dots*)malloc(sizeof(struct dots))) == NULL){
         die("error: failed to malloc struc\n");
     }
@@ -215,10 +259,9 @@ struct dots *create_dots(uint32_t num_dots_vecs, struct profile_pin **pins,
     }
 
     for(uint32_t i=0; i<dots->num_pins; i++){
-        dots->pins[i] = create_profile_pin(pins[i]);
+        dots->pins[i] = create_profile_pin(pins[i], pins[i]->num_dests);
     }
 
-    dots->cur_dots_vec_id = 0;
     dots->cur_appended_dots_vec_id = 0;
 
     return dots;
@@ -244,14 +287,6 @@ struct dots_vec *create_dots_vec(struct dots *dots){
     dots_vec->num_subvecs = dots->num_pins;
     dots_vec->subvecs = NULL;
 
-    if((dots_vec->subvecs = (enum subvecs *)calloc(dots_vec->num_subvecs, sizeof(enum subvecs))) == NULL){
-        die("error: failed to calloc dots_vecs' vecs\n");
-    }
-
-    for(int i=0; i<dots_vec->num_subvecs; i++){
-        dots_vec->subvecs[i] = DUT_SUBVEC_X;
-    }
-
     dots_vec->has_clk = false;
 
     return dots_vec;
@@ -273,7 +308,6 @@ struct dots *free_dots(struct dots *dots){
     dots->dots_vecs = NULL;
     dots->num_dots_vecs = 0;
     dots->cur_appended_dots_vec_id = 0;
-    dots->cur_dots_vec_id = 0;
 
     if(dots->pins != NULL){
         for(uint32_t i=0; i<dots->num_pins; i++){
@@ -301,8 +335,10 @@ struct dots_vec *free_dots_vec(struct dots_vec *dots_vec){
     dots_vec->vec_str = NULL;
     dots_vec->is_expanded = false;
     dots_vec->num_subvecs = 0;
-    free(dots_vec->subvecs);
-    dots_vec->subvecs = NULL;
+    if(dots_vec->subvecs != NULL){
+        free(dots_vec->subvecs);
+        dots_vec->subvecs = NULL;
+    }
     free(dots_vec);
     return NULL;
 }

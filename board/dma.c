@@ -30,10 +30,10 @@
  *
  */
 static uint32_t alloc_offset;
-static int gcore_fd;
-static uint8_t *gcore_map;
-static int mem_fd;
-static uint32_t *mem_map;
+static int gcore_fd = -1;
+static uint8_t *gcore_map = NULL;
+static int mem_fd = -1;
+static uint32_t *mem_map = NULL;
 struct gcore_userdev userdev;
 struct gcore_chan_cfg rx_config;
 struct gcore_chan_cfg tx_config;
@@ -44,6 +44,8 @@ static bool is_tx_prepared = false;
 
 __attribute__((constructor))
 static void gcore_dma_init() {
+
+#ifdef __arm__
     gcore_fd = open(MMAP_PATH, O_RDWR | O_CREAT | O_TRUNC, (mode_t) 0600);
 	if(gcore_fd == -1){
 		die("gcorelib: opening file for writing");
@@ -71,11 +73,15 @@ static void gcore_dma_init() {
     mem_map = mmap(NULL, 65535, PROT_READ, MAP_SHARED, mem_fd, DMA_BASE_ADDR);
 
     is_initialized = true;
+#else
+    mem_fd = -1;
+#endif
     return;
 }
 
 __attribute__((destructor))
 static void gcore_dma_destroy() {
+#ifdef __arm__
     if(!is_initialized){
         die("gcorelib: failed to exit, gcore not initialized");
     }
@@ -89,6 +95,7 @@ static void gcore_dma_destroy() {
 		die("gcorelib: error un-mmapping the file");
 	}
 	close(mem_fd);
+#endif
 
     is_initialized = false;
 	return;

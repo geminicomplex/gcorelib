@@ -48,6 +48,12 @@ enum ProfilePin_ProfileTags {
 	ProfilePin_ProfileTags_profileTagGpio = 9
 };
 
+enum VecChunk_ArtixSelects {
+	VecChunk_ArtixSelects_artixSelectNone = 0,
+	VecChunk_ArtixSelects_artixSelectA1 = 1,
+	VecChunk_ArtixSelects_artixSelectA2 = 2
+};
+
 enum SerialStim_StimTypes {
 	SerialStim_StimTypes_stimTypeNone = 0,
 	SerialStim_StimTypes_stimTypeRbt = 1,
@@ -76,18 +82,20 @@ struct ProfilePin {
 	enum ProfilePin_ProfileTags tag;
 	int32_t tagData;
 	int32_t dutIoId;
-	uint32_t numDestPinNames;
+	uint32_t numDests;
+	capn_list32 destDutIds;
 	String_list destPinNames;
 };
 
 static const size_t ProfilePin_word_count = 3;
 
-static const size_t ProfilePin_pointer_count = 5;
+static const size_t ProfilePin_pointer_count = 6;
 
-static const size_t ProfilePin_struct_bytes_count = 64;
+static const size_t ProfilePin_struct_bytes_count = 72;
 
 struct VecChunk {
 	uint8_t id;
+	enum VecChunk_ArtixSelects artixSelect;
 	uint32_t numVecs;
 	capn_data vecData;
 	uint32_t vecDataSize;
@@ -106,15 +114,17 @@ struct SerialStim {
 	ProfilePin_list pins;
 	uint32_t numVecs;
 	uint32_t numUnrolledVecs;
-	uint32_t numVecChunks;
-	VecChunk_list vecChunks;
+	uint32_t numA1VecChunks;
+	uint32_t numA2VecChunks;
+	VecChunk_list a1VecChunks;
+	VecChunk_list a2VecChunks;
 };
 
-static const size_t SerialStim_word_count = 2;
+static const size_t SerialStim_word_count = 3;
 
-static const size_t SerialStim_pointer_count = 2;
+static const size_t SerialStim_pointer_count = 3;
 
-static const size_t SerialStim_struct_bytes_count = 32;
+static const size_t SerialStim_struct_bytes_count = 48;
 
 String_ptr new_String(struct capn_segment*);
 ProfilePin_ptr new_ProfilePin(struct capn_segment*);

@@ -6,7 +6,7 @@ LDFLAGS :=
 EXECUTABLE :=
 OS := $(shell uname)
 ifeq ($(OS),Darwin)
-	LDFLAGS += -shared -Wl,-install_name,libgcore.dylib 
+	LDFLAGS += -shared -dynamiclib -Wl,-install_name,libgcore.dylib 
 	EXECUTABLE += libgcore.dylib
 else
 	LDFLAGS += -shared -Wl,-soname,libgcore.so 

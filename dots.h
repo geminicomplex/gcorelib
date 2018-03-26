@@ -54,7 +54,6 @@ struct dots {
     // public
     uint32_t num_dots_vecs;
     struct dots_vec **dots_vecs;
-    uint32_t cur_dots_vec_id;
     uint16_t num_pins;
     struct profile_pin **pins;
     
@@ -62,14 +61,14 @@ struct dots {
     uint32_t cur_appended_dots_vec_id;
 };
 
-// pins and num_pins are optional
 struct dots *create_dots(uint32_t num_dots_vecs, struct profile_pin **pins, 
     uint32_t num_pins);
 void append_dots_vec_by_vec_str(struct dots *dots, 
     const char *repeat, const char *vec_str);
-void expand_dots_vec_str(struct dots *dots, struct dots_vec *dots_vec, 
+void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, 
     enum subvecs *data_subvecs, uint32_t num_data_subvecs);
-struct dots_vec *get_dots_vec_by_real_id(struct dots *dots, uint32_t id);
+void unexpand_dots_vec_subvecs(struct dots_vec *dots_vec);
+struct dots_vec *get_dots_vec_by_unrolled_id(struct dots *dots, uint32_t id);
 uint32_t get_num_unrolled_dots_vecs(struct dots *dots);
 struct dots_vec *create_dots_vec(struct dots *dots);
 struct dots *free_dots(struct dots *dots);

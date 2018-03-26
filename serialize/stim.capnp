@@ -13,8 +13,9 @@ struct ProfilePin {
     tag @5 :ProfileTags;
     tagData @6 :Int32;
     dutIoId @7 :Int32;
-    numDestPinNames @8 :UInt32;
-    destPinNames @9 :List(String);
+    numDests @8 :UInt32;
+    destDutIds @9 :List(UInt32);
+    destPinNames @10 :List(String);
 
     enum ProfileTags {
         profileTagNone @0;
@@ -32,10 +33,17 @@ struct ProfilePin {
 
 struct VecChunk {
     id @0 :UInt8;
-    numVecs @1 :UInt32;
-    vecData @2 :Data;
-    vecDataSize @3 :UInt32;
-    vecDataCompressedSize @4 :UInt32;
+    artixSelect @1 :ArtixSelects;
+    numVecs @2 :UInt32;
+    vecData @3 :Data;
+    vecDataSize @4 :UInt32;
+    vecDataCompressedSize @5 :UInt32;
+
+    enum ArtixSelects {
+        artixSelectNone @0;
+        artixSelectA1 @1;
+        artixSelectA2 @2;
+    }
 }
 
 struct SerialStim {
@@ -44,8 +52,10 @@ struct SerialStim {
     pins @2 :List(ProfilePin);
     numVecs @3 :UInt32;
     numUnrolledVecs @4 :UInt32;
-    numVecChunks @5 :UInt32;
-    vecChunks @6 :List(VecChunk);
+    numA1VecChunks @5 :UInt32;
+    numA2VecChunks @6 :UInt32;
+    a1VecChunks @7 :List(VecChunk);
+    a2VecChunks @8 :List(VecChunk);
 
     enum StimTypes {
         stimTypeNone @0;

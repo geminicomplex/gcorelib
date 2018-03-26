@@ -38,6 +38,7 @@ extern "C" {
 #include "profile.h"
 #include "config.h"
 #include "dots.h"
+#include "../driver/gcore_common.h"
 
 #include <stdio.h>
 #include <inttypes.h>
@@ -127,6 +128,7 @@ enum vec_opcode {
  * mmap.
  *
  * id : id of the chunk
+ * artix_select: which artix unit the vec_data is for
  * num_vecs : number of vectors
  * cur_vec_id : when filling vecs, used to inc
  * vec_data : compiled raw vector data that DMAs over
@@ -140,6 +142,7 @@ enum vec_opcode {
  */
 struct vec_chunk {
     uint8_t id;
+    enum artix_selects artix_select;
     uint32_t num_vecs;
     uint32_t cur_vec_id;
     uint8_t *vec_data;
@@ -175,11 +178,14 @@ struct stim {
     struct profile_pin **pins;
     uint32_t num_vecs;
     uint32_t num_unrolled_vecs;
-    uint32_t num_vec_chunks;
-    struct vec_chunk **vec_chunks;
+    uint32_t num_a1_vec_chunks;
+    uint32_t num_a2_vec_chunks;
+    struct vec_chunk **a1_vec_chunks;
+    struct vec_chunk **a2_vec_chunks;
 
     // private
-    int32_t cur_vec_chunk_id;
+    int32_t cur_a1_vec_chunk_id;
+    int32_t cur_a2_vec_chunk_id;
     uint32_t num_padding_vecs;
     bool is_open;
     int fd;
@@ -187,9 +193,12 @@ struct stim {
     off_t file_size;
     uint8_t *map;
     off_t cur_map_byte;
+    off_t start_map_byte;
     bool is_little_endian;
     struct profile *profile;
     struct dots *dots;
+    uint32_t cur_a1_dots_vec_id;
+    uint32_t cur_a2_dots_vec_id;
 };
 
 
@@ -207,7 +216,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path);
 struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots);
 
 // Load and fills the next chunk. Always unloads current chunk. 
-struct vec_chunk *stim_load_next_chunk(struct stim *stim);
+struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects artix_select);
 enum subvecs get_subvec_by_pin_id(struct vec *vec, uint32_t pin_id);
 enum stim_types get_stim_type_by_path(const char *path);
 
@@ -237,7 +246,8 @@ uint32_t stim_get_next_bitstream_word(struct stim *stim);
 
 struct stim *create_stim(void);
 struct vec_chunk **create_vec_chunks(uint32_t num_vec_chunks);
-struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs);
+struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, 
+        enum artix_selects artix_select, uint32_t num_vecs);
 struct vec *create_vec(void);
 struct stim *free_stim(struct stim *stim);
 struct vec_chunk *free_vec_chunk(struct vec_chunk *chunk);

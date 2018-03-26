@@ -43,12 +43,12 @@ void set_String(const struct String *s, String_list l, int i) {
 
 ProfilePin_ptr new_ProfilePin(struct capn_segment *s) {
 	ProfilePin_ptr p;
-	p.p = capn_new_struct(s, 24, 5);
+	p.p = capn_new_struct(s, 24, 6);
 	return p;
 }
 ProfilePin_list new_ProfilePin_list(struct capn_segment *s, int len) {
 	ProfilePin_list p;
-	p.p = capn_new_list(s, len, 24, 5);
+	p.p = capn_new_list(s, len, 24, 6);
 	return p;
 }
 void read_ProfilePin(struct ProfilePin *s capnp_unused, ProfilePin_ptr p) {
@@ -62,8 +62,9 @@ void read_ProfilePin(struct ProfilePin *s capnp_unused, ProfilePin_ptr p) {
 	s->tag = (enum ProfilePin_ProfileTags)(int) capn_read16(p.p, 4);
 	s->tagData = (int32_t) ((int32_t)capn_read32(p.p, 8));
 	s->dutIoId = (int32_t) ((int32_t)capn_read32(p.p, 12));
-	s->numDestPinNames = capn_read32(p.p, 16);
-	s->destPinNames.p = capn_getp(p.p, 4, 0);
+	s->numDests = capn_read32(p.p, 16);
+	s->destDutIds.p = capn_getp(p.p, 4, 0);
+	s->destPinNames.p = capn_getp(p.p, 5, 0);
 }
 void write_ProfilePin(const struct ProfilePin *s capnp_unused, ProfilePin_ptr p) {
 	capn_resolve(&p.p);
@@ -76,8 +77,9 @@ void write_ProfilePin(const struct ProfilePin *s capnp_unused, ProfilePin_ptr p)
 	capn_write16(p.p, 4, (uint16_t) (s->tag));
 	capn_write32(p.p, 8, (uint32_t) (s->tagData));
 	capn_write32(p.p, 12, (uint32_t) (s->dutIoId));
-	capn_write32(p.p, 16, s->numDestPinNames);
-	capn_setp(p.p, 4, s->destPinNames.p);
+	capn_write32(p.p, 16, s->numDests);
+	capn_setp(p.p, 4, s->destDutIds.p);
+	capn_setp(p.p, 5, s->destPinNames.p);
 }
 void get_ProfilePin(struct ProfilePin *s, ProfilePin_list l, int i) {
 	ProfilePin_ptr p;
@@ -104,6 +106,7 @@ void read_VecChunk(struct VecChunk *s capnp_unused, VecChunk_ptr p) {
 	capn_resolve(&p.p);
 	capnp_use(s);
 	s->id = capn_read8(p.p, 0);
+	s->artixSelect = (enum VecChunk_ArtixSelects)(int) capn_read16(p.p, 2);
 	s->numVecs = capn_read32(p.p, 4);
 	s->vecData = capn_get_data(p.p, 0);
 	s->vecDataSize = capn_read32(p.p, 8);
@@ -113,6 +116,7 @@ void write_VecChunk(const struct VecChunk *s capnp_unused, VecChunk_ptr p) {
 	capn_resolve(&p.p);
 	capnp_use(s);
 	capn_write8(p.p, 0, s->id);
+	capn_write16(p.p, 2, (uint16_t) (s->artixSelect));
 	capn_write32(p.p, 4, s->numVecs);
 	capn_setp(p.p, 0, s->vecData.p);
 	capn_write32(p.p, 8, s->vecDataSize);
@@ -131,12 +135,12 @@ void set_VecChunk(const struct VecChunk *s, VecChunk_list l, int i) {
 
 SerialStim_ptr new_SerialStim(struct capn_segment *s) {
 	SerialStim_ptr p;
-	p.p = capn_new_struct(s, 16, 2);
+	p.p = capn_new_struct(s, 24, 3);
 	return p;
 }
 SerialStim_list new_SerialStim_list(struct capn_segment *s, int len) {
 	SerialStim_list p;
-	p.p = capn_new_list(s, len, 16, 2);
+	p.p = capn_new_list(s, len, 24, 3);
 	return p;
 }
 void read_SerialStim(struct SerialStim *s capnp_unused, SerialStim_ptr p) {
@@ -147,8 +151,10 @@ void read_SerialStim(struct SerialStim *s capnp_unused, SerialStim_ptr p) {
 	s->pins.p = capn_getp(p.p, 0, 0);
 	s->numVecs = capn_read32(p.p, 4);
 	s->numUnrolledVecs = capn_read32(p.p, 8);
-	s->numVecChunks = capn_read32(p.p, 12);
-	s->vecChunks.p = capn_getp(p.p, 1, 0);
+	s->numA1VecChunks = capn_read32(p.p, 12);
+	s->numA2VecChunks = capn_read32(p.p, 16);
+	s->a1VecChunks.p = capn_getp(p.p, 1, 0);
+	s->a2VecChunks.p = capn_getp(p.p, 2, 0);
 }
 void write_SerialStim(const struct SerialStim *s capnp_unused, SerialStim_ptr p) {
 	capn_resolve(&p.p);
@@ -158,8 +164,10 @@ void write_SerialStim(const struct SerialStim *s capnp_unused, SerialStim_ptr p)
 	capn_setp(p.p, 0, s->pins.p);
 	capn_write32(p.p, 4, s->numVecs);
 	capn_write32(p.p, 8, s->numUnrolledVecs);
-	capn_write32(p.p, 12, s->numVecChunks);
-	capn_setp(p.p, 1, s->vecChunks.p);
+	capn_write32(p.p, 12, s->numA1VecChunks);
+	capn_write32(p.p, 16, s->numA2VecChunks);
+	capn_setp(p.p, 1, s->a1VecChunks.p);
+	capn_setp(p.p, 2, s->a2VecChunks.p);
 }
 void get_SerialStim(struct SerialStim *s, SerialStim_list l, int i) {
 	SerialStim_ptr p;

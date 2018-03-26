@@ -218,13 +218,15 @@ int util_jsmn_eq(const char *json, jsmntok_t *tok, const char *s) {
 
 /*
  * Return the file extension of the basename of the given path.
+ * Just return a pointer to the extension in the same string.
+ * Do not free this pointer. It is not a copy.
  *
  */
 const char *util_get_file_ext_by_path(const char *path) {
     const char *base = basename((char *)path);
     const char *dot = strrchr(base, '.');
     if(!dot || dot == base) return "";
-    return strdup(dot + 1);
+    return (dot + 1);
 }
 
 

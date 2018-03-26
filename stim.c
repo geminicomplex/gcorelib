@@ -19,6 +19,7 @@
 #include "serialize/stim.capnp.h"
 #include "lib/capnp/capnp_c.h"
 #include "lib/lz4/lz4.h"
+#include "../driver/gcore_common.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -290,7 +291,6 @@ uint32_t stim_get_next_bitstream_word(struct stim *stim){
     uint32_t count = 0;
     switch(stim->type){
         case STIM_TYPE_RBT:
-            
             while(stim->cur_map_byte < stim->file_size){
                 if(stim->map[stim->cur_map_byte+count] == '\n'){
                     if(count > BUFFER_LENGTH){
@@ -375,6 +375,9 @@ struct vec *create_vec(){
  */
 struct vec_chunk **create_vec_chunks(uint32_t num_vec_chunks){
     struct vec_chunk **vec_chunks = NULL;
+    if(num_vec_chunks == 0){
+        return NULL;
+    }
     if((vec_chunks = (struct vec_chunk**)calloc(num_vec_chunks, sizeof(struct vec_chunk*))) == NULL){
         die("error: failed to calloc stim vec_chunks\n");
     }
@@ -387,8 +390,16 @@ struct vec_chunk **create_vec_chunks(uint32_t num_vec_chunks){
  * from an mmap source. 
  *
  */
-struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs){
+struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, 
+        enum artix_selects artix_select, uint32_t num_vecs){
     struct vec_chunk *chunk = NULL;
+
+
+    if(artix_select == ARTIX_SELECT_NONE){
+        die("failed to create vec chunk; artix select cannot be none");
+    }else if(artix_select == ARTIX_SELECT_BOTH){
+        die("failed to create vec chunk; artix select cannot be both");
+    }
 
     if(num_vecs == 0){
         die("error: num_vecs == 0, failed to malloc vec_chunk struct\n");
@@ -399,6 +410,7 @@ struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id, uint32_t num_vecs){
     }
 
     chunk->id = vec_chunk_id;
+    chunk->artix_select = artix_select;
     chunk->num_vecs = num_vecs;
 
     // don't malloc until we load the chunk to save on memory
@@ -436,11 +448,14 @@ struct stim *create_stim(){
     stim->type = STIM_TYPE_NONE;
     stim->num_vecs = 0;
     stim->num_unrolled_vecs = 0;
-    stim->num_vec_chunks = 0;
-    stim->vec_chunks = NULL;
+    stim->num_a1_vec_chunks = 0;
+    stim->num_a2_vec_chunks = 0;
+    stim->a1_vec_chunks = NULL;
+    stim->a2_vec_chunks = NULL;
 
     // no chunks loaded so clear
-    stim->cur_vec_chunk_id = -1;
+    stim->cur_a1_vec_chunk_id = -1;
+    stim->cur_a2_vec_chunk_id = -1;
 
     // number of NOP vecs to pad with so num_vecs 
     // is a multiple of memory bursts
@@ -460,6 +475,8 @@ struct stim *create_stim(){
     // will get set there.  
     // 
     stim->dots = NULL;
+    stim->cur_a1_dots_vec_id = 0;
+    stim->cur_a2_dots_vec_id = 0;
 
     return stim;
 }
@@ -475,7 +492,9 @@ struct stim *create_stim(){
  * de-serialize.
  *
  */
-struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t num_pins, uint32_t num_vecs, uint32_t num_unrolled_vecs){
+struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t num_pins, 
+        uint32_t num_vecs, uint32_t num_unrolled_vecs){
+    enum artix_selects artix_select = ARTIX_SELECT_NONE;
     if(stim == NULL){
         die("error: failed to initialized stim, pointer is NULL\n");
     }
@@ -496,6 +515,15 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         die("error: failed to init stim, num_profile_pins %i > %i\n", stim->num_pins, DUT_TOTAL_NUM_PINS);
     }
 
+    // Check if pins given are for both units or for either a1 or a2.
+    // If both, then we double the number of chunks, each half going
+    // to either unit.
+    artix_select = get_artix_select_by_profile_pins(pins, num_pins);
+
+    if(artix_select == ARTIX_SELECT_NONE){
+        die("pins given don't have any dut_io pins\n");
+    }
+
     if((stim->pins = (struct profile_pin **)calloc(stim->num_pins, sizeof(struct profile_pin*))) == NULL){
         die("error: failed to calloc profile pins\n");
     }
@@ -503,7 +531,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     // Copy pins to stim. Freeing the pins passed in is not our responsibility.
     for(uint32_t i=0, j=0; i<stim->num_pins; i++){
         if(pins[i]->dut_io_id >= 0){
-            stim->pins[j++] = create_profile_pin(pins[i]);
+            stim->pins[j++] = create_profile_pin(pins[i], pins[i]->num_dests);
         }else{
             die("error: failed to init stim, pin '%s' doesn't"
                 "have a valid dut_io_id\n", pins[i]->net_name);
@@ -529,26 +557,50 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     uint64_t vecs_size = stim->num_vecs*STIM_VEC_SIZE;
     
     // calculate the number of chunks needed based on vecs_size
+    uint32_t num_vec_chunks = 0;
     if(vecs_size > STIM_CHUNK_SIZE){
-        stim->num_vec_chunks = (uint32_t)(vecs_size / STIM_CHUNK_SIZE);
+        num_vec_chunks = (uint32_t)(vecs_size / STIM_CHUNK_SIZE);
         if(vecs_size % STIM_CHUNK_SIZE != 0){
-            stim->num_vec_chunks++;
+            num_vec_chunks++;
             last_chunk_partial = true;
         }
     }else if (vecs_size <= STIM_CHUNK_SIZE){
-        stim->num_vec_chunks = 1;
+        num_vec_chunks = 1;
         last_chunk_partial = true;
     }
 
-    if((stim->vec_chunks = create_vec_chunks(stim->num_vec_chunks)) == NULL){
-        die("pointer is NULL\n");
+    // if stim is for both a1 and a2 then when need to double the number
+    if(artix_select == ARTIX_SELECT_A1){
+        stim->num_a1_vec_chunks = num_vec_chunks;
+        stim->num_a2_vec_chunks = 0;
+    }else if(artix_select == ARTIX_SELECT_A2){
+        stim->num_a1_vec_chunks = 0;
+        stim->num_a2_vec_chunks = num_vec_chunks;
+    }else if(artix_select == ARTIX_SELECT_BOTH){
+        stim->num_a1_vec_chunks = num_vec_chunks;
+        stim->num_a2_vec_chunks = num_vec_chunks;
+    }else{
+        die("artix select %i not allowed\n", artix_select);
     }
 
-    // calculate how many vectors we can fit in a chunk and 
-    // create the chunks. 
+    // allocate the array
+    if(stim->num_a1_vec_chunks > 0){
+        if((stim->a1_vec_chunks = create_vec_chunks(stim->num_a1_vec_chunks)) == NULL){
+            die("pointer is NULL\n");
+        }
+    }
+    if(stim->num_a2_vec_chunks > 0){
+        if((stim->a2_vec_chunks = create_vec_chunks(stim->num_a2_vec_chunks)) == NULL){
+            die("pointer is NULL\n");
+        }
+    }
+
+    // Calculate how many vectors we can fit in a chunk and 
+    // create the chunks. If stim is for both units, then
+    // we have double the chunks so fill each half.
     uint32_t vecs_per_chunk = 0;
-    for(int i=0; i<stim->num_vec_chunks; i++){
-        if((i == stim->num_vec_chunks-1) && last_chunk_partial){
+    for(int i=0; i<num_vec_chunks; i++){
+        if((i == num_vec_chunks-1) && last_chunk_partial){
             if(vecs_size > STIM_CHUNK_SIZE){
                 size_t mod_size = (vecs_size % STIM_CHUNK_SIZE);
                 vecs_per_chunk = (uint32_t)(mod_size/STIM_VEC_SIZE);
@@ -558,9 +610,17 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         } else {
             vecs_per_chunk = STIM_CHUNK_SIZE/STIM_VEC_SIZE;
         }
-        stim->vec_chunks[i] = create_vec_chunk(i, vecs_per_chunk);
-        stim->vec_chunks[i]->is_loaded = false;
-        stim->vec_chunks[i]->is_filled = false;
+
+        if(artix_select == ARTIX_SELECT_A1){
+            stim->a1_vec_chunks[i] = create_vec_chunk(i, ARTIX_SELECT_A1, vecs_per_chunk);
+        }else if(artix_select == ARTIX_SELECT_A2){
+            stim->a2_vec_chunks[i] = create_vec_chunk(i, ARTIX_SELECT_A2, vecs_per_chunk);
+        }else if(artix_select == ARTIX_SELECT_BOTH){
+            stim->a1_vec_chunks[i] = create_vec_chunk(i, ARTIX_SELECT_A1, vecs_per_chunk);
+            stim->a2_vec_chunks[i] = create_vec_chunk(i, ARTIX_SELECT_A2, vecs_per_chunk);
+        }else{
+            die("artix select %i not allowed\n", artix_select);
+        }
     }
 
     return stim;
@@ -572,9 +632,15 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
  * of allocating enough memory for the vectors. Calling this will also fill
  * the chunk.
  *
+ * Each chunk corresponds to a specific artix unit. If you start loading chunks
+ * for a unit, you must finished loading before you starting loading another.
+ *
  */
-struct vec_chunk *stim_load_next_chunk(struct stim *stim){
+struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects artix_select){
     struct vec_chunk *next_chunk = NULL;
+    uint32_t num_vec_chunks = 0;
+    struct vec_chunk **vec_chunks = NULL;
+    uint32_t cur_vec_chunk_id = -1;
 
     if(stim == NULL){
         die("error: failed to load vec chunk, pointer is NULL\n");
@@ -584,21 +650,62 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim){
         die("error: failed to load vec chunk, stim type is none\n");
     }
 
-    if(stim->cur_vec_chunk_id != -1){
-        if(!stim->vec_chunks[stim->cur_vec_chunk_id]->is_loaded){
-            die("current chunk %i has never been loaded;"
-                    " failed to unload\n", stim->cur_vec_chunk_id);
+    if(artix_select == ARTIX_SELECT_NONE){
+        die("no artix unit selected\n");
+    }else if(artix_select == ARTIX_SELECT_A1){
+        num_vec_chunks = stim->num_a1_vec_chunks;
+        vec_chunks = stim->a1_vec_chunks;
+        cur_vec_chunk_id = stim->cur_a1_vec_chunk_id;
+
+        if(stim->cur_a2_vec_chunk_id >= 0){
+            die("failed to load next chunk for a1, a2 is currently being loaded");
         }
-        stim_unload_chunk(stim->vec_chunks[stim->cur_vec_chunk_id]);
+    }else if(artix_select == ARTIX_SELECT_A2){
+        num_vec_chunks = stim->num_a2_vec_chunks;
+        vec_chunks = stim->a2_vec_chunks;
+        cur_vec_chunk_id = stim->cur_a2_vec_chunk_id;
+
+        if(stim->cur_a1_vec_chunk_id >= 0){
+            die("failed to load next chunk for a2, a1 is currently being loaded");
+        }
+    }else if(artix_select == ARTIX_SELECT_BOTH){
+        die("cannot select both artix units\n");
+    }
+
+    // reset mmap pointer since loading first chunk
+    if(cur_vec_chunk_id == -1){
+        stim->cur_map_byte = stim->start_map_byte;
+    }
+
+    if(cur_vec_chunk_id != -1){
+        if(!vec_chunks[cur_vec_chunk_id]->is_loaded){
+            die("current chunk %i has never been loaded;"
+                    " failed to unload\n", cur_vec_chunk_id);
+        }
+        stim_unload_chunk(vec_chunks[cur_vec_chunk_id]);
+    }
+
+    // last chunk so reset cur vec chunk id
+    if(cur_vec_chunk_id == (num_vec_chunks-1)){
+        cur_vec_chunk_id = -1;
+    } else {
+        cur_vec_chunk_id += 1;
+    }
+
+    // save the id
+    if(artix_select == ARTIX_SELECT_A1){
+        stim->cur_a1_vec_chunk_id = cur_vec_chunk_id;
+    }else if(artix_select == ARTIX_SELECT_A2){
+        stim->cur_a2_vec_chunk_id = cur_vec_chunk_id;
     }
 
     // last chunk so exit
-    if(stim->cur_vec_chunk_id == (stim->num_vec_chunks-1)){
+    if(cur_vec_chunk_id == -1){
         return NULL;
     }
 
-    stim->cur_vec_chunk_id++;
-    next_chunk = stim->vec_chunks[stim->cur_vec_chunk_id];
+    // get the next chunk
+    next_chunk = vec_chunks[cur_vec_chunk_id];
 
     // 1 burst is 1024 bytes, 1 vector is 128 bytes, 8 vecs per burst
     uint32_t num_bursts = next_chunk->num_vecs/8;
@@ -638,8 +745,10 @@ void stim_unload_chunk(struct vec_chunk *chunk){
         return;
     }
     chunk->cur_vec_id = 0;
-    free(chunk->vec_data);
-    chunk->vec_data = NULL;
+    if(chunk->vec_data != NULL){
+        free(chunk->vec_data);
+        chunk->vec_data = NULL;
+    }
     chunk->vec_data_size = 0;
     chunk->is_loaded = false;
     chunk->is_filled = false;
@@ -669,7 +778,11 @@ static void stim_get_next_bitstream_subvecs(struct stim *stim,
  * fill chunk with data starting at the current vector that needs to be
  * loaded. A chunk is packed after it has been loaded into memory, with data
  * from the source file. Don't call stim_fill_chunk_by_dots directly, but call
- * this instead.
+ * this instead. 
+ *
+ * We pre-calculate the size of the chunk based on the number of vecs, taking
+ * into account header, body and footer if stim is a bitstream. No need to worry
+ * about not having space.
  *
  */
 struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
@@ -679,6 +792,7 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
     struct config *config = NULL;
     bool is_first_chunk = false;
     bool is_last_chunk = false;
+    char a1_or_a2_str[5] = "none";
 
     if(stim == NULL){
         die("pointer is NULL\n");
@@ -697,24 +811,37 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         die("error: failed to fill chunk, stim type is none\n");
     }
 
+    // check if first chunk
     if(chunk->id == 0){
         is_first_chunk = true;
     }
-    if(chunk->id == (stim->num_vec_chunks-1)){
-        is_last_chunk = true;
+
+    // check if last chunk
+    if(chunk->artix_select == ARTIX_SELECT_A1){
+        strncpy(a1_or_a2_str, "a1", 5);
+        if(chunk->id == (stim->num_a1_vec_chunks-1)){
+            is_last_chunk = true;
+        }
+    }else if(chunk->artix_select == ARTIX_SELECT_A2){
+        strncpy(a1_or_a2_str, "a2", 5);
+        if(chunk->id == (stim->num_a2_vec_chunks-1)){
+            is_last_chunk = true;
+        }
+    }else{
+        die("invalid chunk artix select %i\n", chunk->artix_select);
     }
     
 
     if(is_last_chunk){
-        printf("filling chunk %i with %i vecs (%i padding vecs) (%zu bytes)...\n", 
-            chunk->id, chunk->num_vecs, stim->num_padding_vecs, chunk->vec_data_size);
+        printf("filling %s chunk %i with %i vecs (%i padding vecs) (%zu bytes)...\n", 
+            a1_or_a2_str, chunk->id, chunk->num_vecs, stim->num_padding_vecs, chunk->vec_data_size);
     }else{
-        printf("filling chunk %i with %i vecs (%zu bytes)...\n", 
-            chunk->id, chunk->num_vecs, chunk->vec_data_size);
+        printf("filling %s chunk %i with %i vecs (%zu bytes)...\n", 
+            a1_or_a2_str, chunk->id, chunk->num_vecs, chunk->vec_data_size);
     }
 
     if(stim->type == STIM_TYPE_RBT || stim->type == STIM_TYPE_BIN || stim->type == STIM_TYPE_BIT){
-        // first chunk so fill it with the config header
+        // First chunk so fill it with the config header. Size will always be less than chunk size.
         if(is_first_chunk){
             if((config = create_config(stim->profile, CONFIG_TYPE_HEADER, 1, 0)) == NULL){
                 die("error: pointer is NULL\n");
@@ -814,6 +941,17 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             "calling unload\n", chunk->id);
     }
 
+    // Each artix select chunk can be filled with the same dots so need
+    // to keep track of which unit we're filling for.
+    uint32_t cur_dots_vec_id = 0;
+    if(chunk->artix_select == ARTIX_SELECT_A1){
+        cur_dots_vec_id = stim->cur_a1_vec_chunk_id;
+    }else if(chunk->artix_select == ARTIX_SELECT_A2){
+        cur_dots_vec_id = stim->cur_a2_vec_chunk_id;
+    }else{
+        die("invalid chunk artix select %i\n", chunk->artix_select);
+    }
+
     //
     // Fill the chunk with as many vectors as possible. When the chunk fills
     // up it will break and exit preserving the cur_dots_vec_id and cur_chunk_vec.
@@ -821,7 +959,7 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
     while(1){ 
 
         // Only load as many dots vecs as the dots has. If none left then break. 
-        if(dots->cur_dots_vec_id >= dots->num_dots_vecs){
+        if(cur_dots_vec_id >= dots->num_dots_vecs){
             break;
         }
 
@@ -831,9 +969,9 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             break;
         }
 
-        dots_vec = dots->dots_vecs[dots->cur_dots_vec_id];
+        dots_vec = dots->dots_vecs[cur_dots_vec_id];
         if(dots_vec ==  NULL){
-            die("error: failed to get dots_vec by real id %i\n", dots->cur_dots_vec_id);
+            die("error: failed to get dots_vec by real id %i\n", cur_dots_vec_id);
         }
 
         if(dots_vec->num_subvecs != stim->num_pins){
@@ -862,13 +1000,18 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             }
         }
 
-        // Convert the dots_vec's vec_str into subvecs. If bitstream inject
-        // the data subvecs for the data pins.
-        expand_dots_vec_str(dots, dots_vec, data_subvecs, num_data_subvecs); 
-
         // clear the chunk's vec
         for(int j=0; j<STIM_VEC_SIZE; j++){
             chunk_vec->packed_subvecs[j] = 0xff;
+        }
+
+        // Convert the dots_vec's vec_str into subvecs. If bitstream inject
+        // the data subvecs for the data pins. Must call this before getting
+        // a subvec
+        expand_dots_vec_subvecs(dots, dots_vec, data_subvecs, num_data_subvecs); 
+
+        if(dots_vec->subvecs == NULL){
+            die("failed to expand dots_vec subvecs\n");
         }
 
         // pack chunk vec with subvecs (which represent pins)
@@ -877,6 +1020,8 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             enum subvecs subvec = dots_vec->subvecs[pin_id];
             pack_subvecs_by_dut_io_id(chunk_vec->packed_subvecs, pin->dut_io_id, subvec);
         }
+
+        unexpand_dots_vec_subvecs(dots_vec);
 
         // set the opcode for the chunk vec
         if(dots_vec->has_clk){
@@ -907,8 +1052,13 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         }
         dots_vec = NULL;
 
-        // increment the dots vec for the next cycle
-        dots->cur_dots_vec_id += 1;
+        // increment the dots vec for the next cycle and save it
+        cur_dots_vec_id += 1;
+        if(chunk->artix_select == ARTIX_SELECT_A1){
+            stim->cur_a1_dots_vec_id = cur_dots_vec_id;
+        }else if(chunk->artix_select == ARTIX_SELECT_A2){
+            stim->cur_a2_dots_vec_id = cur_dots_vec_id;
+        }
     }
 
     chunk_vec = free_vec(chunk_vec);
@@ -979,13 +1129,17 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
         die("error: invalid file type given '%s'\n", file_ext);
     }
 
-    // save file handle data to stim so we can load chunks as needed
+    // Save file handle data to stim so we can load chunks as needed.
+    // The cur_map_byte is where we are currently reading from. The
+    // start_map_byte is the location after some header is read where
+    // we can reset to and restart reading from without initializing.
     stim->is_open = true;
     stim->fd = fd;
     stim->fp = fp;
     stim->file_size = file_size;
     stim->map = (uint8_t*)mmap(NULL, (size_t)file_size, PROT_READ, MAP_SHARED, fd, 0); 
     stim->cur_map_byte = 0;
+    stim->start_map_byte = 0;
 
     if(stim->map == MAP_FAILED){
         close(stim->fd);
@@ -1013,6 +1167,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             die("invalid bitstream '%s'; failed to find sync word", path);
         }else{
             stim->cur_map_byte = 0;
+            stim->start_map_byte = 0;
         }
     }
 
@@ -1047,6 +1202,10 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
         if(bitstream_size == 0){
             die("failed to read rbt size from header; it's zero\n");
         }
+
+        // save location after header
+        stim->start_map_byte = stim->cur_map_byte;
+
     // bin bitstream size is exactly the file size since no header
     }else if(stim->type == STIM_TYPE_BIN){
         bitstream_size = file_size;
@@ -1109,6 +1268,9 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
                 die("failed reading bit file; unexpected key\n");
             }
         }
+
+        // save location after header
+        stim->start_map_byte = stim->cur_map_byte;
     }
 
     // get the pins, num_pins and num_vecs for each file type
@@ -1128,6 +1290,21 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             int32_t dut_id = -1;
             if((pins = get_config_profile_pins(stim->profile, dut_id, &num_pins)) == NULL){
                 die("error: failed to get profile config pins\n");
+            }
+
+            // Check if the config vecs exceeds the size of a chunk since the code is not
+            // designed to handle that. We control the size of these in config.c but add
+            // a check just in case.
+            if((get_config_num_vecs_by_type(CONFIG_TYPE_HEADER)*STIM_VEC_SIZE) > STIM_CHUNK_SIZE){
+                die("config header size cannot exceed a chunk size %i\n", STIM_CHUNK_SIZE);
+            }
+
+            if((get_config_num_vecs_by_type(CONFIG_TYPE_BODY)*STIM_VEC_SIZE) > STIM_CHUNK_SIZE){
+                die("config body size cannot exceed a chunk size %i\n", STIM_CHUNK_SIZE);
+            }
+
+            if((get_config_num_vecs_by_type(CONFIG_TYPE_FOOTER)*STIM_VEC_SIZE) > STIM_CHUNK_SIZE){
+                die("config footer size cannot exceed a chunk size %i\n", STIM_CHUNK_SIZE);
             }
             
             // need to prep fpga for rbt and need to do post config checks
@@ -1222,6 +1399,8 @@ struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots){
     stim->profile = profile;
     stim->type = STIM_TYPE_DOTS;
     stim->dots = dots;
+    stim->cur_a1_dots_vec_id = 0;
+    stim->cur_a2_dots_vec_id = 0;
 
     num_unrolled_vecs = get_num_unrolled_dots_vecs(stim->dots);
     
@@ -1262,6 +1441,7 @@ struct vec_chunk *free_vec_chunk(struct vec_chunk *chunk){
     }
     stim_unload_chunk(chunk);
     chunk->id = 0;
+    chunk->artix_select = ARTIX_SELECT_NONE;
     chunk->num_vecs = 0;
     // don't free vec_data_compressed since it points to
     // the mmap pointer on disk.
@@ -1282,8 +1462,12 @@ struct stim *free_stim(struct stim *stim){
         die("pointer is NULL\n");
     }
 
-    if(stim->num_vec_chunks > 0 && stim->vec_chunks == NULL){
-        die("num_vec_chunks is %i but vec_chunks is NULL\n", stim->num_vec_chunks);
+    if(stim->num_a1_vec_chunks > 0 && stim->a1_vec_chunks == NULL){
+        die("num_a1_vec_chunks is %i but a1_vec_chunks is NULL\n", stim->num_a1_vec_chunks);
+    }
+
+    if(stim->num_a2_vec_chunks > 0 && stim->a2_vec_chunks == NULL){
+        die("num_a2_vec_chunks is %i but a2_vec_chunks is NULL\n", stim->num_a2_vec_chunks);
     }
 
     if(stim->num_pins > 0 && stim->pins == NULL){
@@ -1297,12 +1481,19 @@ struct stim *free_stim(struct stim *stim){
     free(stim->pins);
     stim->pins = NULL;
 
-    // free chunks
-    for(uint32_t i=0; i<stim->num_vec_chunks; i++){
-        stim->vec_chunks[i] = free_vec_chunk(stim->vec_chunks[i]);
+    // free a1 chunks
+    for(uint32_t i=0; i<stim->num_a1_vec_chunks; i++){
+        stim->a1_vec_chunks[i] = free_vec_chunk(stim->a1_vec_chunks[i]);
     }
-    free(stim->vec_chunks);
-    stim->vec_chunks = NULL;
+    free(stim->a1_vec_chunks);
+    stim->a1_vec_chunks = NULL;
+
+    // free a2 chunks
+    for(uint32_t i=0; i<stim->num_a2_vec_chunks; i++){
+        stim->a2_vec_chunks[i] = free_vec_chunk(stim->a2_vec_chunks[i]);
+    }
+    free(stim->a2_vec_chunks);
+    stim->a2_vec_chunks = NULL;
 
     // close mmap
     if(stim->is_open == true){
@@ -1313,7 +1504,8 @@ struct stim *free_stim(struct stim *stim){
         close(stim->fd);
     }
 
-    stim->cur_vec_chunk_id = 0;
+    stim->cur_a1_vec_chunk_id = 0;
+    stim->cur_a2_vec_chunk_id = 0;
     stim->num_unrolled_vecs = 0;
     stim->is_open = false;
     stim->fd = 0;
@@ -1321,17 +1513,101 @@ struct stim *free_stim(struct stim *stim){
     stim->file_size = 0;
     stim->map = NULL;
     stim->cur_map_byte = 0;
+    stim->start_map_byte = 0;
     stim->is_little_endian = true;
 
     // Don't free dots here. It was passed externally by get_stim_by_dots so
     // it's not our responsibility.
     stim->dots = NULL;
+    stim->cur_a1_dots_vec_id = 0;
+    stim->cur_a2_dots_vec_id = 0;
 
     free_profile(stim->profile);
     stim->profile = NULL;
 
     free(stim);
     return NULL;
+}
+
+static size_t stim_serialize_chunk(struct stim *stim, enum artix_selects artix_select, 
+        struct capn_segment *cs, struct SerialStim *serialStim){
+    struct vec_chunk *chunk = NULL;
+    char *compressed_data = NULL;
+    int compressed_data_size = 0;
+    size_t total_saved_size = 0;
+
+    if(stim == NULL){
+        die("pointer is NULL\n");
+    }
+    if(cs == NULL){
+        die("pointer is NULL\n");
+    }
+    if(serialStim == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(artix_select == ARTIX_SELECT_NONE){
+        die("no artix unit selected\n");
+    }else if(artix_select == ARTIX_SELECT_BOTH){
+        die("cannot select both artix units\n");
+    }
+
+    while((chunk = stim_load_next_chunk(stim, artix_select)) != NULL){
+
+        if(chunk->artix_select == ARTIX_SELECT_BOTH){
+            die("cannot serialize chunk with artix select as both\n");
+        }
+
+        struct VecChunk vecChunk = {
+            .id = chunk->id,
+            .artixSelect = (enum VecChunk_ArtixSelects)chunk->artix_select,
+            .numVecs = chunk->num_vecs,
+            .vecDataSize = chunk->vec_data_size,
+        };
+
+        int max_dst_size = LZ4_compressBound(chunk->vec_data_size);
+        if((compressed_data = malloc(max_dst_size)) == NULL){
+            die("failed to malloc\n");
+        }
+        compressed_data_size = LZ4_compress_default((char*)chunk->vec_data, 
+                compressed_data, chunk->vec_data_size, max_dst_size);
+
+        if(compressed_data <= 0){
+            die("compression failed\n");
+        }
+        if((compressed_data = (char*)realloc(compressed_data, 
+                compressed_data_size)) == NULL){
+            die("re-alloc failed\n");
+        }
+
+        if(artix_select == ARTIX_SELECT_A1){
+            printf("compressed a1 chunk %i by %zu bytes\n", chunk->id, 
+                (chunk->vec_data_size-compressed_data_size));
+        }else if(artix_select == ARTIX_SELECT_A2){
+            printf("compressed a2 chunk %i by %zu bytes\n", chunk->id, 
+                (chunk->vec_data_size-compressed_data_size));
+        }
+        
+        total_saved_size += (chunk->vec_data_size-compressed_data_size);
+
+        // copy the data and set it
+        capn_list8 list = capn_new_list8(cs, compressed_data_size);
+        capn_setv8(list, 0, (uint8_t*)compressed_data, compressed_data_size);
+        capn_data vecData = {
+            .p = list.p,
+        };
+        vecChunk.vecData = vecData;
+        if(artix_select == ARTIX_SELECT_A1){
+            set_VecChunk(&vecChunk, serialStim->a1VecChunks, chunk->id);
+        }else if(artix_select == ARTIX_SELECT_A2){
+            set_VecChunk(&vecChunk, serialStim->a2VecChunks, chunk->id);
+        }else {
+            die("invalid artix select given %i\n", artix_select);
+        }
+    }
+
+    return total_saved_size;
+
 }
 
 /*
@@ -1365,7 +1641,8 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         .numPins = stim->num_pins,
         .numVecs = stim->num_vecs,
         .numUnrolledVecs = stim->num_unrolled_vecs,
-        .numVecChunks = stim->num_vec_chunks,
+        .numA1VecChunks = stim->num_a1_vec_chunks,
+        .numA2VecChunks = stim->num_a2_vec_chunks,
     };
 
     //
@@ -1412,7 +1689,6 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         }
     
         struct ProfilePin profilePin = {
-            .dutId = profile_pin->dut_id,
             .pinName = chars_to_text(profile_pin->pin_name),
             .compName = chars_to_text(profile_pin->comp_name),
             .netName = chars_to_text(profile_pin->net_name),
@@ -1420,12 +1696,14 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
             .tag = profileTag,
             .tagData = profile_pin->tag_data,
             .dutIoId = profile_pin->dut_io_id,
-            .numDestPinNames = profile_pin->num_dest_pin_names,
+            .numDests = profile_pin->num_dests,
         };
 
-        profilePin.destPinNames = new_String_list(cs, profile_pin->num_dest_pin_names);
+        profilePin.destDutIds = capn_new_list32(cs, profile_pin->num_dests); 
+        profilePin.destPinNames = new_String_list(cs, profile_pin->num_dests);
         
-        for(int j=0; j<profile_pin->num_dest_pin_names; j++){
+        for(int j=0; j<profile_pin->num_dests; j++){
+            capn_set32(profilePin.destDutIds, j, profile_pin->dest_dut_ids[j]);
             struct String string = {
                 .string = chars_to_text(profile_pin->dest_pin_names[j]),
             };
@@ -1439,46 +1717,15 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
     //
     // Set the vec_chunks
     //
-    serialStim.vecChunks = new_VecChunk_list(cs, stim->num_vec_chunks);
+    serialStim.a1VecChunks = new_VecChunk_list(cs, stim->num_a1_vec_chunks);
+    serialStim.a2VecChunks = new_VecChunk_list(cs, stim->num_a2_vec_chunks);
 
-    struct vec_chunk *chunk = NULL;
-    char *compressed_data = NULL;
-    int compressed_data_size = 0;
     size_t total_saved_size = 0;
-    while((chunk = stim_load_next_chunk(stim)) != NULL){
-        struct VecChunk vecChunk = {
-            .id = chunk->id,
-            .numVecs = chunk->num_vecs,
-            .vecDataSize = chunk->vec_data_size,
-        };
-
-        int max_dst_size = LZ4_compressBound(chunk->vec_data_size);
-        if((compressed_data = malloc(max_dst_size)) == NULL){
-            die("failed to malloc\n");
-        }
-        compressed_data_size = LZ4_compress_default((char*)chunk->vec_data, 
-                compressed_data, chunk->vec_data_size, max_dst_size);
-
-        if(compressed_data <= 0){
-            die("compression failed\n");
-        }
-        if((compressed_data = (char*)realloc(compressed_data, 
-                compressed_data_size)) == NULL){
-            die("re-alloc failed\n");
-        }
-        printf("compressed chunk %i by %zu bytes\n", chunk->id, 
-                (chunk->vec_data_size-compressed_data_size));
-        
-        total_saved_size += (chunk->vec_data_size-compressed_data_size);
-
-        // copy the data and set it
-        capn_list8 list = capn_new_list8(cs, compressed_data_size);
-        capn_setv8(list, 0, (uint8_t*)compressed_data, compressed_data_size);
-        capn_data vecData = {
-            .p = list.p,
-        };
-        vecChunk.vecData = vecData;
-        set_VecChunk(&vecChunk, serialStim.vecChunks, chunk->id);
+    if(stim->num_a1_vec_chunks > 0){
+        total_saved_size += stim_serialize_chunk(stim, ARTIX_SELECT_A1, cs, &serialStim);
+    }
+    if(stim->num_a2_vec_chunks > 0){
+        total_saved_size += stim_serialize_chunk(stim, ARTIX_SELECT_A2, cs, &serialStim);
     }
 
     printf("compression saved %zu bytes\n", total_saved_size);
@@ -1493,6 +1740,61 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
     capn_free(&c);
 
     close(fd);
+    return;
+}
+
+static void deserialize_chunk(struct stim *stim, enum artix_selects artix_select, 
+        struct SerialStim *serialStim){
+    uint32_t num_vec_chunks = 0;
+
+    if(stim == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(artix_select == ARTIX_SELECT_NONE){
+        die("no artix unit selected\n");
+    }else if(artix_select == ARTIX_SELECT_A1){
+        num_vec_chunks = stim->num_a1_vec_chunks;
+
+        if(stim->num_a1_vec_chunks > 0 && stim->a1_vec_chunks == NULL){
+            die("failed to deserialize chunk; chunks have not been allocated yet");
+        }
+    }else if(artix_select == ARTIX_SELECT_A2){
+        num_vec_chunks = stim->num_a2_vec_chunks;
+
+        if(stim->num_a2_vec_chunks > 0 && stim->a2_vec_chunks == NULL){
+            die("failed to deserialize chunk; chunks have not been allocated yet");
+        }
+    }else if(artix_select == ARTIX_SELECT_BOTH){
+        die("cannot select both artix units\n");
+    }
+
+    for(uint32_t i=0; i<num_vec_chunks; i++){
+        struct vec_chunk *chunk = NULL;
+        struct VecChunk vecChunk;
+        if(artix_select == ARTIX_SELECT_A1){
+            get_VecChunk(&vecChunk, serialStim->a1VecChunks, i);
+        }else if(artix_select == ARTIX_SELECT_A2){
+            get_VecChunk(&vecChunk, serialStim->a2VecChunks, i);
+        }
+
+        chunk = create_vec_chunk(
+            i, (enum artix_selects)vecChunk.artixSelect, vecChunk.numVecs);
+        chunk->id = vecChunk.id;
+        chunk->artix_select = (enum artix_selects)vecChunk.artixSelect;
+        chunk->num_vecs = vecChunk.numVecs;
+        chunk->vec_data = NULL;
+        chunk->vec_data_size = vecChunk.vecDataSize;
+        chunk->vec_data_compressed = (uint8_t*)vecChunk.vecData.p.data;
+        chunk->vec_data_compressed_size = vecChunk.vecData.p.len;
+
+        if(artix_select == ARTIX_SELECT_A1){
+            stim->a1_vec_chunks[i] = chunk;
+        }else if(artix_select == ARTIX_SELECT_A2){
+            stim->a2_vec_chunks[i] = chunk;
+        }
+    }
+
     return;
 }
 
@@ -1525,7 +1827,8 @@ struct stim *stim_deserialize(struct stim *stim){
     stim->num_pins = serialStim.numPins;
     stim->num_vecs = serialStim.numVecs;
     stim->num_unrolled_vecs = serialStim.numUnrolledVecs;
-    stim->num_vec_chunks = serialStim.numVecChunks;
+    stim->num_a1_vec_chunks = serialStim.numA1VecChunks;
+    stim->num_a2_vec_chunks = serialStim.numA2VecChunks;
 
     //
     // Set the profile pins
@@ -1534,10 +1837,10 @@ struct stim *stim_deserialize(struct stim *stim){
 
     for(int i=0; i<stim->num_pins; i++){
         struct ProfilePin profilePin;
-        struct profile_pin *pin = create_profile_pin(NULL);
-        
         get_ProfilePin(&profilePin, serialStim.pins, i);
-        pin->dut_id = profilePin.dutId;
+
+        struct profile_pin *pin = create_profile_pin(NULL, profilePin.numDests);
+        
         pin->pin_name = strndup(profilePin.pinName.str, 
                 profilePin.pinName.len);
         pin->comp_name = strndup(profilePin.compName.str,
@@ -1549,9 +1852,10 @@ struct stim *stim_deserialize(struct stim *stim){
         pin->tag = (enum profile_tags)profilePin.tag;
         pin->tag_data = profilePin.tagData;
         pin->dut_io_id = profilePin.dutIoId;
-        pin->num_dest_pin_names = profilePin.numDestPinNames;
+        pin->num_dests = profilePin.numDests;
 
-        for(int j=0; j<pin->num_dest_pin_names; j++){
+        for(int j=0; j<pin->num_dests; j++){
+            pin->dest_dut_ids[j] = capn_get32(profilePin.destDutIds, j);
             struct String string;
             get_String(&string, profilePin.destPinNames, j);
             pin->dest_pin_names[j] = strndup(string.string.str, 
@@ -1564,26 +1868,19 @@ struct stim *stim_deserialize(struct stim *stim){
     //
     // Set the vec_chunks
     //
-    stim->vec_chunks = create_vec_chunks(stim->num_vec_chunks);
-    
-    for(uint32_t i=0; i<stim->num_vec_chunks; i++){
-        struct vec_chunk *chunk = NULL;
-        struct VecChunk vecChunk;
-        get_VecChunk(&vecChunk, serialStim.vecChunks, i);
-        chunk = create_vec_chunk(i, stim->num_vec_chunks);
-
-        chunk->id = vecChunk.id;
-        chunk->num_vecs = vecChunk.numVecs;
-        chunk->vec_data = NULL;
-        chunk->vec_data_size = vecChunk.vecDataSize;
-        chunk->vec_data_compressed = (uint8_t*)vecChunk.vecData.p.data;
-        chunk->vec_data_compressed_size = vecChunk.vecData.p.len;
-
-        stim->vec_chunks[i] = chunk;
+    if(stim->num_a1_vec_chunks > 0){
+        if((stim->a1_vec_chunks = create_vec_chunks(stim->num_a1_vec_chunks)) == NULL){
+            die("pointer is NULL\n");
+        }
+        deserialize_chunk(stim, ARTIX_SELECT_A1, &serialStim);
     }
-
-
-    // TODO: save capn so we can free it later
+    
+    if(stim->num_a2_vec_chunks > 0){
+        if((stim->a2_vec_chunks = create_vec_chunks(stim->num_a2_vec_chunks)) == NULL){
+            die("pointer is NULL\n");
+        }
+        deserialize_chunk(stim, ARTIX_SELECT_A2, &serialStim);
+    }
 
     return stim;
 }
