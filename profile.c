@@ -339,7 +339,6 @@ void print_profile(struct profile *profile){
  *
  */
 void print_profile_pin(struct profile_pin *pin){
-    uint32_t dest_dut_id_len = 0;
     uint32_t dest_pin_name_len = 0;
     char *dest_pin_names = NULL;
     char dest_dut_id_str[sizeof(uint32_t)*8+1];
@@ -358,7 +357,6 @@ void print_profile_pin(struct profile_pin *pin){
     printf("  num_dests: %i\n", pin->num_dests);
 
     // find how many chars to malloc
-    dest_dut_id_len = 0;
     dest_pin_name_len = 0;
     for(int j=0; j<pin->num_dests; j++){
         dest_pin_name_len += strlen(pin->dest_pin_names[j]);

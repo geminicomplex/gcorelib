@@ -25,7 +25,7 @@ void artix_mem_write(enum artix_selects artix_select,
 void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
     uint64_t *read_data, size_t read_size);
 void artix_mem_test(enum artix_selects artix_select, bool run_crc);
-int64_t artix_dut_test(enum artix_selects artix_select, struct stim *stim);
+int64_t artix_dut_test(struct stim *stim);
 void artix_config(enum artix_selects artix_select, const char *bit_path);
 
 #ifdef __cplusplus

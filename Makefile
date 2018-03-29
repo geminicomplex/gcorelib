@@ -1,5 +1,5 @@
 CC = ${CROSS_COMPILE}gcc
-INCLUDES := -I. -I./board -I../driver -I./lib/jsmn -I./lib/avl -I./lib/progress
+INCLUDES := -I. -I./board -I../driver -I./lib/jsmn -I./lib/avl -I./lib/progress -I./lib/lz4 -I./lib/capnp 
 CFLAGS := ${DRIVER_CFLAGS} -c -Wall -Werror -fpic -D_FILE_OFFSET_BITS=64
 
 LDFLAGS :=
@@ -23,7 +23,10 @@ all: $(EXECUTABLE)
 $(EXECUTABLE): $(OBJS)
 	$(CC) $(INCLUDES) $(LDFLAGS) $(OBJS) -o $(EXECUTABLE)
 
-%.o : %.c $(HEADERS)
+%.c : %.h
+	touch $@
+
+%.o : %.c 
 	$(CC) $(INCLUDES) $(CFLAGS) $< -o $@
 
 

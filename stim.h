@@ -44,21 +44,6 @@ extern "C" {
 #include <inttypes.h>
 #include <stdbool.h>
 
-#define DUT_NUM_PINS (200)
-#define DUT_TOTAL_NUM_PINS (400)
-#define DUT_MAX_VECTORS (67108864)
-
-// A vector is 128 bytes or 256 nibbles. A subvec is stored in a nibble and we
-// have 200 subvecs for 200 pins. Rest of the 56 nibbles are used for opcode
-// and operand.
-#define STIM_VEC_SIZE (128)
-
-// 4 byte word, 1024 byte burst and 4096 byte page aligned
-#define STIM_CHUNK_SIZE (268435456)
-
-// 8 vecs per 1024 byte burst
-#define STIM_NUM_VECS_PER_BURST (8)
-
 /*
  * Types
  *
@@ -81,20 +66,6 @@ enum stim_types {
     STIM_TYPE_RAW
 };
 
-/*
- * A 4 bit subvec holds the stimulus and expect for one pin. 
- *
- */
-enum subvecs {
-    DUT_SUBVEC_NONE = 0xf,
-    DUT_SUBVEC_0 = 0x0,
-    DUT_SUBVEC_1 = 0x1,
-    DUT_SUBVEC_X = 0x2,
-    DUT_SUBVEC_H = 0x3,
-    DUT_SUBVEC_L = 0x4,
-    DUT_SUBVEC_C = 0x5
-} __attribute__ ((__packed__));
-
 
 /*
  * Each pin is represented by a subvec, and to conserve space
@@ -104,19 +75,6 @@ enum subvecs {
  */
 struct vec {
     uint8_t *packed_subvecs;
-} __attribute__ ((__packed__));
-
-
-/*
- * Each vector is 128 bytes but only 100 are used for the actual vector.
- * the rest of the 28 bytes are used for the opcode and it's operand.
- *
- */
-enum vec_opcode {
-    DUT_OPCODE_NOP      = 0xff,
-    DUT_OPCODE_VEC      = 0x01,
-    DUT_OPCODE_VECLOOP  = 0x02,
-    DUT_OPCODE_VECCLK   = 0x03
 } __attribute__ ((__packed__));
 
 
@@ -217,7 +175,6 @@ struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots);
 
 // Load and fills the next chunk. Always unloads current chunk. 
 struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects artix_select);
-enum subvecs get_subvec_by_pin_id(struct vec *vec, uint32_t pin_id);
 enum stim_types get_stim_type_by_path(const char *path);
 
 // Serialization of raw stim files
@@ -236,10 +193,7 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
     uint32_t*));
 void stim_unload_chunk(struct vec_chunk *chunk);
 
-void pack_subvecs_by_pin_id(uint8_t *packed_subvecs, 
-    uint32_t pin_id, enum subvecs subvec);
-void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, 
-    uint32_t dut_io_id, enum subvecs subvec);
+
 enum subvecs *convert_bitstream_word_to_subvecs(uint32_t *word, 
     uint32_t *num_subvecs);
 uint32_t stim_get_next_bitstream_word(struct stim *stim);

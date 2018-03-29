@@ -43,6 +43,27 @@ extern "C" {
 // number of bytes per dma burst
 #define BURST_BYTES (1024)
 
+
+// number of pins per artix unit
+#define DUT_NUM_PINS (200)
+
+// total number of dut io pins
+#define DUT_TOTAL_NUM_PINS (400)
+#define DUT_MAX_VECTORS (67108864)
+
+
+// A vector is 128 bytes or 256 nibbles. A subvec is stored in a nibble and we
+// have 200 subvecs for 200 pins. Rest of the 56 nibbles are used for opcode
+// and operand.
+#define STIM_VEC_SIZE (128)
+
+// 4 byte word, 1024 byte burst and 4096 byte page aligned
+#define STIM_CHUNK_SIZE (268435456)
+
+// 8 vecs per 1024 byte burst
+#define STIM_NUM_VECS_PER_BURST (8)
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -528,40 +528,13 @@ static void assert_dut_io_range(struct stim *stim, enum artix_selects artix_sele
     return;
 }
 
-//
-// Given a dots, rbt, bin, bit or stim path, create a stim file and
-// prep for vec chunks to be loaded. For each loaded chunk, fill the
-// chunk, write the raw packed vectors to artix memory, until all chunks
-// written. Perform the test. Read back the results into the vec chunks.
-// Write the stim lite to disk.
-// 
-//
-// For now we just write raw vectors to memory and execute directly,
-// which gives us a max of around 67 million vectors. Instead, we should
-// have a simple virtual machine running so we can do jumps in memory to
-// perform loops in hardware.
-//
-// returns -1 if pass or failing cycle number (zero indexed)
-//
-//
-int64_t artix_dut_test(enum artix_selects artix_select, struct stim *stim){
+static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_select){
     struct gcore_ctrl_packet packet;
 	uint64_t *dma_buf;
     uint32_t num_bursts;
     uint32_t dutcore_burst_count;
     struct vec_chunk *chunk;
     struct profile_pin *pin = NULL;
-	bool test_failed = false;
-	int64_t test_cycle = -1;
-    uint32_t ret_test_cycle = 0;
-
-    if(stim == NULL){
-        die("pointer is NULL\n");
-    }
-
-    if(stim->profile == NULL){
-        die("no profile set for stim\n");
-    }
 
     // check if dut_io_id is within range for given artix
     assert_dut_io_range(stim, artix_select);
@@ -658,6 +631,65 @@ int64_t artix_dut_test(enum artix_selects artix_select, struct stim *stim){
 
     // reset test_cycle counter and test_failed flag
     helper_dutcore_load_run(artix_select, TEST_CLEANUP);
+
+}
+
+//
+// Given a dots, rbt, bin, bit or stim path, create a stim file and
+// prep for vec chunks to be loaded. For each loaded chunk, fill the
+// chunk, write the raw packed vectors to artix memory, until all chunks
+// written. Perform the test. Read back the results into the vec chunks.
+// Write the stim lite to disk.
+// 
+//
+// For now we just write raw vectors to memory and execute directly,
+// which gives us a max of around 67 million vectors. Instead, we should
+// have a simple virtual machine running so we can do jumps in memory to
+// perform loops in hardware.
+//
+// returns -1 if pass or failing cycle number (zero indexed)
+//
+//
+int64_t artix_dut_test(struct stim *stim){
+    struct gcore_ctrl_packet packet;
+	bool test_failed = false;
+	int64_t test_cycle = -1;
+    uint32_t ret_test_cycle = 0;
+    enum artix_selects artix_select = ARTIX_SELECT_NONE;
+
+    if(stim == NULL){
+        die("pointer is NULL\n");
+    }
+
+    if(stim->profile == NULL){
+        die("no profile set for stim\n");
+    }
+
+    if(!stim->num_a1_vec_chunks && !stim->num_a2_vec_chunks){
+        die("stim has neither a1 nor a2 chunks");
+    }
+
+    bool dual_mode = false;
+    if(stim->num_a1_vec_chunks > 0 && stim->num_a2_vec_chunks > 0){
+        dual_mode = true;
+        prep_artix_for_test(stim, ARTIX_SELECT_A1);
+        prep_artix_for_test(stim, ARTIX_SELECT_A2);
+
+        // a1 is always the master in dual_mode
+        artix_select = ARTIX_SELECT_A1;
+
+        die("dual mode stims are not currently supported");
+    }else if(stim->num_a1_vec_chunks > 0){
+        prep_artix_for_test(stim, ARTIX_SELECT_A1);
+        artix_select = ARTIX_SELECT_A1;
+    }else if(stim->num_a2_vec_chunks > 0){
+        prep_artix_for_test(stim, ARTIX_SELECT_A2);
+        artix_select = ARTIX_SELECT_A2;
+    }
+
+    if(dual_mode){
+        // setup a1 and a2 for dual mode
+    }
     
     // run the test
     printf("running test...\n");
@@ -741,7 +773,7 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
     regs = gcore_free_regs(regs);
 
     // dma over the data from start of dma buffer sending file_size bytes
-    printf("configuring with %jd bytes...", (size_t)file_size);
+    printf("configuring with %zu bytes...", (size_t)file_size);
     fflush(stdout);
     gcore_dma_prep_start(GCORE_WAIT_TX, dma_buf, (size_t)file_size, NULL, 0);
     printf("done.\n");

@@ -19,6 +19,7 @@ extern "C" {
 #endif
 
 #include "profile.h"
+#include "subvec.h"
 
 #include <stdio.h>
 #include <stdlib.h>

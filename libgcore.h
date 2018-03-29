@@ -21,12 +21,13 @@ extern "C" {
 
 #include "util.h"
 #include "config.h"
-#include "dma.h"
 #include "dots.h"
 #include "profile.h"
+#include "subvec.h"
 #include "stim.h"
 
 #include "board/helper.h"
+#include "board/dma.h"
 #include "board/i2c.h"
 #include "board/gpio.h"
 #include "board/subcore.h"
