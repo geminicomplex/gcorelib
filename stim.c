@@ -22,6 +22,7 @@
 #include "lib/lz4/lz4.h"
 #include "../driver/gcore_common.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -331,6 +332,7 @@ struct stim *create_stim(){
         die("error: failed to malloc stim struct\n.");
     }
 
+    stim->path = NULL;
     stim->pins = NULL;
     stim->num_pins = 0;
 
@@ -996,6 +998,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
     uint32_t num_vecs = 0;
     uint32_t num_unrolled_vecs = 0;
     char buffer[BUFFER_LENGTH];
+    char *real_path = NULL;
 
     if(profile_path == NULL){
         die("pointer is NULL\n");
@@ -1017,6 +1020,13 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
         const char *file_ext = util_get_file_ext_by_path(path);
         die("error: invalid file type given '%s'\n", file_ext);
     }
+
+    if((real_path = realpath(path, NULL)) == NULL){
+        die("invalid stim path '%s'\n", path);
+    }
+
+    // legit path so save it
+    stim->path = strdup(real_path);
 
     // Save file handle data to stim so we can load chunks as needed.
     // The cur_map_byte is where we are currently reading from. The
@@ -1361,6 +1371,10 @@ struct stim *free_stim(struct stim *stim){
 
     if(stim->num_pins > 0 && stim->pins == NULL){
         die("num_pins is %i but pins is NULL\n", stim->num_pins);
+    }
+
+    if(stim->path != NULL){
+        free(stim->path);
     }
 
     // free pins

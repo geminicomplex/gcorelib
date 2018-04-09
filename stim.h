@@ -131,6 +131,7 @@ struct stim {
     // TODO: Save the stim api revision.
 
     // public
+    char *path;
     enum stim_types type;
     uint16_t num_pins;
     struct profile_pin **pins;
