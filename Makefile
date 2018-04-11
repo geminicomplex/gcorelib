@@ -1,25 +1,31 @@
-
+#
+# libgcore build script
+#
+# Do not build for linux or arm on a mac system
+# and mac on a linux system.
+#
 
 BUILD_PATH :=
 INCLUDES :=-I. -I./board -I../driver -I./lib/jsmn -I./lib/avl -I./lib/progress -I./lib/lz4 -I./lib/capnp 
-CFLAGS :=-c -Wall -Werror -fPIC
+CFLAGS :=-O2 -c -fPIC -Wall -pedantic
 CC := gcc
 LDFLAGS :=
 EXEC :=
 OS := $(shell uname)
-
 PLAT :=
+
 ifeq ($(OS),Darwin)
 	PLAT := mac
-	LDFLAGS += -shared -dynamiclib -Wl,-install_name,libgcore.dylib -lpthread
 	BUILD_PATH := build/macosx
+	LDFLAGS += -shared -dynamiclib -Wl,-install_name,libgcore.dylib -lpthread
 	EXEC += $(BUILD_PATH)/libgcore.dylib
 else
-ifeq ($(CROSS_COMPILE),arm-linux-gnueabihf-)
+ifeq ($(MAKECMDGOALS),arm)
 	PLAT := arm
-	CFLAGS := ${DRIVER_CFLAGS} $(CFLAGS) -D_FILE_OFFSET_BITS=64
 	BUILD_PATH := build/arm
-	CC := ${CROSS_COMPILE}gcc
+	ARM_CFLAGS := -march=armv7-a -mcpu=cortex-a9 -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard
+	CFLAGS := ${ARM_CFLAGS} $(CFLAGS) -D_FILE_OFFSET_BITS=64
+	CC := arm-linux-gnueabihf-gcc
 	LDFLAGS += -shared -Wl,-soname,libgcore.so -lpthread
 	EXEC += $(BUILD_PATH)/libgcore.so
 else
