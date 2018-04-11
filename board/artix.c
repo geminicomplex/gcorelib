@@ -624,9 +624,6 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
 
         // update the address pointer based on how much we copied in bytes
         addr += chunk->vec_data_size;
-
-        // free all of the chunk's memory since we have our data
-        stim_unload_chunk(chunk);
     }
 
     // reset test_cycle counter and test_failed flag

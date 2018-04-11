@@ -9,6 +9,7 @@
 
 #include "../common.h"
 #include "../util.h"
+#include "dev.h"
 #include "subcore.h"
 
 #include "../../driver/gcore_common.h"
@@ -27,37 +28,14 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
-static int gcore_fd = -1;
-static bool is_initialized = false;
-
-__attribute__((constructor))
-static void gcore_subcore_init() {
-#ifdef __arm__
-    gcore_fd = open(MMAP_PATH, O_RDONLY, 0);
-	if(gcore_fd == -1){
-		die("gcorelib: opening file for writing");
-    }
-#endif
-    is_initialized = true;
-    return;
-}
-
-__attribute__((destructor))
-static void gcore_subcore_destroy() {
-#ifdef __arm__
-    if(!is_initialized){
-        die("gcorelib: failed to exit, gcore not initialized");
-    }
-	close(gcore_fd);
-#endif
-    is_initialized = false;
-	return;
-}
-
 /*
  * Configure subcore with an FSM state and artix unit.
  */
 void gcore_subcore_load(struct gcore_cfg *gcfg){
+    int gcore_fd = -1;
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
     if(ioctl(gcore_fd, GCORE_SUBCORE_LOAD, gcfg) < 0){
 		die("gcorelib: error subcore_load failed");
 	}
@@ -68,6 +46,10 @@ void gcore_subcore_load(struct gcore_cfg *gcfg){
  * Run loaded state.
  */
 void gcore_subcore_run(){
+    int gcore_fd = -1;
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
     if(ioctl(gcore_fd, GCORE_SUBCORE_RUN) < 0){
 		die("gcorelib: error subcore_run failed");
 	}
@@ -78,6 +60,10 @@ void gcore_subcore_run(){
  * Waits for subcore to go back to IDLE state.
  */
 void gcore_subcore_idle(){
+    int gcore_fd = -1;
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
     // wait for done to go high
     if(ioctl(gcore_fd, GCORE_SUBCORE_IDLE) < 0){
 		die("gcorelib: error subcore_idle failed");
@@ -91,6 +77,10 @@ void gcore_subcore_idle(){
  */
 void gcore_subcore_mode_state(uint32_t *mode_state){
     struct gcore_registers *regs;
+    int gcore_fd = -1;
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
     if(ioctl(gcore_fd, GCORE_SUBCORE_STATE) < 0){
 		die("gcorelib: error subcore_state failed");
 	}
@@ -104,6 +94,10 @@ void gcore_subcore_mode_state(uint32_t *mode_state){
  * Peform a subcore soft reset.
  */
 void gcore_subcore_reset(){
+    int gcore_fd = -1;
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
     if(ioctl(gcore_fd, GCORE_SUBCORE_RESET) < 0){
 		die("gcorelib: error subcore_reset failed");
 	}
@@ -121,6 +115,10 @@ void gcore_subcore_reset(){
  * and data regs.
  */
 void gcore_ctrl_write(struct gcore_ctrl_packet *packet){
+    int gcore_fd = -1;
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
     if(ioctl(gcore_fd, GCORE_CTRL_WRITE, packet) < 0){
 		die("gcorelib: error ctrl_write failed");
 	}
@@ -132,6 +130,10 @@ void gcore_ctrl_write(struct gcore_ctrl_packet *packet){
  * will read from subcore into the rank_sel, addr, data.
  */
 void gcore_ctrl_read(struct gcore_ctrl_packet *packet){
+    int gcore_fd = -1;
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
     if(ioctl(gcore_fd, GCORE_CTRL_READ, packet) < 0){
 		die("gcorelib: error ctrl_read failed");
 	}
@@ -143,7 +145,10 @@ void gcore_ctrl_read(struct gcore_ctrl_packet *packet){
  */
 struct gcore_registers* gcore_get_regs(){
     struct gcore_registers *regs = NULL;
-
+    int gcore_fd = -1;
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
     if((regs = (struct gcore_registers *) malloc(sizeof(struct gcore_registers))) == NULL){
         die("error: malloc failed");
     }

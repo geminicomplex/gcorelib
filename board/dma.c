@@ -8,6 +8,7 @@
 #define _LARGEFILE64_SOURCE
 
 #include "../common.h"
+#include "dev.h"
 #include "dma.h"
 
 #include "../../driver/gcore_common.h"
@@ -29,12 +30,10 @@
  * directly by accessing the raw address pointer.
  *
  */
+struct gcore_userdev userdev;
 static uint32_t alloc_offset;
-static int gcore_fd = -1;
-static uint8_t *gcore_map = NULL;
 static int mem_fd = -1;
 static uint32_t *mem_map = NULL;
-struct gcore_userdev userdev;
 struct gcore_chan_cfg rx_config;
 struct gcore_chan_cfg tx_config;
 static bool is_initialized = false;
@@ -46,27 +45,7 @@ __attribute__((constructor))
 static void gcore_dma_init() {
 
 #ifdef __arm__
-    gcore_fd = open(MMAP_PATH, O_RDWR | O_CREAT | O_TRUNC, (mode_t) 0600);
-	if(gcore_fd == -1){
-		die("gcorelib: opening file for writing");
-    }
-	
-    gcore_map = mmap(0, MMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, gcore_fd, 0);
-	if(gcore_map == MAP_FAILED){
-		close(gcore_fd);
-		die("gcorelib: mmapping the file");
-    }
-
 	gcore_dma_alloc_reset();
-
-    userdev.tx_chan = (u32) 0;
-    userdev.tx_cmp = (u32) 0;
-    userdev.rx_chan = (u32) 0;
-    userdev.rx_cmp = (u32) 0;
-
-    if(ioctl(gcore_fd, GCORE_USERDEVS_READ, &userdev) < 0){
-		die("gcorelib: error userdevs_read failed");
-    }
 
     // mmap the axi lite register block
     mem_fd = open("/dev/mem", O_RDONLY); 
@@ -85,11 +64,6 @@ static void gcore_dma_destroy() {
     if(!is_initialized){
         die("gcorelib: failed to exit, gcore not initialized");
     }
-
-	if(munmap(gcore_map, MMAP_SIZE) == -1){
-		die("gcorelib: error un-mmapping the file");
-	}
-	close(gcore_fd);
 
     if(munmap(mem_map, 65535) == -1){
 		die("gcorelib: error un-mmapping the file");
@@ -114,6 +88,21 @@ void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
     
     if(!is_initialized){
         die("gcorelib: failed to dma prep, gcore not initialized");
+    }
+
+    int gcore_fd = -1;
+
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
+
+    userdev.tx_chan = (u32) 0;
+    userdev.tx_cmp = (u32) 0;
+    userdev.rx_chan = (u32) 0;
+    userdev.rx_cmp = (u32) 0;
+
+    if(ioctl(gcore_fd, GCORE_USERDEVS_READ, &userdev) < 0){
+		die("gcorelib: error userdevs_read failed");
     }
 
     if(tx_used){
@@ -183,6 +172,12 @@ void gcore_dma_start(enum gcore_wait wait)
         die("gcorelib: error starting dma, not prepared yet");
     }
 
+    int gcore_fd = -1;
+
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
+
 	if(is_tx_prepared){
 		tx_trans.chan = userdev.tx_chan;
 		tx_trans.wait = (0 != (wait & GCORE_WAIT_TX));
@@ -236,6 +231,12 @@ void gcore_dma_stop()
         die("gcorelib: error failed to stop dma, nothing is running");
     }
 
+    int gcore_fd = -1;
+
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
+
 	if(is_tx_prepared){
 		tx_trans.chan = userdev.tx_chan;
 		
@@ -257,6 +258,10 @@ void gcore_dma_stop()
 }
 
 uint32_t gcore_dma_calc_offset(void *ptr){
+    uint8_t *gcore_map = NULL;
+    if((gcore_map = gcore_dev_get_map()) == NULL){
+        die("failed to get gcore dev map");
+    }
 	return (((uint8_t *) ptr) - &gcore_map[0]);
 }
 
@@ -272,6 +277,10 @@ uint32_t gcore_dma_calc_size(int length, int byte_num){
 }
 
 void *gcore_dma_alloc(int length, int byte_num){
+    uint8_t *gcore_map = NULL;
+    if((gcore_map = gcore_dev_get_map()) == NULL){
+        die("failed to get gcore dev map");
+    }
 	void *array = &gcore_map[alloc_offset];
 	alloc_offset += gcore_dma_calc_size(length, byte_num);
 	return array;

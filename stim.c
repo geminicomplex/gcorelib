@@ -570,10 +570,11 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects art
 
     if(cur_vec_chunk_id != -1){
         if(!vec_chunks[cur_vec_chunk_id]->is_loaded){
-            die("current chunk %i has never been loaded;"
-                    " failed to unload\n", cur_vec_chunk_id);
+            printf("warning: current chunk %i has never been loaded;"
+                    " failed to unload. Don't unload manually.\n", cur_vec_chunk_id);
+        }else{
+            stim_unload_chunk(vec_chunks[cur_vec_chunk_id]);
         }
-        stim_unload_chunk(vec_chunks[cur_vec_chunk_id]);
     }
 
     // last chunk so reset cur vec chunk id
