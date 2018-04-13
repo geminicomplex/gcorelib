@@ -736,6 +736,8 @@ int64_t artix_dut_test(struct stim *stim){
 /*
  * Configures the artix device with the bitstream bit file.
  *
+ * Only takes a bitstream of type bin (flipped).
+ *
  */
 void artix_config(enum artix_selects artix_select, const char *bit_path){
     int fd;
@@ -744,6 +746,10 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
     struct gcore_registers *regs;
 	uint64_t *dma_buf;
     uint32_t mode_state;
+
+    if(get_stim_type_by_path(bit_path) != STIM_TYPE_BIN){
+        die("error: artix config only takes bin files (flipped): %s\n", bit_path);
+    }
 
     if(util_fopen(bit_path, &fd, &fp, &file_size)){
         die("error: failed to open file '%s'\n", bit_path);
