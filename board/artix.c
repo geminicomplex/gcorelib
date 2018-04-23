@@ -38,7 +38,7 @@ static void subcore_prep_dma_write(enum artix_selects artix_select, uint32_t num
 	gcore_subcore_idle();
 
 	// pass number of bursts to subcore
-	printf("subcore bursts: %d @ %d = %d bytes\n", BURST_BYTES, 
+	slog_debug(0, "subcore bursts: %d @ %d = %d bytes\n", BURST_BYTES, 
 		num_bursts, (num_bursts*BURST_BYTES));
 	helper_subcore_load_run(artix_select, SETUP_BURST);
 	
@@ -49,7 +49,7 @@ static void subcore_prep_dma_write(enum artix_selects artix_select, uint32_t num
 	
 	gcore_subcore_idle();
 
-	printf("subcore: dma_write\n");
+	slog_debug(0, "subcore: dma_write\n");
     helper_subcore_load_run(artix_select, DMA_WRITE);
 
 	return;
@@ -118,7 +118,7 @@ void artix_mem_write(enum artix_selects artix_select,
 
         // send chunks of max buffer size
         for(int i=0; i<num_chunks; i++){
-            printf("writing %i bytes...\n", DMA_SIZE);
+            slog_info(0,"writing %i bytes...\n", DMA_SIZE);
             memset(dma_buf, 0, DMA_SIZE);
             memcpy(dma_buf, ((uint8_t*)write_data)+(i*DMA_SIZE), DMA_SIZE);
             gcore_dma_prep(dma_buf, DMA_SIZE, NULL, 0);
@@ -128,7 +128,7 @@ void artix_mem_write(enum artix_selects artix_select,
         // send rest of data
         size_t data_mod = write_size % DMA_SIZE;
         if(data_mod != 0){
-            printf("writing %zu bytes...\n", data_mod);
+            slog_info(0,"writing %zu bytes...\n", data_mod);
             memcpy(dma_buf, ((uint8_t*)write_data)+(write_size-data_mod), data_mod);
             gcore_dma_prep(dma_buf, data_mod, NULL, 0);
 			gcore_dma_start(GCORE_WAIT_TX);
@@ -137,7 +137,7 @@ void artix_mem_write(enum artix_selects artix_select,
         // get burst count from dutcore
         helper_get_agent_status(artix_select, &packet);
         uint32_t dutcore_burst_count = packet.addr + 1;
-        printf("sent %zu total bytes (actual %i).\n", 
+        slog_info(0,"sent %zu total bytes (actual %i).\n", 
             (num_chunks*DMA_SIZE)+data_mod, 
             dutcore_burst_count*BURST_BYTES);
 
@@ -145,7 +145,7 @@ void artix_mem_write(enum artix_selects artix_select,
         // this always ensures that what we read is a multiple of a burst
         // since num_bursts is calculated based on write_size
         size_t size = num_bursts*BURST_BYTES; 
-        printf("writing %zu bytes (actual %zu)...\n", write_size, size);
+        slog_info(0,"writing %zu bytes (actual %zu)...\n", write_size, size);
         dma_buf = (uint64_t *)gcore_dma_alloc(size, sizeof(uint8_t));
         memset(dma_buf, 0, size);
         memcpy(dma_buf, write_data, write_size);
@@ -155,14 +155,14 @@ void artix_mem_write(enum artix_selects artix_select,
         helper_get_agent_status(artix_select, &packet);
 
         uint32_t dutcore_burst_count = packet.addr + 1;
-        printf("sent %zu bytes (actual %i).\n", 
+        slog_info(0,"sent %zu bytes (actual %i).\n", 
             write_size, dutcore_burst_count*BURST_BYTES);
 
     }
 
 //#ifdef GEM_DEBUG
 //    for(int i=0; i<32;i++){
-//		printf("dma_buf %02i: 0x%016"PRIX64"\n", i, write_data[i]);
+//		slog_debug(0,"dma_buf %02i: 0x%016"PRIX64"\n", i, write_data[i]);
 //	}
 //#endif
 
@@ -256,7 +256,7 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 
 		// receive chunks of DMA_SIZE
         for(int i=0; i<num_chunks;i++){
-            printf("reading %i bytes...\n", DMA_SIZE);
+            slog_info(0,"reading %i bytes...\n", DMA_SIZE);
             memset(dma_buf, 0, DMA_SIZE);
             gcore_dma_prep(NULL, 0, dma_buf, DMA_SIZE);
 			subcore_prep_dma_read(artix_select, DMA_SIZE/BURST_BYTES);
@@ -267,7 +267,7 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         // send the rest
         size_t data_mod = read_size % DMA_SIZE;
         if(data_mod != 0){
-            printf("reading %zu bytes...\n", data_mod);
+            slog_info(0,"reading %zu bytes...\n", data_mod);
             gcore_dma_prep(NULL, 0, dma_buf, data_mod);
 			subcore_prep_dma_read(artix_select, data_mod/BURST_BYTES);
 			gcore_dma_start(GCORE_WAIT_RX);
@@ -277,14 +277,14 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         // get burst count from dutcore
         helper_get_agent_status(artix_select, &packet);
         uint32_t dutcore_burst_count = packet.addr + 1;
-        printf("received %zu total bytes (actual %i).\n", 
+        slog_info(0,"received %zu total bytes (actual %i).\n", 
             (num_chunks*DMA_SIZE)+data_mod, 
             dutcore_burst_count*BURST_BYTES);
     }else{
         // this always ensures that what we read is a multiple of a burst
         // since num_bursts is calculated based on read_size
         size_t size = num_bursts*BURST_BYTES; 
-        printf("reading %zu bytes (actual %zu)...\n", read_size, size);
+        slog_info(0,"reading %zu bytes (actual %zu)...\n", read_size, size);
         dma_buf = (uint64_t *)gcore_dma_alloc(size, sizeof(uint8_t));
         memset(dma_buf, 0, size);
         gcore_dma_prep(NULL, 0, dma_buf, size);
@@ -295,13 +295,13 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         // get burst count from dutcore
         helper_get_agent_status(artix_select, &packet);
         uint32_t dutcore_burst_count = packet.addr + 1;
-        printf("received %zu bytes (actual %i).\n", 
+        slog_info(0,"received %zu bytes (actual %i).\n", 
             read_size, dutcore_burst_count*BURST_BYTES);
     }
 
 //#ifdef GEM_DEBUG
 //	for(int i=0; i<32;i++){
-//		printf("dma_buf %02i: 0x%016"PRIX64"\n", i, read_data[i]);
+//		slog_debug(0,"dma_buf %02i: 0x%016"PRIX64"\n", i, read_data[i]);
 //	}
 //#endif
 
@@ -358,9 +358,9 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         if(run_crc) {
             start_beat = 16*5;
             end_beat = 16*8;
-            printf("printing write beats 5:7\n");
+            slog_debug(0, "printing write beats 5:7\n");
         } else {
-            printf("printing write beats 0:2\n");
+            slog_debug(0, "printing write beats 0:2\n");
             start_beat = 16*0;
             end_beat = 16*2;
         }
@@ -369,14 +369,14 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 		end_beat = (MAX_CHUNK_SIZE/8);
 	}
     for(int i=start_beat; i<end_beat;i++){
-        printf("dma_buf %02i: 0x%016"PRIX64"\n", i, write_data[i]);
+        slog_debug(0, "dma_buf %02i: 0x%016"PRIX64"\n", i, write_data[i]);
     }
 #endif
 
     // always start the test at address zero
     uint32_t addr = 0x00000000;
 
-    printf("writing mem data...\n");
+    slog_debug(0, "writing mem data...\n");
     artix_mem_write(artix_select, addr, write_data, MAX_CHUNK_SIZE);
 
     // load agent, dutcore and memcore with num bursts
@@ -388,11 +388,11 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     // performs crc on [0:5], check against 6th, and write to 7th
     // beat in each burst
     if(run_crc){
-        printf("loading crc test...\n");
+        slog_info(0, "loading crc test...\n");
         helper_dutcore_load_run(artix_select, MEM_TEST);
         helper_print_agent_status(artix_select);
     
-        printf("running crc test...\n");
+        slog_info(0, "running crc test...\n");
         uint32_t counter = 0;
         while(1){
             helper_get_agent_status(artix_select, &packet);
@@ -418,12 +418,12 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         if((packet.data & 0x000f0000) == 0x00010000){
             crc_failed = true;
         }
-        printf("crc test finished.\n");
+        slog_info(0, "crc test finished.\n");
     }
 
 	helper_print_agent_status(artix_select);
 
-	printf("reset agent num bursts to 1...\n");
+	slog_debug(0, "reset agent num bursts to 1...\n");
 	helper_agent_load_run(artix_select, BURST_LOAD);
 	helper_subcore_load_run(artix_select, CTRL_WRITE);
 	packet.rank_select = 0;
@@ -437,14 +437,14 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 
 	helper_print_agent_status(artix_select);
 
-    printf("reading mem data...\n");
+    slog_info(0, "reading mem data...\n");
     artix_mem_read(artix_select, addr, read_data, MAX_CHUNK_SIZE);
 
     if(run_crc){
         if(crc_failed){
-            printf("mem test failed at word %d :(\n", ((crc_cycle*1024)/8));
+            slog_info(0, "mem test failed at word %d :(\n", ((crc_cycle*1024)/8));
         }else{
-            printf("mem test PASS (ran %i cycles)!\n", crc_cycle);
+            slog_info(0, "mem test PASS (ran %i cycles)!\n", crc_cycle);
         }
     }
 
@@ -454,9 +454,9 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         if(run_crc) {
             start_beat = 16*5;
             end_beat = 16*8;
-            printf("printing read beats 5:7\n");
+            slog_debug(0, "printing read beats 5:7\n");
         } else {
-            printf("printing read beats 0:2\n");
+            slog_debug(0, "printing read beats 0:2\n");
             start_beat = 16*0;
             end_beat = 16*2;
         }
@@ -465,14 +465,14 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 		end_beat = (MAX_CHUNK_SIZE/8);
 	}
     for(int i=start_beat; i<end_beat;i++){
-        printf("dma_buf %02i: 0x%016"PRIX64"\n", i, read_data[i]);
+        slog_debug(0, "dma_buf %02i: 0x%016"PRIX64"\n", i, read_data[i]);
     }
 #endif
         
     // re-generate write data with results not cleared out so 
     // it will match read_data
     write_data = util_get_static_data(MAX_CHUNK_SIZE, true, false);
-    printf("checking write/read array difference...");
+    slog_info(0, "checking write/read array difference...");
     uint32_t starting = 0;
     uint32_t found = 0;
     for(int i=0; i<(MAX_CHUNK_SIZE/sizeof(uint64_t)); i++){
@@ -484,14 +484,14 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         }
     }
     if(found == 0){
-        printf("PASS!\n");
+        slog_info(0, "PASS!\n");
     }else{
-        printf("\n");
-        printf("found %llu differences starting at %i\n", (long long)found, starting);
-        printf("which is in chunk %i\n", ((starting*8)/DMA_SIZE));
+        slog_info(0, "\n");
+        slog_info(0, "found %llu differences starting at %i\n", (long long)found, starting);
+        slog_info(0, "which is in chunk %i\n", ((starting*8)/DMA_SIZE));
     }
 
-    printf("done.\n");
+    slog_info(0, "done.\n");
     
     return;
 }
@@ -557,7 +557,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     num_bursts = 1;
 	subcore_prep_dma_write(artix_select, num_bursts);
  
-    printf("sending setup burst...\n");
+    slog_info(0, "sending setup burst...\n");
     size_t burst_size = num_bursts*BURST_BYTES;
 
     // clear all pins by FFing them. This will cause test_run to not 
@@ -582,7 +582,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
         enable_pins[dut_io_id] = 0x00;
 
 #ifdef GEM_DEBUG
-        printf("%s : %i\n", pin->net_alias, dut_io_id);
+        slog_debug(0, "%s : %i\n", pin->net_alias, dut_io_id);
 #endif
     }
 
@@ -596,7 +596,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
 
 #ifdef GEM_DEBUG
     for(int i=0; i<32;i++){
-        printf("pin_enable %02i: 0x%016"PRIX64"\n", i, dma_buf[i]);
+        slog_debug(0, "pin_enable %02i: 0x%016"PRIX64"\n", i, dma_buf[i]);
     }
 #endif
 
@@ -606,7 +606,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     // get burst count from dutcore
     helper_get_agent_status(artix_select, &packet);
     dutcore_burst_count = packet.addr + 1;
-    printf("sent setup burst (%i bytes).\n", dutcore_burst_count*BURST_BYTES);
+    slog_debug(0, "sent setup burst (%i bytes).\n", dutcore_burst_count*BURST_BYTES);
 
     // reset cycle count and failed flag
     helper_dutcore_load_run(artix_select, TEST_CLEANUP);
@@ -614,12 +614,12 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     // address we are dma-ing to in the artix unit
     uint32_t addr = 0x00000000;
 
-    printf("writing vectors to memory...\n");
+    slog_info(0, "writing vectors to memory...\n");
     // load one chunk at a time and dma the vecs to artix memory
     while((chunk = stim_load_next_chunk(stim, artix_select)) != NULL){
 
         // copy over the vec data buffer
-        printf("writing %i vecs (%zu bytes) to dma buffer...\n", chunk->num_vecs, chunk->vec_data_size);
+        slog_info(0, "writing %i vecs (%zu bytes) to dma buffer...\n", chunk->num_vecs, chunk->vec_data_size);
         artix_mem_write(artix_select, addr, (uint64_t*)(chunk->vec_data), chunk->vec_data_size);
 
         // update the address pointer based on how much we copied in bytes
@@ -689,7 +689,7 @@ int64_t artix_dut_test(struct stim *stim){
     }
     
     // run the test
-    printf("running test...\n");
+    slog_info(0, "running test...\n");
     helper_dutcore_load_run(artix_select, TEST_RUN);
     helper_print_agent_status(artix_select);
 
@@ -719,16 +719,14 @@ int64_t artix_dut_test(struct stim *stim){
         test_failed = true;
     }
     if(packet.addr & 0xf0000000){
-        printf("warning: read fifo stalled during test\n");
+        slog_warn(0, "warning: read fifo stalled during test\n");
     }
     if(test_failed){
-        printf("test failed at vector %d out of %i :(\n", ret_test_cycle, stim->num_unrolled_vecs);
+        slog_info(0, "test failed at vector %d out of %i :(\n", ret_test_cycle, stim->num_unrolled_vecs);
         test_cycle = ret_test_cycle;
     }else{
-        printf("test PASS (executed %i of %i vectors)!\n", ret_test_cycle, stim->num_unrolled_vecs);
+        slog_info(0, "test PASS (executed %i of %i vectors)!\n", ret_test_cycle, stim->num_unrolled_vecs);
     }
-
-    printf("done!\n");
 
     return test_cycle;
 }
@@ -776,38 +774,44 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
     regs = gcore_free_regs(regs);
 
     // dma over the data from start of dma buffer sending file_size bytes
-    printf("configuring with %zu bytes...", (size_t)file_size);
+    
+    if(artix_select == ARTIX_SELECT_A1){
+        slog_info(0,"configuring a1 with %zu bytes...", (size_t)file_size);
+    }else if (artix_select == ARTIX_SELECT_A2){
+        slog_info(0,"configuring a2 with %zu bytes...", (size_t)file_size);
+    }else{
+        die("invalid artix select given");
+    }
     fflush(stdout);
     gcore_dma_prep_start(GCORE_WAIT_TX, dma_buf, (size_t)file_size, NULL, 0);
-    printf("done.\n");
 
     // doing gcore_subcore_state ioctl will write
     // config_num_bytes in the addr reg
     gcore_subcore_mode_state(&mode_state);
     regs = gcore_get_regs();
 
-    //if(regs->addr != file_size){
-    //    printf("config: error, only %d bytes of %ld bytes sent.\n", regs->addr, file_size);
-    //}
+    if(regs->addr != file_size){
+        slog_error(0,"config: only %d bytes of %ld bytes sent.\n", regs->addr, file_size);
+    }
 
     gcore_subcore_idle();
 
     // check done
     if(regs != NULL){
         if((regs->status & GCORE_STATUS_DONE_ERROR_MASK) == GCORE_STATUS_DONE_ERROR_MASK){
-            printf("error: failed to configure, done error is high.\n");
+            slog_error(0,"error: failed to configure, done error is high.\n");
         }else{
             if(artix_select == ARTIX_SELECT_A1){
                 if((regs->a1_status & GCORE_AGENT_DONE_MASK) != GCORE_AGENT_DONE_MASK){
-                    printf("no done error, but a1 done pin did NOT go high.\n");
+                    slog_error(0,"no done error, but a1 done pin did NOT go high.\n");
                 }else{
-                    printf("a1 done went high!\n");
+                    slog_error(0,"done!\n");
                 }
             }else if (artix_select == ARTIX_SELECT_A2){
                 if((regs->a2_status & GCORE_AGENT_DONE_MASK) != GCORE_AGENT_DONE_MASK){
-                    printf("no done error, but a2 done pin did NOT go high.\n");
+                    slog_error(0,"no done error, but a2 done pin did NOT go high.\n");
                 }else{
-                    printf("a2 done went high!\n");
+                    slog_error(0,"done!\n");
                 }
             }
         }

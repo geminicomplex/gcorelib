@@ -570,7 +570,7 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects art
 
     if(cur_vec_chunk_id != -1){
         if(!vec_chunks[cur_vec_chunk_id]->is_loaded){
-            printf("warning: current chunk %i has never been loaded;"
+            slog_warn(0,"warning: current chunk %i has never been loaded;"
                     " failed to unload. Don't unload manually.\n", cur_vec_chunk_id);
         }else{
             stim_unload_chunk(vec_chunks[cur_vec_chunk_id]);
@@ -725,10 +725,10 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
     
 
     if(is_last_chunk){
-        printf("filling %s chunk %i with %i vecs (%i padding vecs) (%zu bytes)...\n", 
+        slog_info(0,"filling %s chunk %i with %i vecs (%i padding vecs) (%zu bytes)...\n", 
             a1_or_a2_str, chunk->id, chunk->num_vecs, stim->num_padding_vecs, chunk->vec_data_size);
     }else{
-        printf("filling %s chunk %i with %i vecs (%zu bytes)...\n", 
+        slog_info(0,"filling %s chunk %i with %i vecs (%zu bytes)...\n", 
             a1_or_a2_str, chunk->id, chunk->num_vecs, chunk->vec_data_size);
     }
 
@@ -1088,7 +1088,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
                     while(c < BUFFER_LENGTH){
                         if(isdigit(buffer[c++])){
                             bitstream_size = atoi(&buffer[c-1]);
-                            printf("bitstream size: %i\n", (int)bitstream_size);
+                            slog_info(0,"bitstream size: %i\n", (int)bitstream_size);
                             break;
                         }
                     }
@@ -1143,7 +1143,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
         memset(buffer, '\0', BUFFER_LENGTH);
         memcpy(buffer, (stim->map+stim->cur_map_byte), halfword);
         stim->cur_map_byte += halfword;
-        printf("Design name: %s\n", buffer);
+        slog_info(0,"Design name: %s\n", buffer);
 
         // read the header and break when body is reached
         while(1){
@@ -1151,7 +1151,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             // e is bitstream data
             if(((char)byte) == 'e'){
                 bitstream_size = read_map_32(stim, true);
-                printf("bitstream has %i bytes...\n", (int)bitstream_size);
+                slog_info(0,"bitstream has %i bytes...\n", (int)bitstream_size);
                 // Header has been read. Ready to read bitstream.
                 break;
             // b is partname, c is date, d is time
@@ -1163,7 +1163,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
                 memset(buffer, '\0', BUFFER_LENGTH);
                 memcpy(buffer, (stim->map+stim->cur_map_byte), halfword);
                 stim->cur_map_byte += halfword;
-                printf("%s\n", buffer);
+                slog_info(0,"%s\n", buffer);
             } else {
                 die("failed reading bit file; unexpected key\n");
             }
@@ -1485,10 +1485,10 @@ static size_t stim_serialize_chunk(struct stim *stim, enum artix_selects artix_s
         }
 
         if(artix_select == ARTIX_SELECT_A1){
-            printf("compressed a1 chunk %i by %zu bytes\n", chunk->id, 
+            slog_info(0,"compressed a1 chunk %i by %zu bytes\n", chunk->id, 
                 (chunk->vec_data_size-compressed_data_size));
         }else if(artix_select == ARTIX_SELECT_A2){
-            printf("compressed a2 chunk %i by %zu bytes\n", chunk->id, 
+            slog_info(0,"compressed a2 chunk %i by %zu bytes\n", chunk->id, 
                 (chunk->vec_data_size-compressed_data_size));
         }
         
@@ -1631,7 +1631,7 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         total_saved_size += stim_serialize_chunk(stim, ARTIX_SELECT_A2, cs, &serialStim);
     }
 
-    printf("compression saved %zu bytes\n", total_saved_size);
+    slog_info(0,"compression saved %zu bytes\n", total_saved_size);
 
     SerialStim_ptr serialStimPtr = new_SerialStim(cs);
     write_SerialStim(&serialStim, serialStimPtr);
@@ -1814,7 +1814,7 @@ struct vec_chunk *stim_decompress_vec_chunk(struct vec_chunk *chunk){
     int decompressed_size = LZ4_decompress_safe((char*)chunk->vec_data_compressed,
             (char*)chunk->vec_data, chunk->vec_data_compressed_size, chunk->vec_data_size);
 
-    printf("decompressed chunk %i (%zu bytes -> %zu bytes)\n", chunk->id, 
+    slog_info(0,"decompressed chunk %i (%zu bytes -> %zu bytes)\n", chunk->id, 
             chunk->vec_data_compressed_size, chunk->vec_data_size);
     if(decompressed_size <= 0){
         die("chunk decompression failed\n");

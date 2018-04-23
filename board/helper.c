@@ -92,9 +92,9 @@ void helper_agent_load_run(enum artix_selects artix_select,
      */
     if(!agent_did_startup) {
         if(artix_select == ARTIX_SELECT_A1){
-            printf("initializing agent a1...");
+            slog_info(0,"initializing agent a1...");
         }else if(artix_select == ARTIX_SELECT_A2){
-            printf("initializing agent a2...");
+            slog_info(0,"initializing agent a2...");
         }
         fflush(stdout);
         // wait for pll and mmcms to lock
@@ -107,7 +107,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
         // read agent status through ctrl_axi
         gcore_ctrl_read(&packet);
 
-        printf("done.\n");
+        slog_info(0,"done.\n");
         print_packet(&packet, "start: ");
 
         // Need to check for error
@@ -115,7 +115,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
         if(regs != NULL){
             if((regs->status & GCORE_STATUS_INIT_ERROR_MASK) == GCORE_STATUS_INIT_ERROR_MASK){
                 print_regs(regs);
-                printf("Agent startup init error.\n");
+                slog_error(0,"Agent startup init error.\n");
                 exit(1);
             }
         }
@@ -163,7 +163,7 @@ void helper_num_bursts_load(enum artix_selects artix_select,
     packet.rank_select = 0;
     packet.addr = 0;
     packet.data = num_bursts;
-    printf("agent burst: %d @ %d = %d bytes\n", BURST_BYTES, 
+    slog_info(0,"agent burst: %d @ %d = %d bytes\n", BURST_BYTES, 
         num_bursts, (num_bursts*BURST_BYTES));
 
     // load number of bursts into dutcore and memcore
@@ -214,7 +214,7 @@ void helper_memcore_load_run(enum artix_selects artix_select,
     // check if dutcore is in mem_load state
     helper_get_agent_status(artix_select, &status_packet);
     if((status_packet.data & 0x000000f0) != 0x00000030){
-        printf("error: dutcore is not in MEM_LOAD state. 0x%08X\n", status_packet.data);
+        slog_error(0,"error: dutcore is not in MEM_LOAD state. 0x%08X\n", status_packet.data);
         exit(1);
     }
 
@@ -231,7 +231,7 @@ void helper_memcore_load_run(enum artix_selects artix_select,
         || loading_state != MEMCORE_READ_BURST) {
         helper_get_agent_status(artix_select, &status_packet);
         if((status_packet.data & 0x00000f00) != (loading_state << 8)){
-            printf("error: memcore is not in desired state. desired: 0x%08X actual: 0x%08X\n", 
+            slog_error(0,"error: memcore is not in desired state. desired: 0x%08X actual: 0x%08X\n", 
                 (loading_state << 8), (status_packet.data & 0x00000f00));
             exit(1);
         }

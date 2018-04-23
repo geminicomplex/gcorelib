@@ -452,13 +452,11 @@ struct profile *get_profile_by_path(const char *path){
     jsmn_init(&json_parser);
 	num_tokens = jsmn_parse(&json_parser, data, strlen(data), t, sizeof(t)/sizeof(t[0]));
     if(num_tokens < 0){
-		printf("error: failed to parse json file: num_tokens (%d)\n", num_tokens);
-		return NULL;
+		die("error: failed to parse json file: num_tokens (%d)\n", num_tokens);
 	}
 
 	if(num_tokens < 1 || t[0].type != JSMN_OBJECT){
-		printf("error: profile is not a valid json file\n");
-		return NULL;
+		die("error: profile is not a valid json file\n");
 	}
 
     for(int i=1; i<num_tokens; i++){
@@ -535,9 +533,7 @@ struct profile *get_profile_by_path(const char *path){
         if(FindAVL(tree, (const void *)profile->pins[i]) == NULL){
             InsertAVL(tree, (const void *)profile->pins[i], NULL);
         } else {
-            printf("error: dupliate profile pin found %s.\n", 
-                profile->pins[i]->pin_name);
-            return NULL;
+            die("error: dupliate profile pin found %s.\n", profile->pins[i]->pin_name);
         }
     }
     DestroyAVL(tree);

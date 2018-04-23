@@ -31,6 +31,8 @@ static uint8_t *gcore_map = NULL;
 __attribute__((constructor))
 static void gcore_dev_init() {
 
+    gcore_init_log(GCORE_LOG_PATH);
+
 #ifdef __arm__
     gcore_fd = open(MMAP_PATH, O_RDWR | O_CREAT | O_TRUNC, (mode_t) 0600);
 	if(gcore_fd == -1){
@@ -49,6 +51,9 @@ static void gcore_dev_init() {
 
 __attribute__((destructor))
 static void gcore_dev_destroy() {
+
+    gcore_init_log(GCORE_LOG_PATH);
+
 #ifdef __arm__
 	if(munmap(gcore_map, MMAP_SIZE) == -1){
 		die("gcorelib: error un-mmapping the file");

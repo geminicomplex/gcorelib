@@ -13,12 +13,15 @@
 extern "C" {
 #endif
 
+#include "lib/slog/slog.h"
+
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
 #include "../driver/gcore_common.h"
+
 
 //#define GEM_DEBUG
 
@@ -30,8 +33,13 @@ extern "C" {
     #define dma_cookie_t int32_t
 #endif
 
+#define GCORE_LOG_PATH "/var/log/gcore.log"
+
 #ifndef die
-#define die(fmt, ...) do{ fprintf(stderr, "%s:%d:%s: " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__); exit(EXIT_FAILURE); } while(0);
+#define die(fmt, ...) do{\
+    slog_fatal(0, fmt, ##__VA_ARGS__);\
+    exit(EXIT_FAILURE);\
+    } while(0);
 #endif
 
 #define MMAP_PATH "/dev/gcore"
@@ -63,6 +71,7 @@ extern "C" {
 // 8 vecs per 1024 byte burst
 #define STIM_NUM_VECS_PER_BURST (8)
 
+void gcore_init_log(const char *log_path);
 
 #ifdef __cplusplus
 }

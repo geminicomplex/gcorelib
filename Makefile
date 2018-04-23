@@ -84,7 +84,6 @@ clean-arm:
 	$(shell find . -name '*_arm.o' -delete)
 	rm -f build/arm/libgcore.so
 
-clean:
-	@echo "error: must give a platform: clean-mac, clean-linux, clean-arm"
+clean: clean-mac clean-linux clean-arm
 
 .PHONY : all mac linux arm clean clean-mac clean-linux clean-arm

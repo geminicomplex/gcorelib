@@ -25,8 +25,7 @@
 #include <string.h>
 
 // pulled from <linux/i2c.h>
-#define I2C_SLAVE	0x0703	/* Change slave address			*/
-				            /* Attn.: Slave address is 7 or 10 bits */
+#define I2C_SLAVE	0x0703
 
 /*
  * Perform a raw i2c read or write given an addr and reg.
@@ -39,32 +38,27 @@ uint8_t gcore_i2c(uint8_t addr, uint8_t reg, enum gcore_i2c_dir dir, uint8_t val
 
     snprintf(filename, 19, "/dev/i2c-%d", adapter);
     if((fd = open(filename, O_RDWR)) < 0){
-        fprintf(stderr, "failed to open i2c dev '/dev/i2c-%d'.", adapter);
-        exit(1);
+        die("failed to open i2c dev '/dev/i2c-%d'.", adapter);
     }
 
     if(ioctl(fd, I2C_SLAVE, addr) < 0){
-        fprintf(stderr, "failed to do ioctl I2C_SLAVE for addr %i", addr);
-        exit(1);
+        die("failed to do ioctl I2C_SLAVE for addr %i", addr);
     }
 
     if(dir == GCORE_I2C_READ){
         buf[0] = reg;
         if(write(fd, buf, 1) != 1){
-            fprintf(stderr, "failed to prep read for addr %i and reg %i\n", addr, reg);
-            exit(1);
+            die("failed to prep read for addr %i and reg %i\n", addr, reg);
         }
         if(read(fd, buf, 1) != 1){
-            fprintf(stderr, "failed to read byte for addr %i and reg %i\n", addr, reg);
-            exit(1);
+            die("failed to read byte for addr %i and reg %i\n", addr, reg);
         }
         value = buf[0];
     }else if(dir == GCORE_I2C_WRITE){
         buf[0] = reg;
         buf[1] = value;
         if(write(fd, buf, 2) != 2){
-            fprintf(stderr, "failed to read byte for addr %i and reg %i\n", addr, reg);
-            exit(1);
+            die("failed to read byte for addr %i and reg %i\n", addr, reg);
         }
     }else{
         die("Invalid direction given %i\n", dir);
