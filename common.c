@@ -29,17 +29,7 @@ static void gcore_init() {
  */
 void gcore_init_log(const char *log_path){
     if(!did_init){
-        char template[] = "/tmp/slogXXXXXX";
-        char *conf_path = NULL;
-        if((conf_path = mktemp(template)) == NULL){
-            return;
-        }
-        FILE *fp = fopen(conf_path, "w"); 
-        fprintf(fp, "LOGTOFILE 1\n");
-        fprintf(fp, "PRETTYLOG 1\n");
-        fprintf(fp, "FILESTAMP 1\n");
-        fclose(fp);
-        slog_init(log_path, conf_path, 1, 3, 1);
+        slog_init(log_path, 1, 3, 1, 1, 1);
         did_init = true;
     }
     return;

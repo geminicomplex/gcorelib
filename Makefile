@@ -7,7 +7,7 @@
 
 BUILD_PATH :=
 INCLUDES :=-I. -I./board -I../driver -I./lib/jsmn -I./lib/avl -I./lib/progress -I./lib/lz4 -I./lib/capnp 
-CFLAGS :=-O2 -c -fPIC -Wall -pedantic
+CFLAGS :=-O2 -c -fPIC -Wall
 CC := gcc
 LDFLAGS :=
 EXEC :=
