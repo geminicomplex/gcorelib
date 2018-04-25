@@ -790,9 +790,9 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
     gcore_subcore_mode_state(&mode_state);
     regs = gcore_get_regs();
 
-    if(regs->addr != file_size){
-        slog_error(0,"config: only %d bytes of %ld bytes sent.\n", regs->addr, file_size);
-    }
+    //if(regs->addr != file_size){
+    //    slog_error(0,"config: only %d bytes of %ld bytes sent.\n", regs->addr, file_size);
+    //}
 
     gcore_subcore_idle();
 
@@ -805,13 +805,13 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
                 if((regs->a1_status & GCORE_AGENT_DONE_MASK) != GCORE_AGENT_DONE_MASK){
                     slog_error(0,"no done error, but a1 done pin did NOT go high.\n");
                 }else{
-                    slog_error(0,"done!\n");
+                    slog_info(0,"done!\n");
                 }
             }else if (artix_select == ARTIX_SELECT_A2){
                 if((regs->a2_status & GCORE_AGENT_DONE_MASK) != GCORE_AGENT_DONE_MASK){
                     slog_error(0,"no done error, but a2 done pin did NOT go high.\n");
                 }else{
-                    slog_error(0,"done!\n");
+                    slog_info(0,"done!\n");
                 }
             }
         }
