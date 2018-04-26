@@ -1,7 +1,7 @@
 #ifndef CAPN_DDE41F3D290D408E
 #define CAPN_DDE41F3D290D408E
 /* AUTO GENERATED - DO NOT EDIT */
-#include <capnp_c.h>
+#include "../lib/capnp/capnp_c.h"
 
 #if CAPN_VERSION != 1
 #error "version mismatch between capnp_c.h and generated code"

@@ -728,6 +728,10 @@ int64_t artix_dut_test(struct stim *stim){
         slog_info(0, "test PASS (executed %i of %i vectors)!\n", ret_test_cycle, stim->num_unrolled_vecs);
     }
 
+    struct gcore_registers *regs = NULL;
+    regs = gcore_get_regs();
+    print_regs(regs);
+
     return test_cycle;
 }
 

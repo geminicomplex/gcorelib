@@ -343,12 +343,12 @@ void print_regs(struct gcore_registers *regs){
     if(regs == NULL){
         return;
     }
-    printf("control: 0x%08X\n", regs->control);
-    printf("status: 0x%08X\n", regs->status);
-    printf("addr: 0x%08X\n", regs->addr);
-    printf("data: 0x%08X\n", regs->data);
-    printf("a1_status: 0x%08X\n", regs->a1_status);
-    printf("a2_status: 0x%08X\n", regs->a2_status);
+    slog_info(0,"control: 0x%08X\n", regs->control);
+    slog_info(0,"status: 0x%08X\n", regs->status);
+    slog_info(0,"addr: 0x%08X\n", regs->addr);
+    slog_info(0,"data: 0x%08X\n", regs->data);
+    slog_info(0,"a1_status: 0x%08X\n", regs->a1_status);
+    slog_info(0,"a2_status: 0x%08X\n", regs->a2_status);
     return;
 }
 
@@ -363,7 +363,7 @@ void print_packet(struct gcore_ctrl_packet *packet, char *pre){
     if(pre == NULL){
         die("error: pointer is NULL\n");
     }
-    printf(
+    slog_info(0,
         "%srank_sel: %d, addr: 0x%08X, data: 0x%08X\n",
         pre,
         packet->rank_select,
@@ -453,34 +453,34 @@ void print_agent_state(enum agent_states agent_state, char *pre){
     }
     switch(agent_state){
         case AGENT_INIT:
-            printf("%sagent_init\n", pre);
+            slog_info(0,"%sagent_init\n", pre);
             break;
         case AGENT_IDLE:
-            printf("%sagent_idle\n", pre);
+            slog_info(0,"%sagent_idle\n", pre);
             break;
         case AGENT_PAUSED:
-            printf("%sagent_paused\n", pre);
+            slog_info(0,"%sagent_paused\n", pre);
             break;
         case STATUS:
-            printf("%sstatus\n", pre);
+            slog_info(0,"%sstatus\n", pre);
             break;
         case BURST_LOAD:
-            printf("%sburst_load\n", pre);
+            slog_info(0,"%sburst_load\n", pre);
             break;
         case DUT_LOAD:
-            printf("%sdut_load\n", pre);
+            slog_info(0,"%sdut_load\n", pre);
             break;
         case DUT_RUN:
-            printf("%sdut_run\n", pre);
+            slog_info(0,"%sdut_run\n", pre);
             break;
         case DUT_WRITE:
-            printf("%sdut_write\n", pre);
+            slog_info(0,"%sdut_write\n", pre);
             break;
         case DUT_READ:
-            printf("%sdut_read\n", pre);
+            slog_info(0,"%sdut_read\n", pre);
             break;
         case DUT_RESET:
-            printf("%sdut_reset\n", pre);
+            slog_info(0,"%sdut_reset\n", pre);
             break;
         default:
             break;
@@ -498,40 +498,40 @@ void print_dutcore_state(enum dutcore_states dutcore_state, char *pre){
     }
     switch(dutcore_state){
         case DUTCORE_IDLE:
-            printf("%sdutcore_idls\n", pre);
+            slog_info(0,"%sdutcore_idls\n", pre);
 			break;
         case DUTCORE_PAUSED:
-            printf("%sdutcore_paused\n", pre);
+            slog_info(0,"%sdutcore_paused\n", pre);
 			break;
         case MEM_BURST:
-            printf("%smem_burst\n", pre);
+            slog_info(0,"%smem_burst\n", pre);
 			break;
         case MEM_LOAD:
-            printf("%smem_load\n", pre);
+            slog_info(0,"%smem_load\n", pre);
 			break;
         case MEM_RUN:
-            printf("%smem_run\n", pre);
+            slog_info(0,"%smem_run\n", pre);
 			break;
         case MEM_WRITE:
-            printf("%smem_write\n", pre);
+            slog_info(0,"%smem_write\n", pre);
 			break;
         case MEM_READ:
-            printf("%smem_read\n", pre);
+            slog_info(0,"%smem_read\n", pre);
 			break;
         case MEM_TEST:
-            printf("%smem_test\n", pre);
+            slog_info(0,"%smem_test\n", pre);
 			break;
         case TEST_INIT:
-            printf("%stest_init\n", pre);
+            slog_info(0,"%stest_init\n", pre);
 			break;
         case TEST_SETUP:
-            printf("%stest_setup\n", pre);
+            slog_info(0,"%stest_setup\n", pre);
 			break;
         case TEST_RUN:
-            printf("%stest_run\n", pre);
+            slog_info(0,"%stest_run\n", pre);
 			break;
         case TEST_CLEANUP:
-            printf("%stest_cleanup\n", pre);
+            slog_info(0,"%stest_cleanup\n", pre);
 			break;
         default:
             break;
@@ -549,22 +549,22 @@ void print_memcore_state(enum memcore_states memcore_state, char *pre){
     }
     switch(memcore_state){
         case MEMCORE_IDLE:
-            printf("%smemcore_idle\n", pre);
+            slog_info(0,"%smemcore_idle\n", pre);
 			break;
         case MEMCORE_PAUSED:
-            printf("%smemcore_paused\n", pre);
+            slog_info(0,"%smemcore_paused\n", pre);
 			break;
         case MEMCORE_AUTO_BURST:
-            printf("%smemcore_auto_burst\n", pre);
+            slog_info(0,"%smemcore_auto_burst\n", pre);
 			break;
         case MEMCORE_WRITE_BURST:
-            printf("%smemcore_write_burst\n", pre);
+            slog_info(0,"%smemcore_write_burst\n", pre);
 			break;
         case MEMCORE_READ_BURST:
-            printf("%smemcore_read_burst\n", pre);
+            slog_info(0,"%smemcore_read_burst\n", pre);
 			break;
         case MEMCORE_CLEANUP:
-            printf("%smemcore_cleanup\n", pre);
+            slog_info(0,"%smemcore_cleanup\n", pre);
 			break;
         default:
             break;

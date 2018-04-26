@@ -514,6 +514,8 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         }
     }
 
+    slog_debug(0,"num_vecs: %i num_unrolled_vecs: %i", stim->num_vecs, stim->num_unrolled_vecs);
+
     return stim;
 }
 
@@ -913,6 +915,8 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             pack_subvecs_by_dut_io_id(chunk_vec->packed_subvecs, pin->dut_io_id, subvec);
         }
 
+        //slog_debug(0, "dots vec %i %s has_clk: %i", dots_vec->repeat, dots_vec->vec_str, dots_vec->has_clk);
+
         unexpand_dots_vec_subvecs(dots_vec);
 
         // set the opcode for the chunk vec
@@ -1302,8 +1306,7 @@ struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots){
     stim->cur_a1_dots_vec_id = 0;
     stim->cur_a2_dots_vec_id = 0;
 
-    num_unrolled_vecs = get_num_unrolled_dots_vecs(stim->dots);
-    
+    num_unrolled_vecs = get_num_unrolled_dots_vecs(stim->dots); 
 
     if((stim = init_stim(stim, dots->pins, dots->num_pins, 
                 dots->num_dots_vecs, num_unrolled_vecs)) == NULL){
