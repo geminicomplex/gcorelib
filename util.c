@@ -253,21 +253,21 @@ size_t util_str_split(char* a_str, const char a_delim, char*** results){
     count += last_delim < (a_str + strlen(a_str) - 1);
 
     if(((*results) = malloc(sizeof(char*) * count)) == NULL){
-        die("malloc failed for count %zu\n", count);
+        die("malloc failed for count %zu", count);
     }
 
     char* token = strtok(a_str, delim);
 
     while(token){
         if(idx >= count){
-            die("str split failed; idx %zu >= count %zu\n", idx, count);
+            die("str split failed; idx %zu >= count %zu", idx, count);
         }
         *((*results) + idx++) = strdup(token);
         token = strtok(0, delim);
     }
 
     if(idx != count){
-        die("str split failed; idx %zu != count - 1: %zu\n", idx, count);
+        die("str split failed; idx %zu != count - 1: %zu", idx, count);
     }
 
     return count;

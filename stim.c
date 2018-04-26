@@ -92,11 +92,11 @@ enum subvecs *convert_bitstream_word_to_subvecs(uint32_t *word,
     uint8_t num_bits = (sizeof(uint32_t)*8);
     
     if(word == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if((subvecs = (enum subvecs *)calloc(num_bits, sizeof(enum subvecs))) == NULL){
-        die("error: failed to calloc subvecs\n");
+        die("error: failed to calloc subvecs");
     }
 
     int byte = 0;
@@ -128,11 +128,11 @@ enum subvecs *convert_bitstream_word_to_subvecs(uint32_t *word,
  */
 static inline uint8_t read_map_8(struct stim *stim){
     if(stim == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     uint8_t *byte = (uint8_t*)&(stim->map)[stim->cur_map_byte];
     if(byte == NULL){
-        die("map byte is NULL\n");
+        die("map byte is NULL");
     }
     stim->cur_map_byte += 1;
     return *byte;
@@ -140,11 +140,11 @@ static inline uint8_t read_map_8(struct stim *stim){
 
 static inline uint16_t read_map_16(struct stim *stim, bool swap_endian){
     if(stim == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     uint16_t *halfword = (uint16_t*)&(stim->map)[stim->cur_map_byte];
     if(halfword == NULL){
-        die("map halfword is NULL\n");
+        die("map halfword is NULL");
     }
     stim->cur_map_byte += 2;
     if(swap_endian){
@@ -155,11 +155,11 @@ static inline uint16_t read_map_16(struct stim *stim, bool swap_endian){
 
 static inline uint32_t read_map_32(struct stim *stim, bool swap_endian){
     if(stim == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     uint32_t *word = (uint32_t*)&(stim->map)[stim->cur_map_byte];
     if(word == NULL){
-        die("map word is NULL\n");
+        die("map word is NULL");
     }
     stim->cur_map_byte += 4;
     if(swap_endian){
@@ -184,12 +184,12 @@ uint32_t stim_get_next_bitstream_word(struct stim *stim){
             while(stim->cur_map_byte < stim->file_size){
                 if(stim->map[stim->cur_map_byte+count] == '\n'){
                     if(count > BUFFER_LENGTH){
-                        die("buffer overflow; gross\n");
+                        die("buffer overflow; gross");
                     }
                     memset(buffer, '\0', BUFFER_LENGTH);
                     memcpy(buffer, (stim->map+stim->cur_map_byte), count);
                     if(count != 32){
-                        die("rbt bitstream word is not 32 bits\n");
+                        die("rbt bitstream word is not 32 bits");
                     }
                     c = count;
                     word = 0;
@@ -199,7 +199,7 @@ uint32_t stim_get_next_bitstream_word(struct stim *stim){
                         }else if(buffer[c] == '1'){
                             word += (1<<((count-1)-c));
                         }else{
-                            die("invalid rbt bitstream\n");
+                            die("invalid rbt bitstream");
                         }
                     }
                     stim->cur_map_byte += (count+1);
@@ -227,7 +227,7 @@ uint32_t stim_get_next_bitstream_word(struct stim *stim){
         case STIM_TYPE_RAW:
         case STIM_TYPE_NONE:
         default:
-            die("error: file is not a bitstream\n");
+            die("error: file is not a bitstream");
             break;
     }
 
@@ -246,11 +246,11 @@ struct vec *create_vec(){
     }
 
     if((STIM_VEC_SIZE % 2) != 0){
-        die("error: stim vec size %d must be a multiple of 2\n", STIM_VEC_SIZE);
+        die("error: stim vec size %d must be a multiple of 2", STIM_VEC_SIZE);
     }
    
     if((vec->packed_subvecs = (uint8_t*)calloc(STIM_VEC_SIZE, sizeof(uint8_t))) == NULL){
-        die("error: failed to calloc vec's subvecs uint8_t\n");
+        die("error: failed to calloc vec's subvecs uint8_t");
     }
 
     for(int i=0; i<STIM_VEC_SIZE; i++){
@@ -269,7 +269,7 @@ struct vec_chunk **create_vec_chunks(uint32_t num_vec_chunks){
         return NULL;
     }
     if((vec_chunks = (struct vec_chunk**)calloc(num_vec_chunks, sizeof(struct vec_chunk*))) == NULL){
-        die("error: failed to calloc stim vec_chunks\n");
+        die("error: failed to calloc stim vec_chunks");
     }
     return vec_chunks;
 }
@@ -292,7 +292,7 @@ struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id,
     }
 
     if(num_vecs == 0){
-        die("error: num_vecs == 0, failed to malloc vec_chunk struct\n");
+        die("error: num_vecs == 0, failed to malloc vec_chunk struct");
     }
 
     if((chunk = (struct vec_chunk*)malloc(sizeof(struct vec_chunk))) == NULL){
@@ -387,7 +387,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         uint32_t num_vecs, uint32_t num_unrolled_vecs){
     enum artix_selects artix_select = ARTIX_SELECT_NONE;
     if(stim == NULL){
-        die("error: failed to initialized stim, pointer is NULL\n");
+        die("error: failed to initialized stim, pointer is NULL");
     }
 
     stim->num_pins = num_pins;
@@ -399,11 +399,11 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     }
 
     if(stim->num_pins == 0){
-        die("error: failed to init stim, num_pins == 0\n");
+        die("error: failed to init stim, num_pins == 0");
     }
 
     if(stim->num_pins > DUT_TOTAL_NUM_PINS){
-        die("error: failed to init stim, num_profile_pins %i > %i\n", stim->num_pins, DUT_TOTAL_NUM_PINS);
+        die("error: failed to init stim, num_profile_pins %i > %i", stim->num_pins, DUT_TOTAL_NUM_PINS);
     }
 
     // Check if pins given are for both units or for either a1 or a2.
@@ -412,11 +412,11 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     artix_select = get_artix_select_by_profile_pins(pins, num_pins);
 
     if(artix_select == ARTIX_SELECT_NONE){
-        die("pins given don't have any dut_io pins\n");
+        die("pins given don't have any dut_io pins");
     }
 
     if((stim->pins = (struct profile_pin **)calloc(stim->num_pins, sizeof(struct profile_pin*))) == NULL){
-        die("error: failed to calloc profile pins\n");
+        die("error: failed to calloc profile pins");
     }
 
     // Copy pins to stim. Freeing the pins passed in is not our responsibility.
@@ -425,12 +425,12 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
             stim->pins[j++] = create_profile_pin_from_pin(pins[i]);
         }else{
             die("error: failed to init stim, pin '%s' doesn't"
-                "have a valid dut_io_id\n", pins[i]->net_name);
+                "have a valid dut_io_id", pins[i]->net_name);
         }
     }
 
     if(stim->num_vecs == 0){
-        die("error: failed to init stim, num_vecs == 0\n");
+        die("error: failed to init stim, num_vecs == 0");
     }
 
     // PADDING
@@ -471,18 +471,18 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         stim->num_a1_vec_chunks = num_vec_chunks;
         stim->num_a2_vec_chunks = num_vec_chunks;
     }else{
-        die("artix select %i not allowed\n", artix_select);
+        die("artix select %i not allowed", artix_select);
     }
 
     // allocate the array
     if(stim->num_a1_vec_chunks > 0){
         if((stim->a1_vec_chunks = create_vec_chunks(stim->num_a1_vec_chunks)) == NULL){
-            die("pointer is NULL\n");
+            die("pointer is NULL");
         }
     }
     if(stim->num_a2_vec_chunks > 0){
         if((stim->a2_vec_chunks = create_vec_chunks(stim->num_a2_vec_chunks)) == NULL){
-            die("pointer is NULL\n");
+            die("pointer is NULL");
         }
     }
 
@@ -510,7 +510,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
             stim->a1_vec_chunks[i] = create_vec_chunk(i, ARTIX_SELECT_A1, vecs_per_chunk);
             stim->a2_vec_chunks[i] = create_vec_chunk(i, ARTIX_SELECT_A2, vecs_per_chunk);
         }else{
-            die("artix select %i not allowed\n", artix_select);
+            die("artix select %i not allowed", artix_select);
         }
     }
 
@@ -536,15 +536,15 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects art
     uint32_t cur_vec_chunk_id = -1;
 
     if(stim == NULL){
-        die("error: failed to load vec chunk, pointer is NULL\n");
+        die("error: failed to load vec chunk, pointer is NULL");
     }
     
     if(stim->type == STIM_TYPE_NONE){
-        die("error: failed to load vec chunk, stim type is none\n");
+        die("error: failed to load vec chunk, stim type is none");
     }
 
     if(artix_select == ARTIX_SELECT_NONE){
-        die("no artix unit selected\n");
+        die("no artix unit selected");
     }else if(artix_select == ARTIX_SELECT_A1){
         num_vec_chunks = stim->num_a1_vec_chunks;
         vec_chunks = stim->a1_vec_chunks;
@@ -562,7 +562,7 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects art
             die("failed to load next chunk for a2, a1 is currently being loaded");
         }
     }else if(artix_select == ARTIX_SELECT_BOTH){
-        die("cannot select both artix units\n");
+        die("cannot select both artix units");
     }
 
     // reset mmap pointer since loading first chunk
@@ -573,7 +573,7 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects art
     if(cur_vec_chunk_id != -1){
         if(!vec_chunks[cur_vec_chunk_id]->is_loaded){
             slog_warn(0,"warning: current chunk %i has never been loaded;"
-                    " failed to unload. Don't unload manually.\n", cur_vec_chunk_id);
+                    " failed to unload. Don't unload manually.", cur_vec_chunk_id);
         }else{
             stim_unload_chunk(vec_chunks[cur_vec_chunk_id]);
         }
@@ -607,12 +607,12 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects art
 
     if((next_chunk->num_vecs % 8) != 0){
         die("error: num_vecs %d must be divisible by 8 so we don't \
-            have partially filled bursts, just pad NOP vecs\n", next_chunk->num_vecs);
+            have partially filled bursts, just pad NOP vecs", next_chunk->num_vecs);
     }
 
     // allocate vecs array
     if((next_chunk->vec_data = (uint8_t *)calloc(next_chunk->vec_data_size, sizeof(uint8_t))) == NULL){
-        die("error: failed to calloc vec chunk's vecs\n");
+        die("error: failed to calloc vec chunk's vecs");
     }
 
     // subvecs with 0xff don't get processed by artix units
@@ -621,7 +621,7 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects art
     next_chunk->is_loaded = true;
     
     if((next_chunk = stim_fill_chunk(stim, next_chunk)) == NULL){
-        die("failed to fill chunk\n");
+        die("failed to fill chunk");
     }
 
     return next_chunk;
@@ -633,7 +633,7 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects art
  */
 void stim_unload_chunk(struct vec_chunk *chunk){
     if(chunk == NULL){
-        die("error: failed to unload chunk, pointer is NULL\n");
+        die("error: failed to unload chunk, pointer is NULL");
     }
     if(chunk->is_loaded == false){
         return;
@@ -657,7 +657,7 @@ void stim_unload_chunk(struct vec_chunk *chunk){
 static void stim_get_next_bitstream_subvecs(struct stim *stim, 
         enum subvecs **subvecs, uint32_t *num_subvecs){
     if(stim == NULL || subvecs == NULL || num_subvecs == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     // get next word (D31 to D00)
     uint32_t word = stim_get_next_bitstream_word(stim);
@@ -689,11 +689,11 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
     char a1_or_a2_str[5] = "none";
 
     if(stim == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     
     if(chunk == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(chunk->is_filled == true){
@@ -702,7 +702,7 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
     }
     
     if(stim->type == STIM_TYPE_NONE){
-        die("error: failed to fill chunk, stim type is none\n");
+        die("error: failed to fill chunk, stim type is none");
     }
 
     // check if first chunk
@@ -722,15 +722,15 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
             is_last_chunk = true;
         }
     }else{
-        die("invalid chunk artix select %i\n", chunk->artix_select);
+        die("invalid chunk artix select %i", chunk->artix_select);
     }
     
 
     if(is_last_chunk){
-        slog_info(0,"filling %s chunk %i with %i vecs (%i padding vecs) (%zu bytes)...\n", 
+        slog_info(0,"filling %s chunk %i with %i vecs (%i padding vecs) (%zu bytes)...", 
             a1_or_a2_str, chunk->id, chunk->num_vecs, stim->num_padding_vecs, chunk->vec_data_size);
     }else{
-        slog_info(0,"filling %s chunk %i with %i vecs (%zu bytes)...\n", 
+        slog_info(0,"filling %s chunk %i with %i vecs (%zu bytes)...", 
             a1_or_a2_str, chunk->id, chunk->num_vecs, chunk->vec_data_size);
     }
 
@@ -738,11 +738,11 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         // First chunk so fill it with the config header. Size will always be less than chunk size.
         if(is_first_chunk){
             if((config = create_config(stim->profile, CONFIG_TYPE_HEADER, 1, 0)) == NULL){
-                die("error: pointer is NULL\n");
+                die("error: pointer is NULL");
             }
             if((chunk = stim_fill_chunk_by_dots(stim, chunk, 
                     config->dots, NULL)) == NULL){
-                die("error: failed to fill chunk by config vecs\n");
+                die("error: failed to fill chunk by config vecs");
             }
             config = free_config(config);
         } 
@@ -761,11 +761,11 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
          
         // fill chunk with one data word and the corresponding body config
         if((config = create_config(stim->profile, CONFIG_TYPE_BODY, num_vecs_to_load, 0)) == NULL){
-            die("error: pointer is NULL\n");
+            die("error: pointer is NULL");
         }
         if((chunk = stim_fill_chunk_by_dots(stim, chunk, config->dots, 
                 &stim_get_next_bitstream_subvecs)) == NULL){
-            die("error: failed to pack chunk by config vecs\n");
+            die("error: failed to pack chunk by config vecs");
         }
         config = free_config(config);
     
@@ -773,28 +773,28 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         // file already, then copy the footer after
         if(is_last_chunk){
             if((config = create_config(stim->profile, CONFIG_TYPE_FOOTER, 1, stim->num_padding_vecs)) == NULL){
-                die("error: pointer is NULL\n");
+                die("error: pointer is NULL");
             }
             if((chunk = stim_fill_chunk_by_dots(stim, chunk, 
                     config->dots, NULL)) == NULL){
-                die("error: failed to pack chunk by config vecs\n");
+                die("error: failed to pack chunk by config vecs");
             }
             config = free_config(config);
         }
     }else if(stim->type == STIM_TYPE_DOTS){
         if(stim->dots != NULL){
             if((chunk = stim_fill_chunk_by_dots(stim, chunk, stim->dots, NULL)) == NULL){
-                die("failed to fill chunk by dots\n");
+                die("failed to fill chunk by dots");
             }
         }else{
-            die("mmap loading of dots not supported yet\n");
+            die("mmap loading of dots not supported yet");
         }
     }else if(stim->type == STIM_TYPE_RAW){
         if((chunk = stim_decompress_vec_chunk(chunk)) == NULL){
-            die("failed to decompress vec chunk\n");
+            die("failed to decompress vec chunk");
         }
     }else {
-        die("invalid stim type\n");
+        die("invalid stim type");
     }
 
     return chunk;
@@ -819,20 +819,20 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
     struct vec *chunk_vec = create_vec();
     
     if(stim == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
 
     if(chunk == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
 
     if(dots == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
 
     if(chunk->is_filled == true){
         die("chunk %i already filled; cannot refill before "
-            "calling unload\n", chunk->id);
+            "calling unload", chunk->id);
     }
 
     // Each artix select chunk can be filled with the same dots so need
@@ -843,7 +843,7 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
     }else if(chunk->artix_select == ARTIX_SELECT_A2){
         cur_dots_vec_id = stim->cur_a2_vec_chunk_id;
     }else{
-        die("invalid chunk artix select %i\n", chunk->artix_select);
+        die("invalid chunk artix select %i", chunk->artix_select);
     }
 
     //
@@ -865,16 +865,16 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
 
         dots_vec = dots->dots_vecs[cur_dots_vec_id];
         if(dots_vec ==  NULL){
-            die("error: failed to get dots_vec by real id %i\n", cur_dots_vec_id);
+            die("error: failed to get dots_vec by real id %i", cur_dots_vec_id);
         }
 
         if(dots_vec->num_subvecs != stim->num_pins){
-            die("error: num_subvecs %i != num_pins %i\n", 
+            die("error: num_subvecs %i != num_pins %i", 
                 dots_vec->num_subvecs, stim->num_pins);
         }
 
         if(chunk->cur_vec_id > (chunk->num_vecs-1)){
-            die("error: cur_vec_id %i exceeded chunk's num_vecs %i\n",
+            die("error: cur_vec_id %i exceeded chunk's num_vecs %i",
                 chunk->cur_vec_id, chunk->num_vecs);
         }
 
@@ -886,11 +886,11 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         if(get_next_data_subvecs != NULL){
             if(dots_vec->repeat != 1){
                 die("error: dots vec for body must have a repeat of one "
-                    "but it has a repeat of %d\n", dots_vec->repeat);
+                    "but it has a repeat of %d", dots_vec->repeat);
             }
             (*get_next_data_subvecs)(stim, &data_subvecs, &num_data_subvecs);
             if(data_subvecs == NULL){
-                die("error: data subvecs is NULL\n");
+                die("error: data subvecs is NULL");
             }
         }
 
@@ -905,7 +905,7 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         expand_dots_vec_subvecs(dots, dots_vec, data_subvecs, num_data_subvecs); 
 
         if(dots_vec->subvecs == NULL){
-            die("failed to expand dots_vec subvecs\n");
+            die("failed to expand dots_vec subvecs");
         }
 
         // pack chunk vec with subvecs (which represent pins)
@@ -1006,28 +1006,28 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
     char *real_path = NULL;
 
     if(profile_path == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if((stim = create_stim()) == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
 
     if((stim->profile = get_profile_by_path(profile_path)) == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
 
     if(util_fopen(path, &fd, &fp, &file_size)){
-        die("error: failed to open file '%s'\n", path);
+        die("error: failed to open file '%s'", path);
     }
     
     if((stim->type = get_stim_type_by_path(path)) == STIM_TYPE_NONE){
         const char *file_ext = util_get_file_ext_by_path(path);
-        die("error: invalid file type given '%s'\n", file_ext);
+        die("error: invalid file type given '%s'", file_ext);
     }
 
     if((real_path = realpath(path, NULL)) == NULL){
-        die("invalid stim path '%s'\n", path);
+        die("invalid stim path '%s'", path);
     }
 
     // legit path so save it
@@ -1047,7 +1047,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
 
     if(stim->map == MAP_FAILED){
         close(stim->fd);
-        die("error: failed to map file\n");
+        die("error: failed to map file");
     }
 
     // Find the endianness of the bitstream
@@ -1083,7 +1083,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
         while(stim->cur_map_byte < file_size){
             if(stim->map[stim->cur_map_byte+count] == '\n'){
                 if(count > BUFFER_LENGTH){
-                    die("buffer overflow; gross\n");
+                    die("buffer overflow; gross");
                 }
                 memset(buffer, '\0', BUFFER_LENGTH);
                 memcpy(buffer, (stim->map+stim->cur_map_byte), count);
@@ -1092,7 +1092,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
                     while(c < BUFFER_LENGTH){
                         if(isdigit(buffer[c++])){
                             bitstream_size = atoi(&buffer[c-1]);
-                            slog_info(0,"bitstream size: %i\n", (int)bitstream_size);
+                            slog_info(0,"bitstream size: %i", (int)bitstream_size);
                             break;
                         }
                     }
@@ -1104,7 +1104,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             }
         }
         if(bitstream_size == 0){
-            die("failed to read rbt size from header; it's zero\n");
+            die("failed to read rbt size from header; it's zero");
         }
 
         // save location after header
@@ -1147,7 +1147,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
         memset(buffer, '\0', BUFFER_LENGTH);
         memcpy(buffer, (stim->map+stim->cur_map_byte), halfword);
         stim->cur_map_byte += halfword;
-        slog_info(0,"Design name: %s\n", buffer);
+        slog_info(0,"Design name: %s", buffer);
 
         // read the header and break when body is reached
         while(1){
@@ -1155,21 +1155,21 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             // e is bitstream data
             if(((char)byte) == 'e'){
                 bitstream_size = read_map_32(stim, true);
-                slog_info(0,"bitstream has %i bytes...\n", (int)bitstream_size);
+                slog_info(0,"bitstream has %i bytes...", (int)bitstream_size);
                 // Header has been read. Ready to read bitstream.
                 break;
             // b is partname, c is date, d is time
             }else if(((char)byte) == 'b' || ((char)byte) == 'c' || ((char)byte) == 'd'){
                 halfword = read_map_16(stim, true);
                 if(halfword > BUFFER_LENGTH){
-                    die("design name longer than BUFFER_LENGTH bytes; don't like that\n");
+                    die("design name longer than BUFFER_LENGTH bytes; don't like that");
                 }
                 memset(buffer, '\0', BUFFER_LENGTH);
                 memcpy(buffer, (stim->map+stim->cur_map_byte), halfword);
                 stim->cur_map_byte += halfword;
-                slog_info(0,"%s\n", buffer);
+                slog_info(0,"%s", buffer);
             } else {
-                die("failed reading bit file; unexpected key\n");
+                die("failed reading bit file; unexpected key");
             }
         }
 
@@ -1180,35 +1180,35 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
     // get the pins, num_pins and num_vecs for each file type
     switch(stim->type){
         case STIM_TYPE_NONE:
-            die("error: no stim type set\n");
+            die("error: no stim type set");
             break;
         case STIM_TYPE_RBT:
         case STIM_TYPE_BIN:
         case STIM_TYPE_BIT:
             if(bitstream_size == 0){
-                die("failed to get bitstream size; size is zero\n");
+                die("failed to get bitstream size; size is zero");
             }
 
             // TODO: dut_id = -1 filters by all duts. Which only works if there is one dut.
             //       Pass the correct dut_id when supported multiple-duts.
             int32_t dut_id = -1;
             if((pins = get_config_profile_pins(stim->profile, dut_id, &num_pins)) == NULL){
-                die("error: failed to get profile config pins\n");
+                die("error: failed to get profile config pins");
             }
 
             // Check if the config vecs exceeds the size of a chunk since the code is not
             // designed to handle that. We control the size of these in config.c but add
             // a check just in case.
             if((get_config_num_vecs_by_type(CONFIG_TYPE_HEADER)*STIM_VEC_SIZE) > STIM_CHUNK_SIZE){
-                die("config header size cannot exceed a chunk size %i\n", STIM_CHUNK_SIZE);
+                die("config header size cannot exceed a chunk size %i", STIM_CHUNK_SIZE);
             }
 
             if((get_config_num_vecs_by_type(CONFIG_TYPE_BODY)*STIM_VEC_SIZE) > STIM_CHUNK_SIZE){
-                die("config body size cannot exceed a chunk size %i\n", STIM_CHUNK_SIZE);
+                die("config body size cannot exceed a chunk size %i", STIM_CHUNK_SIZE);
             }
 
             if((get_config_num_vecs_by_type(CONFIG_TYPE_FOOTER)*STIM_VEC_SIZE) > STIM_CHUNK_SIZE){
-                die("config footer size cannot exceed a chunk size %i\n", STIM_CHUNK_SIZE);
+                die("config footer size cannot exceed a chunk size %i", STIM_CHUNK_SIZE);
             }
             
             // need to prep fpga for rbt and need to do post config checks
@@ -1222,7 +1222,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             // bin files have no header, it's just raw words ready to use.
             uint32_t num_file_vecs = (uint32_t)(bitstream_size/sizeof(uint32_t));
             if(bitstream_size % sizeof(uint32_t) != 0){
-                die("error: bitstream given '%s' is not 32 bit word aligned\n", path);
+                die("error: bitstream given '%s' is not 32 bit word aligned", path);
             }
             uint32_t num_body_vecs = num_file_vecs*get_config_num_vecs_by_type(CONFIG_TYPE_BODY);
             num_vecs += num_body_vecs; 
@@ -1232,16 +1232,16 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
 
             // must get the profile pins from the particular file we're loading
             if(pins == NULL || num_pins == 0){
-                die("failed to get_stim_by_path; no pins were set\n");
+                die("failed to get_stim_by_path; no pins were set");
             }
 
             // initialize the stim with the pins and vec from the parsed file
             if((stim = init_stim(stim, pins, num_pins, num_vecs, num_unrolled_vecs)) == NULL){
-                die("error: pointer is NULL\n");
+                die("error: pointer is NULL");
             }
             break;
         case STIM_TYPE_DOTS:
-            die("error: dots not supported yet\n");
+            die("error: dots not supported yet");
             break;
         case STIM_TYPE_RAW:
             if((stim = stim_deserialize(stim)) == NULL){
@@ -1249,7 +1249,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             }
             break;
         default:
-            die("error: failed to handle stim type\n");
+            die("error: failed to handle stim type");
             break;
     }
 
@@ -1266,38 +1266,38 @@ struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots){
     struct profile *profile = NULL;
 
     if((profile = get_profile_by_path(profile_path)) == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(dots == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(dots->pins == NULL || dots->num_pins == 0){
-        die("dots has no pins\n");
+        die("dots has no pins");
     }
 
     for(uint32_t i=0; i<dots->num_pins; i++){
         if(dots->pins[i] == NULL){
-            die("pointer is NULL\n");
+            die("pointer is NULL");
         }
     }
 
     if(dots->dots_vecs == NULL || dots->num_dots_vecs == 0){
-        die("dots has no vevs\n");
+        die("dots has no vevs");
     }
 
     if(dots->num_dots_vecs > 0){
         for(uint32_t i=0; i<dots->num_dots_vecs; i++){
             if(dots->dots_vecs[i] == NULL){
                 die("dots has %i num_dots_vecs, but no vecs were "
-                        "appended\n", dots->num_dots_vecs);
+                        "appended", dots->num_dots_vecs);
             }
         }
     }
 
     if((stim = create_stim()) == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     stim->profile = profile;
@@ -1310,7 +1310,7 @@ struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots){
 
     if((stim = init_stim(stim, dots->pins, dots->num_pins, 
                 dots->num_dots_vecs, num_unrolled_vecs)) == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
     
     return stim;
@@ -1326,7 +1326,7 @@ struct vec *free_vec(struct vec *vec){
         return NULL;
     }
     if(vec->packed_subvecs == NULL){
-        die("warning: failed to free vec, packed_subvecs is NULL\n");
+        die("warning: failed to free vec, packed_subvecs is NULL");
     }
     free(vec->packed_subvecs);
     vec->packed_subvecs = NULL;
@@ -1358,23 +1358,23 @@ struct vec_chunk *free_vec_chunk(struct vec_chunk *chunk){
  */
 struct stim *free_stim(struct stim *stim){
     if(stim == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(stim->pins == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(stim->num_a1_vec_chunks > 0 && stim->a1_vec_chunks == NULL){
-        die("num_a1_vec_chunks is %i but a1_vec_chunks is NULL\n", stim->num_a1_vec_chunks);
+        die("num_a1_vec_chunks is %i but a1_vec_chunks is NULL", stim->num_a1_vec_chunks);
     }
 
     if(stim->num_a2_vec_chunks > 0 && stim->a2_vec_chunks == NULL){
-        die("num_a2_vec_chunks is %i but a2_vec_chunks is NULL\n", stim->num_a2_vec_chunks);
+        die("num_a2_vec_chunks is %i but a2_vec_chunks is NULL", stim->num_a2_vec_chunks);
     }
 
     if(stim->num_pins > 0 && stim->pins == NULL){
-        die("num_pins is %i but pins is NULL\n", stim->num_pins);
+        die("num_pins is %i but pins is NULL", stim->num_pins);
     }
 
     if(stim->path != NULL){
@@ -1405,7 +1405,7 @@ struct stim *free_stim(struct stim *stim){
     // close mmap
     if(stim->is_open == true){
         if(munmap(stim->map, (size_t)(stim->file_size)) == -1){
-            die("error: failed to munmap file\n");
+            die("error: failed to munmap file");
         }
         fclose(stim->fp);
         close(stim->fd);
@@ -1444,25 +1444,25 @@ static size_t stim_serialize_chunk(struct stim *stim, enum artix_selects artix_s
     size_t total_saved_size = 0;
 
     if(stim == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     if(cs == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     if(serialStim == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(artix_select == ARTIX_SELECT_NONE){
-        die("no artix unit selected\n");
+        die("no artix unit selected");
     }else if(artix_select == ARTIX_SELECT_BOTH){
-        die("cannot select both artix units\n");
+        die("cannot select both artix units");
     }
 
     while((chunk = stim_load_next_chunk(stim, artix_select)) != NULL){
 
         if(chunk->artix_select == ARTIX_SELECT_BOTH){
-            die("cannot serialize chunk with artix select as both\n");
+            die("cannot serialize chunk with artix select as both");
         }
 
         struct VecChunk vecChunk = {
@@ -1474,24 +1474,24 @@ static size_t stim_serialize_chunk(struct stim *stim, enum artix_selects artix_s
 
         int max_dst_size = LZ4_compressBound(chunk->vec_data_size);
         if((compressed_data = malloc(max_dst_size)) == NULL){
-            die("failed to malloc\n");
+            die("failed to malloc");
         }
         compressed_data_size = LZ4_compress_default((char*)chunk->vec_data, 
                 compressed_data, chunk->vec_data_size, max_dst_size);
 
         if(compressed_data <= 0){
-            die("compression failed\n");
+            die("compression failed");
         }
         if((compressed_data = (char*)realloc(compressed_data, 
                 compressed_data_size)) == NULL){
-            die("re-alloc failed\n");
+            die("re-alloc failed");
         }
 
         if(artix_select == ARTIX_SELECT_A1){
-            slog_info(0,"compressed a1 chunk %i by %zu bytes\n", chunk->id, 
+            slog_info(0,"compressed a1 chunk %i by %zu bytes", chunk->id, 
                 (chunk->vec_data_size-compressed_data_size));
         }else if(artix_select == ARTIX_SELECT_A2){
-            slog_info(0,"compressed a2 chunk %i by %zu bytes\n", chunk->id, 
+            slog_info(0,"compressed a2 chunk %i by %zu bytes", chunk->id, 
                 (chunk->vec_data_size-compressed_data_size));
         }
         
@@ -1509,7 +1509,7 @@ static size_t stim_serialize_chunk(struct stim *stim, enum artix_selects artix_s
         }else if(artix_select == ARTIX_SELECT_A2){
             set_VecChunk(&vecChunk, serialStim->a2VecChunks, chunk->id);
         }else {
-            die("invalid artix select given %i\n", artix_select);
+            die("invalid artix select given %i", artix_select);
         }
     }
 
@@ -1524,11 +1524,11 @@ static size_t stim_serialize_chunk(struct stim *stim, enum artix_selects artix_s
  */
 void stim_serialize_to_path(struct stim *stim, const char *path){
     if(stim == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(path == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     int fd = 0;
@@ -1539,7 +1539,7 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
 
     fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 	if (fd == -1) {
-        die("failed to open stim path %s for writing\n", path);
+        die("failed to open stim path %s for writing", path);
 	}
 
     struct SerialStim serialStim = {
@@ -1591,7 +1591,7 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
                 profileTag = ProfilePin_ProfileTags_profileTagGpio;
                 break;
             default:
-                die("invalid profile pin tag %i\n", profile_pin->tag);
+                die("invalid profile pin tag %i", profile_pin->tag);
         }
     
         struct ProfilePin profilePin = {
@@ -1634,13 +1634,13 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         total_saved_size += stim_serialize_chunk(stim, ARTIX_SELECT_A2, cs, &serialStim);
     }
 
-    slog_info(0,"compression saved %zu bytes\n", total_saved_size);
+    slog_info(0,"compression saved %zu bytes", total_saved_size);
 
     SerialStim_ptr serialStimPtr = new_SerialStim(cs);
     write_SerialStim(&serialStim, serialStimPtr);
     int setp_ret = capn_setp(capn_root(&c), 0, serialStimPtr.p);
     if(setp_ret != 0){
-        die("capn setp failed\n");
+        die("capn setp failed");
     }
     capn_write_fd(&c, &write_fd, fd, 0 /* packed */);
     capn_free(&c);
@@ -1654,11 +1654,11 @@ static void deserialize_chunk(struct stim *stim, enum artix_selects artix_select
     uint32_t num_vec_chunks = 0;
 
     if(stim == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(artix_select == ARTIX_SELECT_NONE){
-        die("no artix unit selected\n");
+        die("no artix unit selected");
     }else if(artix_select == ARTIX_SELECT_A1){
         num_vec_chunks = stim->num_a1_vec_chunks;
 
@@ -1672,7 +1672,7 @@ static void deserialize_chunk(struct stim *stim, enum artix_selects artix_select
             die("failed to deserialize chunk; chunks have not been allocated yet");
         }
     }else if(artix_select == ARTIX_SELECT_BOTH){
-        die("cannot select both artix units\n");
+        die("cannot select both artix units");
     }
 
     for(uint32_t i=0; i<num_vec_chunks; i++){
@@ -1710,16 +1710,16 @@ static void deserialize_chunk(struct stim *stim, enum artix_selects artix_select
  */
 struct stim *stim_deserialize(struct stim *stim){
     if(stim == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     struct capn capn;
 
     if(stim->is_open == false || stim->map == NULL){
-        die("failed to deserialize stim; map is not open\n");
+        die("failed to deserialize stim; map is not open");
     }
 
     if(capn_init_mem(&capn, stim->map, stim->file_size, 0 /* packed */) != 0){
-        die("cap init mem failed\n");
+        die("cap init mem failed");
     }
 
     SerialStim_ptr serialStim_ptr; 
@@ -1776,14 +1776,14 @@ struct stim *stim_deserialize(struct stim *stim){
     //
     if(stim->num_a1_vec_chunks > 0){
         if((stim->a1_vec_chunks = create_vec_chunks(stim->num_a1_vec_chunks)) == NULL){
-            die("pointer is NULL\n");
+            die("pointer is NULL");
         }
         deserialize_chunk(stim, ARTIX_SELECT_A1, &serialStim);
     }
     
     if(stim->num_a2_vec_chunks > 0){
         if((stim->a2_vec_chunks = create_vec_chunks(stim->num_a2_vec_chunks)) == NULL){
-            die("pointer is NULL\n");
+            die("pointer is NULL");
         }
         deserialize_chunk(stim, ARTIX_SELECT_A2, &serialStim);
     }
@@ -1799,28 +1799,28 @@ struct stim *stim_deserialize(struct stim *stim){
  */
 struct vec_chunk *stim_decompress_vec_chunk(struct vec_chunk *chunk){
     if(chunk == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     if(chunk->vec_data == NULL){
-        die("failed to decompress chunk; vec_data not allocated\n");
+        die("failed to decompress chunk; vec_data not allocated");
     }
     if(chunk->vec_data_size == 0){
-        die("failed to decompress chunk; vec_data_size is 0\n");
+        die("failed to decompress chunk; vec_data_size is 0");
     }
     if(chunk->vec_data_compressed == NULL){
-        die("failed to decompress chunk; chunk is not compressed\n");
+        die("failed to decompress chunk; chunk is not compressed");
     }
     if(chunk->vec_data_compressed_size == 0){
-        die("failed to decompress chunk; compress size is 0\n");
+        die("failed to decompress chunk; compress size is 0");
     }
 
     int decompressed_size = LZ4_decompress_safe((char*)chunk->vec_data_compressed,
             (char*)chunk->vec_data, chunk->vec_data_compressed_size, chunk->vec_data_size);
 
-    slog_info(0,"decompressed chunk %i (%zu bytes -> %zu bytes)\n", chunk->id, 
+    slog_info(0,"decompressed chunk %i (%zu bytes -> %zu bytes)", chunk->id, 
             chunk->vec_data_compressed_size, chunk->vec_data_size);
     if(decompressed_size <= 0){
-        die("chunk decompression failed\n");
+        die("chunk decompression failed");
     }
 
     return chunk;

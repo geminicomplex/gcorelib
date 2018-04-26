@@ -36,7 +36,7 @@ void helper_subcore_load_run(enum artix_selects artix_select,
     struct gcore_cfg gcfg;
 
     if (artix_select == ARTIX_SELECT_BOTH) {
-        die("error: selecting both artix units not allowed\n");
+        die("error: selecting both artix units not allowed");
     }
 
     // subcore must be in IDLE state to load and run
@@ -78,9 +78,9 @@ void helper_agent_load_run(enum artix_selects artix_select,
                 agent_did_startup = true;
             }
         } else if (artix_select == ARTIX_SELECT_BOTH) {
-            die("error: no artix unit given; selecting both not allowed\n");
+            die("error: no artix unit given; selecting both not allowed");
         } else {
-            die("error: no artix unit given\n");
+            die("error: no artix unit given");
         }
     }
     regs = gcore_free_regs(regs);
@@ -107,7 +107,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
         // read agent status through ctrl_axi
         gcore_ctrl_read(&packet);
 
-        slog_info(0,"done.\n");
+        slog_info(0,"done.");
         print_packet(&packet, "start: ");
 
         // Need to check for error
@@ -115,7 +115,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
         if(regs != NULL){
             if((regs->status & GCORE_STATUS_INIT_ERROR_MASK) == GCORE_STATUS_INIT_ERROR_MASK){
                 print_regs(regs);
-                slog_error(0,"Agent startup init error.\n");
+                slog_error(0,"Agent startup init error.");
                 exit(1);
             }
         }
@@ -163,7 +163,7 @@ void helper_num_bursts_load(enum artix_selects artix_select,
     packet.rank_select = 0;
     packet.addr = 0;
     packet.data = num_bursts;
-    slog_info(0,"agent burst: %d @ %d = %d bytes\n", BURST_BYTES, 
+    slog_info(0,"agent burst: %d @ %d = %d bytes", BURST_BYTES, 
         num_bursts, (num_bursts*BURST_BYTES));
 
     // load number of bursts into dutcore and memcore
@@ -199,7 +199,7 @@ void helper_memcore_load_run(enum artix_selects artix_select,
     struct gcore_ctrl_packet status_packet;
 
     if(packet == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
     print_packet(packet, "memcore: ");
 
@@ -214,7 +214,7 @@ void helper_memcore_load_run(enum artix_selects artix_select,
     // check if dutcore is in mem_load state
     helper_get_agent_status(artix_select, &status_packet);
     if((status_packet.data & 0x000000f0) != 0x00000030){
-        slog_error(0,"error: dutcore is not in MEM_LOAD state. 0x%08X\n", status_packet.data);
+        slog_error(0,"error: dutcore is not in MEM_LOAD state. 0x%08X", status_packet.data);
         exit(1);
     }
 
@@ -231,7 +231,7 @@ void helper_memcore_load_run(enum artix_selects artix_select,
         || loading_state != MEMCORE_READ_BURST) {
         helper_get_agent_status(artix_select, &status_packet);
         if((status_packet.data & 0x00000f00) != (loading_state << 8)){
-            slog_error(0,"error: memcore is not in desired state. desired: 0x%08X actual: 0x%08X\n", 
+            slog_error(0,"error: memcore is not in desired state. desired: 0x%08X actual: 0x%08X", 
                 (loading_state << 8), (status_packet.data & 0x00000f00));
             exit(1);
         }
@@ -343,12 +343,12 @@ void print_regs(struct gcore_registers *regs){
     if(regs == NULL){
         return;
     }
-    slog_info(0,"control: 0x%08X\n", regs->control);
-    slog_info(0,"status: 0x%08X\n", regs->status);
-    slog_info(0,"addr: 0x%08X\n", regs->addr);
-    slog_info(0,"data: 0x%08X\n", regs->data);
-    slog_info(0,"a1_status: 0x%08X\n", regs->a1_status);
-    slog_info(0,"a2_status: 0x%08X\n", regs->a2_status);
+    slog_info(0,"control: 0x%08X", regs->control);
+    slog_info(0,"status: 0x%08X", regs->status);
+    slog_info(0,"addr: 0x%08X", regs->addr);
+    slog_info(0,"data: 0x%08X", regs->data);
+    slog_info(0,"a1_status: 0x%08X", regs->a1_status);
+    slog_info(0,"a2_status: 0x%08X", regs->a2_status);
     return;
 }
 
@@ -358,13 +358,13 @@ void print_regs(struct gcore_registers *regs){
  */
 void print_packet(struct gcore_ctrl_packet *packet, char *pre){
     if(packet == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
     if(pre == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
     slog_info(0,
-        "%srank_sel: %d, addr: 0x%08X, data: 0x%08X\n",
+        "%srank_sel: %d, addr: 0x%08X, data: 0x%08X",
         pre,
         packet->rank_select,
         packet->addr,
@@ -381,7 +381,7 @@ void sprint_subcore_mode_state(char *mode_state_str) {
     uint32_t mode_state;
 
     if(mode_state_str == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
 
     gcore_subcore_mode_state(&mode_state);
@@ -438,7 +438,7 @@ void sprint_subcore_mode_state(char *mode_state_str) {
             strcpy(state_str, "dma_read"); break;
     };
 
-    sprintf(mode_state_str, "subcore: mode=%s state=%s\n", mode_str, state_str);
+    sprintf(mode_state_str, "subcore: mode=%s state=%s", mode_str, state_str);
 
     return;
 }
@@ -453,34 +453,34 @@ void print_agent_state(enum agent_states agent_state, char *pre){
     }
     switch(agent_state){
         case AGENT_INIT:
-            slog_info(0,"%sagent_init\n", pre);
+            slog_info(0,"%sagent_init", pre);
             break;
         case AGENT_IDLE:
-            slog_info(0,"%sagent_idle\n", pre);
+            slog_info(0,"%sagent_idle", pre);
             break;
         case AGENT_PAUSED:
-            slog_info(0,"%sagent_paused\n", pre);
+            slog_info(0,"%sagent_paused", pre);
             break;
         case STATUS:
-            slog_info(0,"%sstatus\n", pre);
+            slog_info(0,"%sstatus", pre);
             break;
         case BURST_LOAD:
-            slog_info(0,"%sburst_load\n", pre);
+            slog_info(0,"%sburst_load", pre);
             break;
         case DUT_LOAD:
-            slog_info(0,"%sdut_load\n", pre);
+            slog_info(0,"%sdut_load", pre);
             break;
         case DUT_RUN:
-            slog_info(0,"%sdut_run\n", pre);
+            slog_info(0,"%sdut_run", pre);
             break;
         case DUT_WRITE:
-            slog_info(0,"%sdut_write\n", pre);
+            slog_info(0,"%sdut_write", pre);
             break;
         case DUT_READ:
-            slog_info(0,"%sdut_read\n", pre);
+            slog_info(0,"%sdut_read", pre);
             break;
         case DUT_RESET:
-            slog_info(0,"%sdut_reset\n", pre);
+            slog_info(0,"%sdut_reset", pre);
             break;
         default:
             break;
@@ -498,40 +498,40 @@ void print_dutcore_state(enum dutcore_states dutcore_state, char *pre){
     }
     switch(dutcore_state){
         case DUTCORE_IDLE:
-            slog_info(0,"%sdutcore_idls\n", pre);
+            slog_info(0,"%sdutcore_idls", pre);
 			break;
         case DUTCORE_PAUSED:
-            slog_info(0,"%sdutcore_paused\n", pre);
+            slog_info(0,"%sdutcore_paused", pre);
 			break;
         case MEM_BURST:
-            slog_info(0,"%smem_burst\n", pre);
+            slog_info(0,"%smem_burst", pre);
 			break;
         case MEM_LOAD:
-            slog_info(0,"%smem_load\n", pre);
+            slog_info(0,"%smem_load", pre);
 			break;
         case MEM_RUN:
-            slog_info(0,"%smem_run\n", pre);
+            slog_info(0,"%smem_run", pre);
 			break;
         case MEM_WRITE:
-            slog_info(0,"%smem_write\n", pre);
+            slog_info(0,"%smem_write", pre);
 			break;
         case MEM_READ:
-            slog_info(0,"%smem_read\n", pre);
+            slog_info(0,"%smem_read", pre);
 			break;
         case MEM_TEST:
-            slog_info(0,"%smem_test\n", pre);
+            slog_info(0,"%smem_test", pre);
 			break;
         case TEST_INIT:
-            slog_info(0,"%stest_init\n", pre);
+            slog_info(0,"%stest_init", pre);
 			break;
         case TEST_SETUP:
-            slog_info(0,"%stest_setup\n", pre);
+            slog_info(0,"%stest_setup", pre);
 			break;
         case TEST_RUN:
-            slog_info(0,"%stest_run\n", pre);
+            slog_info(0,"%stest_run", pre);
 			break;
         case TEST_CLEANUP:
-            slog_info(0,"%stest_cleanup\n", pre);
+            slog_info(0,"%stest_cleanup", pre);
 			break;
         default:
             break;
@@ -549,22 +549,22 @@ void print_memcore_state(enum memcore_states memcore_state, char *pre){
     }
     switch(memcore_state){
         case MEMCORE_IDLE:
-            slog_info(0,"%smemcore_idle\n", pre);
+            slog_info(0,"%smemcore_idle", pre);
 			break;
         case MEMCORE_PAUSED:
-            slog_info(0,"%smemcore_paused\n", pre);
+            slog_info(0,"%smemcore_paused", pre);
 			break;
         case MEMCORE_AUTO_BURST:
-            slog_info(0,"%smemcore_auto_burst\n", pre);
+            slog_info(0,"%smemcore_auto_burst", pre);
 			break;
         case MEMCORE_WRITE_BURST:
-            slog_info(0,"%smemcore_write_burst\n", pre);
+            slog_info(0,"%smemcore_write_burst", pre);
 			break;
         case MEMCORE_READ_BURST:
-            slog_info(0,"%smemcore_read_burst\n", pre);
+            slog_info(0,"%smemcore_read_burst", pre);
 			break;
         case MEMCORE_CLEANUP:
-            slog_info(0,"%smemcore_cleanup\n", pre);
+            slog_info(0,"%smemcore_cleanup", pre);
 			break;
         default:
             break;

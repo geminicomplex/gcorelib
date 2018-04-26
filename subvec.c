@@ -21,10 +21,10 @@
  */
 void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum subvecs subvec){
     if(packed_subvecs == NULL){
-        die("error: pointer is null\n");
+        die("error: pointer is null");
     }
     if(dut_io_id >= (DUT_TOTAL_NUM_PINS-1)){
-        die("error: failed to pac vec, dut_io_id %i out of range\n", dut_io_id);
+        die("error: failed to pac vec, dut_io_id %i out of range", dut_io_id);
     }
 
     // clamp the id from 0 to 199 since we're only writing to one
@@ -59,7 +59,7 @@ void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum
  */
 void pack_subvecs_with_opcode_and_operand(uint8_t *packed_subvecs, enum subvec_opcode opcode, uint32_t operand){
     if(packed_subvecs == NULL){
-        die("error: pointer is null\n");
+        die("error: pointer is null");
     }
 
     // opcode is at 127
@@ -90,10 +90,10 @@ void pack_subvecs_with_opcode_and_operand(uint8_t *packed_subvecs, enum subvec_o
  */
 enum subvecs get_subvec_by_pin_id(uint8_t *packed_subvecs, uint32_t pin_id){
     if(packed_subvecs == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     if((pin_id+1) >= DUT_TOTAL_NUM_PINS){
-        die("error: failed to pack vec by pin, pin_id+1 >= 400\n");
+        die("error: failed to pack vec by pin, pin_id+1 >= 400");
     }
 
     enum subvecs subvec = DUT_SUBVEC_NONE; 
@@ -122,7 +122,7 @@ enum subvecs get_subvec_by_pin_id(uint8_t *packed_subvecs, uint32_t pin_id){
     }else if(packed_subvec == (uint8_t)DUT_SUBVEC_C){
         subvec = DUT_SUBVEC_C;
     }else{
-        die("error: failed to parse uint8_t subvec %i\n", subvec);
+        die("error: failed to parse uint8_t subvec %i", subvec);
     }
 
     return subvec;

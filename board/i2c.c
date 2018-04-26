@@ -48,20 +48,20 @@ uint8_t gcore_i2c(uint8_t addr, uint8_t reg, enum gcore_i2c_dir dir, uint8_t val
     if(dir == GCORE_I2C_READ){
         buf[0] = reg;
         if(write(fd, buf, 1) != 1){
-            die("failed to prep read for addr %i and reg %i\n", addr, reg);
+            die("failed to prep read for addr %i and reg %i", addr, reg);
         }
         if(read(fd, buf, 1) != 1){
-            die("failed to read byte for addr %i and reg %i\n", addr, reg);
+            die("failed to read byte for addr %i and reg %i", addr, reg);
         }
         value = buf[0];
     }else if(dir == GCORE_I2C_WRITE){
         buf[0] = reg;
         buf[1] = value;
         if(write(fd, buf, 2) != 2){
-            die("failed to read byte for addr %i and reg %i\n", addr, reg);
+            die("failed to read byte for addr %i and reg %i", addr, reg);
         }
     }else{
-        die("Invalid direction given %i\n", dir);
+        die("Invalid direction given %i", dir);
     }
 
     close(fd);

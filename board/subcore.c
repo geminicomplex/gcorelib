@@ -170,7 +170,7 @@ struct gcore_registers* gcore_get_regs(){
  */
 struct gcore_registers *gcore_free_regs(struct gcore_registers *regs){
     if(regs == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     regs->control = (u32) 0;

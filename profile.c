@@ -40,7 +40,7 @@ struct profile_pin *create_profile_pin(uint32_t num_dests){
     struct profile_pin *profile_pin = NULL;
 
     if((profile_pin = (struct profile_pin*)malloc(sizeof(struct profile_pin))) == NULL){
-        die("error: failed to malloc struct.\n");
+        die("error: failed to malloc struct.");
     }
 
     profile_pin->pin_name = NULL;
@@ -56,10 +56,10 @@ struct profile_pin *create_profile_pin(uint32_t num_dests){
 
     if(profile_pin->num_dests > 0){
         if((profile_pin->dest_dut_ids = (uint32_t *)calloc(profile_pin->num_dests, sizeof(uint32_t))) == NULL){
-            die("error: failed to malloc struct.\n");
+            die("error: failed to malloc struct.");
         }
         if((profile_pin->dest_pin_names = (char **)calloc(profile_pin->num_dests, sizeof(char*))) == NULL){
-            die("error: failed to malloc struct.\n");
+            die("error: failed to malloc struct.");
         }
     }
 
@@ -74,11 +74,11 @@ struct profile_pin *create_profile_pin_from_pin(struct profile_pin *copy_pin){
     struct profile_pin *profile_pin = NULL;
 
     if(copy_pin == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if((profile_pin = create_profile_pin(copy_pin->num_dests)) == NULL){
-        die("error: failed to malloc struct.\n");
+        die("error: failed to malloc struct.");
     }
     
     profile_pin->pin_name = strdup(copy_pin->pin_name);
@@ -107,7 +107,7 @@ struct profile_pin *create_profile_pin_from_pin(struct profile_pin *copy_pin){
 struct profile_pin **create_profile_pins(uint32_t num_pins){
     struct profile_pin **pins = NULL;
     if((pins = (struct profile_pin **)calloc(num_pins, sizeof(struct profile_pin*))) == NULL){
-        die("error: failed to calloc struct.\n");
+        die("error: failed to calloc struct.");
     }
     return pins;
 }
@@ -119,7 +119,7 @@ struct profile_pin **create_profile_pins(uint32_t num_pins){
 struct profile *create_profile(){
     struct profile *profile;
     if((profile = (struct profile*)malloc(sizeof(struct profile))) == NULL){
-        die("error: failed to malloc struct.\n");
+        die("error: failed to malloc struct.");
     }
     profile->path = NULL;
     profile->board_name = NULL;
@@ -135,7 +135,7 @@ struct profile *create_profile(){
 
 struct profile_pin **free_profile_pins(struct profile_pin **pins, uint32_t num_pins){
     if(pins == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     if(num_pins == 0){
         return NULL;
@@ -237,7 +237,7 @@ struct profile *free_profile(struct profile *profile){
  */
 enum profile_tags get_tag_by_name(char *name){
     if(name == NULL){
-        die("error: failed to get tag by name, pointer is NULL\n");
+        die("error: failed to get tag by name, pointer is NULL");
     }
     enum profile_tags tag = PROFILE_TAG_NONE;
     if(strcmp(name, "NONE") == 0){
@@ -313,7 +313,7 @@ const char *get_name_by_tag(enum profile_tags tag){
  */
 void print_profile(struct profile *profile){ 
     if(profile == NULL){
-        die("error: failed to print profile, pointer is NULL\n");
+        die("error: failed to print profile, pointer is NULL");
     }
     printf("------------------------------------------------------\n");
     printf("path: %s\n", profile->path);
@@ -344,7 +344,7 @@ void print_profile_pin(struct profile_pin *pin){
     char dest_dut_id_str[sizeof(uint32_t)*8+1];
 
     if(pin == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     printf("  pin_name: %s\n", pin->pin_name);
@@ -396,7 +396,7 @@ static inline int avl_comp(const void *key1, const void *key2){
     struct profile_pin *pin2 = (struct profile_pin *)key2;
 
     if(pin1 == NULL || pin2 == NULL){
-        die("error: avl_comp failed, pointer is NULL\n");
+        die("error: avl_comp failed, pointer is NULL");
     }
     return strcmp(pin1->pin_name, pin2->pin_name);
 }
@@ -417,11 +417,11 @@ struct profile *get_profile_by_path(const char *path){
     char *real_path = NULL;
 
     if(path == NULL){
-        die("error: failed to get profile by path, pointer is NULL\n");
+        die("error: failed to get profile by path, pointer is NULL");
     }
 
     if(strlen(path) == 0){
-        die("error: profile path is empty\n");
+        die("error: profile path is empty");
     }
 
     if(strcmp(util_get_file_ext_by_path(path), "json") != 0){
@@ -429,22 +429,22 @@ struct profile *get_profile_by_path(const char *path){
     }
 
     if((profile = create_profile()) == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if((real_path = realpath(path, NULL)) == NULL){
-        die("invalid profile path '%s'\n", path);
+        die("invalid profile path '%s'", path);
     }
 
     profile->path = strdup(real_path);
     free(real_path);
 
     if(util_fopen(profile->path, &fd, &fp, &file_size) != 0){
-        die("fopen failed\n");
+        die("fopen failed");
     }
 
     if((data = (char*)calloc((size_t)file_size, sizeof(char))) == NULL){
-        die("error: failed to malloc data.\n");
+        die("error: failed to malloc data.");
     }
 
     fread(data, sizeof(uint8_t), (size_t)file_size, fp);
@@ -452,11 +452,11 @@ struct profile *get_profile_by_path(const char *path){
     jsmn_init(&json_parser);
 	num_tokens = jsmn_parse(&json_parser, data, strlen(data), t, sizeof(t)/sizeof(t[0]));
     if(num_tokens < 0){
-		die("error: failed to parse json file: num_tokens (%d)\n", num_tokens);
+		die("error: failed to parse json file: num_tokens (%d)", num_tokens);
 	}
 
 	if(num_tokens < 1 || t[0].type != JSMN_OBJECT){
-		die("error: profile is not a valid json file\n");
+		die("error: profile is not a valid json file");
 	}
 
     for(int i=1; i<num_tokens; i++){
@@ -505,7 +505,7 @@ struct profile *get_profile_by_path(const char *path){
                         pin->num_dests = util_str_split(strndup(data+v->start, v->end-v->start), 
                                 ',', &(dest_dut_ids));
                         if((pin->dest_dut_ids = (uint32_t *)calloc(pin->num_dests, sizeof(uint32_t))) == NULL){
-                            die("error: failed to malloc struct.\n");
+                            die("error: failed to malloc struct.");
                         }
                         for(uint32_t x=0; x<pin->num_dests; x++){
                             pin->dest_dut_ids[x] = atoi(dest_dut_ids[x]);
@@ -533,7 +533,7 @@ struct profile *get_profile_by_path(const char *path){
         if(FindAVL(tree, (const void *)profile->pins[i]) == NULL){
             InsertAVL(tree, (const void *)profile->pins[i], NULL);
         } else {
-            die("error: dupliate profile pin found %s.\n", profile->pins[i]->pin_name);
+            die("error: dupliate profile pin found %s.", profile->pins[i]->pin_name);
         }
     }
     DestroyAVL(tree);
@@ -556,7 +556,7 @@ struct profile_pin **sort_profile_pins_by_tag_data(struct profile_pin **pins, ui
     struct profile_pin **sorted_pins = NULL;
     
     if(pins == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(num_pins == 0){
@@ -565,18 +565,18 @@ struct profile_pin **sort_profile_pins_by_tag_data(struct profile_pin **pins, ui
 
     // array to hold the sorted pointers
     if((sorted_pins = (struct profile_pin **)calloc(num_pins, sizeof(struct profile_pin*))) == NULL){
-        die("error: failed to calloc struct.\n");
+        die("error: failed to calloc struct.");
     }
 
     // check if every pin has tag_data and make sure it's not greater than num_pins
     for(uint32_t i=0; i<num_pins; i++){
         if(pins[i]->tag_data < 0){
             die("error: failed to sort profile pins by "
-                "tag, tag_data %i is invalid\n", pins[i]->tag_data);
+                "tag, tag_data %i is invalid", pins[i]->tag_data);
         }
         if(pins[i]->tag_data >= num_pins){
             die("error: failed to sort profile pins by "
-                "tag, tag_data %i > num_pins %i\n", pins[i]->tag_data, num_pins);
+                "tag, tag_data %i > num_pins %i", pins[i]->tag_data, num_pins);
         }
     }
 
@@ -610,13 +610,13 @@ struct profile_pin **get_profile_pins_by_tag(struct profile *profile,
     (*found_num_pins) = 0;
 
     if(profile == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(dut_id < -1){
-        die("invalid dut_id given %i; less than -1\n", dut_id);
+        die("invalid dut_id given %i; less than -1", dut_id);
     }else if(dut_id >= 0 && (dut_id+1) > profile->num_duts){
-        die("invalid dut_id given %i; greater than num duts %i\n", dut_id, profile->num_duts);
+        die("invalid dut_id given %i; greater than num duts %i", dut_id, profile->num_duts);
     }
 
     for(int i=0; i<profile->num_pins; i++){
@@ -638,14 +638,14 @@ struct profile_pin **get_profile_pins_by_tag(struct profile *profile,
     }
 
     if((pins = create_profile_pins((*found_num_pins))) == NULL){
-        die("error: failed to allocate pins by tag\n");
+        die("error: failed to allocate pins by tag");
     }
 
     int j = 0;
     for(int i=0; i<profile->num_pins; i++){
         if(profile->pins[i]->tag == tag){
             if(j+1 > (*found_num_pins)){
-                die("error: failed to get pins by tag, incorrect num_pins calculated\n");
+                die("error: failed to get pins by tag, incorrect num_pins calculated");
             } else {
                 if(dut_id >= 0){
                     bool found = false;
@@ -678,13 +678,13 @@ struct profile_pin **get_profile_pins_by_tag(struct profile *profile,
         case PROFILE_TAG_DONE:
             if((*found_num_pins) != 1){
                 die("error: failed to get pins by tag, did not find 1 "
-                    "%s pin, only %i\n", get_name_by_tag(tag), (*found_num_pins));
+                    "%s pin, only %i", get_name_by_tag(tag), (*found_num_pins));
             }
             break;
         case PROFILE_TAG_DATA:
             if((*found_num_pins) != 32){
                 die("error: failed to get pins by tag, did not find 32"
-                    "%s pins, only %i\n", get_name_by_tag(tag), (*found_num_pins));
+                    "%s pins, only %i", get_name_by_tag(tag), (*found_num_pins));
             }
             pins = sort_profile_pins_by_tag_data(pins, (*found_num_pins));
         case PROFILE_TAG_GPIO:
@@ -704,17 +704,17 @@ struct profile_pin *get_profile_pin_by_pin_name(struct profile *profile, char *p
     struct profile_pin *found_pin = NULL;
 
     if(profile == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(pin_name == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     for(int i=0; i<profile->num_pins; i++){
         if(strcmp(profile->pins[i]->pin_name, pin_name) == 0){
             if(found_pin != NULL){
-                die("found multiple pins for pin_name '%s'\n", pin_name);
+                die("found multiple pins for pin_name '%s'", pin_name);
             }else{
                 found_pin = create_profile_pin_from_pin(profile->pins[i]);
             }
@@ -734,17 +734,17 @@ struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, in
     struct profile_pin *found_pin = NULL;
 
     if(profile == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(dest_pin_name == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(dut_id < -1){
-        die("invalid dut_id given %i; less than -1\n", dut_id);
+        die("invalid dut_id given %i; less than -1", dut_id);
     }else if(dut_id >= 0 && (dut_id+1) > profile->num_duts){
-        die("invalid dut_id given %i; greater than num duts %i\n", dut_id, profile->num_duts);
+        die("invalid dut_id given %i; greater than num duts %i", dut_id, profile->num_duts);
     }
 
     for(int i=0; i<profile->num_pins; i++){
@@ -754,7 +754,7 @@ struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, in
             }
             if(strcmp(dest_pin_name, profile->pins[i]->dest_pin_names[j]) == 0){
                 if(found_pin != NULL){
-                    die("dest_pin_name '%s' is driven by multiple pins for profile '%s'\n", 
+                    die("dest_pin_name '%s' is driven by multiple pins for profile '%s'", 
                             dest_pin_name, profile->path);
                 }else{
                     found_pin = create_profile_pin_from_pin(profile->pins[i]);
@@ -773,7 +773,7 @@ struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, in
 enum artix_selects get_artix_select_by_profile_pin(struct profile_pin *pin){
     enum artix_selects artix_select = ARTIX_SELECT_NONE;
     if(pin == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(pin->dut_io_id == -1){
@@ -792,7 +792,7 @@ enum artix_selects get_artix_select_by_profile_pin(struct profile_pin *pin){
 enum artix_selects get_artix_select_by_profile_pins(struct profile_pin **pins, uint32_t num_pins){
     enum artix_selects artix_select = ARTIX_SELECT_NONE;
     if(pins == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     for(uint32_t i=0; i<num_pins; i++){

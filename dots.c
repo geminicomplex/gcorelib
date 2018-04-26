@@ -38,13 +38,13 @@ void append_dots_vec_by_vec_str(struct dots *dots,
         const char *repeat, const char *vec_str){
     struct dots_vec *dots_vec = NULL;
     if(dots == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
     if(repeat == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
     if(vec_str == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
 
     if(dots->cur_appended_dots_vec_id >= dots->num_dots_vecs){
@@ -69,15 +69,15 @@ void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, enum 
     uint32_t vec_str_len = 0;
 
     if(dots_vec == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
 
     if(dots_vec->is_expanded){
-        die("error: dots_vec is already filled\n");
+        die("error: dots_vec is already filled");
     }
 
     if(dots_vec->vec_str == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
 
     // len should only be config pins except data pins
@@ -88,13 +88,13 @@ void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, enum 
     if(data_subvecs != NULL){
         if((vec_str_len+PROFILE_NUM_DATA_PINS) != dots->num_pins){
             die("error: (vec_len + num_data_pins) %i != "
-                "num_pins %i\n", (vec_str_len+PROFILE_NUM_DATA_PINS), dots->num_pins);
+                "num_pins %i", (vec_str_len+PROFILE_NUM_DATA_PINS), dots->num_pins);
         }
     }
 
     if(dots_vec->num_subvecs != dots->num_pins){
         die("error: num subvecs for dots_vec %i != "
-            "num_pins %i\n", dots_vec->num_subvecs, dots->num_pins);
+            "num_pins %i", dots_vec->num_subvecs, dots->num_pins);
     }
 
     if(dots_vec->subvecs != NULL){
@@ -102,7 +102,7 @@ void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, enum 
     }
 
     if((dots_vec->subvecs = (enum subvecs *)calloc(dots_vec->num_subvecs, sizeof(enum subvecs))) == NULL){
-        die("error: failed to calloc dots_vecs' vecs\n");
+        die("error: failed to calloc dots_vecs' vecs");
     }
 
     for(int i=0; i<dots_vec->num_subvecs; i++){
@@ -136,7 +136,7 @@ void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, enum 
     // for body, inject the data subvecs from the stim
     if(data_subvecs != NULL){
         if((vec_str_len+num_data_subvecs) != dots->num_pins){
-            die("error: num_subvecs %i != num_pins %i\n", (vec_str_len+num_data_subvecs), dots->num_pins);
+            die("error: num_subvecs %i != num_pins %i", (vec_str_len+num_data_subvecs), dots->num_pins);
         }
         // fill rest of subvecs, but start at index 0 for data_subvecs
         int j = 0;
@@ -161,7 +161,7 @@ void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, enum 
  */
 void unexpand_dots_vec_subvecs(struct dots_vec *dots_vec){
     if(dots_vec == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(dots_vec->is_expanded == false){
@@ -188,7 +188,7 @@ struct dots_vec *get_dots_vec_by_unrolled_id(struct dots *dots, uint32_t id){
     struct dots_vec *dots_vec = NULL;
     uint32_t start = 0;
     if(dots == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
     for(int i=0; i<dots->num_dots_vecs; i++){
         struct dots_vec *v = dots->dots_vecs[i];
@@ -210,12 +210,12 @@ uint32_t get_num_unrolled_dots_vecs(struct dots *dots){
     uint32_t num_unrolled_vecs = 0;
 
     if(dots == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     for(int i=0; i<dots->num_dots_vecs; i++){
         if(dots->dots_vecs[i] == NULL){
-            die("pointer is NULL\n");
+            die("pointer is NULL");
         }
         num_unrolled_vecs += dots->dots_vecs[i]->repeat;
     }
@@ -235,27 +235,27 @@ struct dots *create_dots(uint32_t num_dots_vecs, struct profile_pin **pins,
     struct dots *dots = NULL;
 
     if(pins == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(num_pins == 0){
-        die("cannot create a dots with zero pins\n");
+        die("cannot create a dots with zero pins");
     }
 
     if((dots = (struct dots*)malloc(sizeof(struct dots))) == NULL){
-        die("error: failed to malloc struc\n");
+        die("error: failed to malloc struc");
     }
     dots->num_dots_vecs = num_dots_vecs;
 
     // always store compressed vecs 
     if((dots->dots_vecs = (struct dots_vec**)calloc(dots->num_dots_vecs, sizeof(struct dots_vec*))) == NULL){
-        die("error: failed to calloc dots_vecs\n");
+        die("error: failed to calloc dots_vecs");
     }
 
     dots->num_pins = num_pins;
 
     if((dots->pins = (struct profile_pin **)calloc(dots->num_pins, sizeof(struct profile_pin*))) == NULL){
-        die("error: failed to calloc profile pins\n");
+        die("error: failed to calloc profile pins");
     }
 
     for(uint32_t i=0; i<dots->num_pins; i++){
@@ -275,11 +275,11 @@ struct dots_vec *create_dots_vec(struct dots *dots){
     struct dots_vec *dots_vec;
 
     if(dots == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if((dots_vec = (struct dots_vec*)malloc(sizeof(struct dots_vec))) == NULL){
-        die("error: failed to malloc struc\n");
+        die("error: failed to malloc struc");
     }
     dots_vec->repeat = 0;
     dots_vec->vec_str = NULL;
@@ -298,7 +298,7 @@ struct dots_vec *create_dots_vec(struct dots *dots){
  */
 struct dots *free_dots(struct dots *dots){
     if(dots == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
     
     for(uint32_t i=0; i<dots->cur_appended_dots_vec_id; i++){
@@ -328,7 +328,7 @@ struct dots *free_dots(struct dots *dots){
  */
 struct dots_vec *free_dots_vec(struct dots_vec *dots_vec){
     if(dots_vec == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
     dots_vec->repeat = 0;
     free(dots_vec->vec_str);

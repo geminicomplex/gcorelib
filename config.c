@@ -87,7 +87,7 @@ const char *config_footer[] = {
 uint32_t get_config_num_vecs_by_type(enum config_types type){
     uint32_t num_vecs = 0;
     if(type == CONFIG_TYPE_NONE){
-        die("error: no config type given\n");
+        die("error: no config type given");
     }else if(type == CONFIG_TYPE_HEADER){
         num_vecs = (sizeof(config_header)/sizeof(config_header[0]))/2; 
     }else if(type == CONFIG_TYPE_BODY){
@@ -108,7 +108,7 @@ uint32_t get_config_unrolled_num_vecs_by_type(enum config_types type){
     uint32_t unrolled_num_vecs = 0;
 
     if(type == CONFIG_TYPE_NONE){
-        die("error: no config type given\n");
+        die("error: no config type given");
     }else if(type == CONFIG_TYPE_HEADER){
         vec_data = config_header;
     }else if(type == CONFIG_TYPE_BODY){
@@ -118,7 +118,7 @@ uint32_t get_config_unrolled_num_vecs_by_type(enum config_types type){
     }
 
     if(vec_data == NULL){
-        die("error: vec_data is NULL\n");
+        die("error: vec_data is NULL");
     }
 
     uint32_t num_vecs = get_config_num_vecs_by_type(type);
@@ -151,7 +151,7 @@ uint32_t get_config_num_profile_pins_by_tag(enum profile_tags tag){
     }
 
     if(found == false){
-        die("error: given tag '%s', is not a config tag\n", get_name_by_tag(tag));
+        die("error: given tag '%s', is not a config tag", get_name_by_tag(tag));
     }
     
     if(tag == PROFILE_TAG_DATA){
@@ -192,20 +192,20 @@ struct profile_pin **get_config_profile_pins(struct profile *profile, int32_t du
     uint32_t num_tags = sizeof(config_tags)/sizeof(config_tags[0]);
 
     if(profile == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     if(found_num_pins == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
 
     num_config_pins = get_config_num_profile_pins();
     config_pins = create_profile_pins(num_config_pins);
 
     if(dut_id < -1){
-        die("invalid dut_id given %i; less than -1\n", dut_id);
+        die("invalid dut_id given %i; less than -1", dut_id);
     }else if(dut_id >= 0 && (dut_id+1) > profile->num_duts){
-        die("invalid dut_id given %i; greater than num duts %i\n", dut_id, profile->num_duts);
+        die("invalid dut_id given %i; greater than num duts %i", dut_id, profile->num_duts);
     }
 
     // reset found pins
@@ -216,13 +216,13 @@ struct profile_pin **get_config_profile_pins(struct profile *profile, int32_t du
         num_pins = 0;
         pins = NULL;
         if((pins = get_profile_pins_by_tag(profile, dut_id, config_tags[i], &num_pins)) == NULL){
-            die("error: pointer is NULL\n");
+            die("error: pointer is NULL");
         }
         for(int j=0; j<num_pins; j++){
             if((*found_num_pins) < num_config_pins){
                 config_pins[(*found_num_pins)++] = create_profile_pin_from_pin(pins[j]);
             }else{
-                die("error: failed to get config pins, length exceeded.\n");
+                die("error: failed to get config pins, length exceeded.");
             }
         }
         num_found_pins += num_pins;
@@ -231,7 +231,7 @@ struct profile_pin **get_config_profile_pins(struct profile *profile, int32_t du
 
     if(num_found_pins != num_config_pins){
         die("error: failed to get config profile pins, "
-            "got %i but expected %i\n", num_found_pins, num_config_pins);
+            "got %i but expected %i", num_found_pins, num_config_pins);
     }
 
     return config_pins;
@@ -251,17 +251,17 @@ struct config *create_config(struct profile *profile, enum config_types type, ui
     struct profile_pin **pins = NULL;
 
     if(type == CONFIG_TYPE_NONE){
-        die("error: no config type given\n");
+        die("error: no config type given");
     }
 
     if(num_loop_vecs <= 0){
-        die("error: must loop at least once\n");
+        die("error: must loop at least once");
     }else if(type != CONFIG_TYPE_BODY && num_loop_vecs != 1){
         die("error: num loop vecs must be one for non-body type config");
     }
 
     if((config = (struct config*)malloc(sizeof(struct config))) == NULL){
-        die("error: failed to malloc struct\n");
+        die("error: failed to malloc struct");
     }
 
     config->type = type;
@@ -269,13 +269,13 @@ struct config *create_config(struct profile *profile, enum config_types type, ui
     uint32_t num_dots_vecs = get_config_num_vecs_by_type(config->type);
 
     if(type == CONFIG_TYPE_BODY && num_dots_vecs != 1){
-        die("error: for config type body, only supports one vector in the template\n");
+        die("error: for config type body, only supports one vector in the template");
     }
 
     // TODO: dut_id = -1 filters by all duts. Pass the correct dut_id when supported multiple-duts.
     int32_t dut_id = -1;
     if((pins = get_config_profile_pins(profile, dut_id, &num_pins)) == NULL){
-        die("error: failed to get profile config pins\n");
+        die("error: failed to get profile config pins");
     }
     config->dots = create_dots((num_loop_vecs*num_dots_vecs)+num_padding_vecs, pins, num_pins);
 
@@ -286,7 +286,7 @@ struct config *create_config(struct profile *profile, enum config_types type, ui
 
     const char **vec_data = NULL;
     if(config->type == CONFIG_TYPE_NONE){
-        die("error: no config type given\n");
+        die("error: no config type given");
     }else if(config->type == CONFIG_TYPE_HEADER){
         vec_data = config_header;
     }else if(config->type == CONFIG_TYPE_BODY){
@@ -296,7 +296,7 @@ struct config *create_config(struct profile *profile, enum config_types type, ui
     }
 
     if(vec_data == NULL){
-        die("error: vec_data is NULL\n");
+        die("error: vec_data is NULL");
     }
 
     for(int v=0; v<num_loop_vecs; v++){
@@ -323,7 +323,7 @@ struct config *create_config(struct profile *profile, enum config_types type, ui
  */
 struct config *free_config(struct config *config){
     if(config == NULL){
-        die("error: pointer is NULL\n");
+        die("error: pointer is NULL");
     }
     config->dots = free_dots(config->dots);
     config->tags = NULL;

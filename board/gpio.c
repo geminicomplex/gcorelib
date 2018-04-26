@@ -44,7 +44,7 @@ bool gcore_gpio(uint32_t index, enum gcore_gpio_dir dir, bool value){
 
     char *pin_str = NULL;
     if((pin_str = (char*)calloc(50, sizeof(char))) == NULL){
-        die("pointer is NULL\n");
+        die("pointer is NULL");
     }
     snprintf(pin_str, 50, "%d", index);
 
