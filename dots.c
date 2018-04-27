@@ -214,10 +214,25 @@ uint32_t get_num_unrolled_dots_vecs(struct dots *dots){
     }
 
     for(int i=0; i<dots->num_dots_vecs; i++){
-        if(dots->dots_vecs[i] == NULL){
+        struct dots_vec *dots_vec = dots->dots_vecs[i];
+        
+        if(dots_vec == NULL){
             die("pointer is NULL");
         }
-        num_unrolled_vecs += dots->dots_vecs[i]->repeat;
+
+        uint32_t vec_str_len = (uint32_t)strlen(dots_vec->vec_str);
+        for(int i=0; i<vec_str_len; i++){
+            if(dots_vec->vec_str[i] == 'C'){
+                dots_vec->has_clk = true;
+            }
+        }
+
+        if(dots_vec->has_clk == true){
+            num_unrolled_vecs += (dots_vec->repeat*2);
+        }else{
+            num_unrolled_vecs += dots_vec->repeat;
+        }
+
     }
 
     return num_unrolled_vecs;
