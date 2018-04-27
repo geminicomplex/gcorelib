@@ -557,8 +557,8 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     num_bursts = 1;
 	subcore_prep_dma_write(artix_select, num_bursts);
  
-    slog_info(0, "sending setup burst...");
     size_t burst_size = num_bursts*BURST_BYTES;
+    slog_info(0, "sending setup burst (%i bytes)...", burst_size);
 
     // clear all pins by FFing them. This will cause test_run to not 
     // process those pins.
@@ -604,9 +604,10 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     free(enable_pins);
     
     // get burst count from dutcore
-    helper_get_agent_status(artix_select, &packet);
-    dutcore_burst_count = packet.addr + 1;
-    slog_debug(0, "sent setup burst (%i bytes).", dutcore_burst_count*BURST_BYTES);
+    //helper_get_agent_status(artix_select, &packet);
+    //dutcore_burst_count = packet.addr + 1;
+    //print_packet(&packet, "agent packet: ");
+    //slog_debug(0, "sent setup burst (%i bytes).", dutcore_burst_count*BURST_BYTES);
 
     // reset cycle count and failed flag
     helper_dutcore_load_run(artix_select, TEST_CLEANUP);
@@ -647,12 +648,15 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
 // returns -1 if pass or failing cycle number (zero indexed)
 //
 //
-int64_t artix_dut_test(struct stim *stim){
+bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
     struct gcore_ctrl_packet packet;
 	bool test_failed = false;
-	int64_t test_cycle = -1;
     uint32_t ret_test_cycle = 0;
     enum artix_selects artix_select = ARTIX_SELECT_NONE;
+
+    if(test_cycle != NULL){
+        (*test_cycle) = -1;
+    }
 
     if(stim == NULL){
         die("pointer is NULL");
@@ -687,6 +691,8 @@ int64_t artix_dut_test(struct stim *stim){
     if(dual_mode){
         // setup a1 and a2 for dual mode
     }
+
+    helper_print_agent_status(artix_select);
     
     // run the test
     slog_info(0, "running test...");
@@ -718,15 +724,22 @@ int64_t artix_dut_test(struct stim *stim){
     if((packet.data & 0x000f0000) == 0x00010000){
         test_failed = true;
     }
-    if(packet.addr & 0xf0000000){
+
+    // msb byte is 0:did_stall:status_switch
+    if((packet.addr & 0xf0000000) >> 30){
         slog_warn(0, "warning: read fifo stalled during test");
     }
+
+    if(test_cycle != NULL){
+        (*test_cycle) = ret_test_cycle;
+    }
+
     if(test_failed){
         slog_error(0, "test failed at vector %d out of %i :(", ret_test_cycle, stim->num_unrolled_vecs);
-        test_cycle = ret_test_cycle;
     }else{
         if(ret_test_cycle < stim->num_unrolled_vecs || ret_test_cycle > stim->num_unrolled_vecs){
             slog_error(0, "test failed (executed %i of %i vectors)!", ret_test_cycle, stim->num_unrolled_vecs);
+            test_failed = true;
         }else{
             slog_info(0, "test PASS (executed %i of %i vectors)!", ret_test_cycle, stim->num_unrolled_vecs);
         }
@@ -736,7 +749,7 @@ int64_t artix_dut_test(struct stim *stim){
     regs = gcore_get_regs();
     print_regs(regs);
 
-    return test_cycle;
+    return test_failed;
 }
 
 /*
