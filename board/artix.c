@@ -532,7 +532,6 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     struct gcore_ctrl_packet packet;
 	uint64_t *dma_buf;
     uint32_t num_bursts;
-    uint32_t dutcore_burst_count;
     struct vec_chunk *chunk;
     struct profile_pin *pin = NULL;
 
@@ -543,7 +542,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     helper_dutcore_load_run(artix_select, TEST_INIT);
     packet.rank_select = 0;
     packet.addr = 0;
-    packet.data = stim->num_vecs;
+    packet.data = (stim->num_vecs+stim->num_padding_vecs);
     helper_dutcore_packet_write(artix_select, &packet);
 
     // perform test setup by writing enable_pins burst
@@ -603,12 +602,6 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     gcore_dma_prep_start(GCORE_WAIT_TX, dma_buf, burst_size, NULL, 0);
     free(enable_pins);
     
-    // get burst count from dutcore
-    //helper_get_agent_status(artix_select, &packet);
-    //dutcore_burst_count = packet.addr + 1;
-    //print_packet(&packet, "agent packet: ");
-    //slog_debug(0, "sent setup burst (%i bytes).", dutcore_burst_count*BURST_BYTES);
-
     // reset cycle count and failed flag
     helper_dutcore_load_run(artix_select, TEST_CLEANUP);
 
@@ -735,13 +728,14 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
     }
 
     if(test_failed){
-        slog_error(0, "test failed at vector %d out of %i :(", ret_test_cycle, stim->num_unrolled_vecs);
+        slog_error(0, "test failed at vector %d out of %i :(", 
+                ret_test_cycle, (stim->num_unrolled_vecs+stim->num_padding_vecs));
     }else{
-        if(ret_test_cycle < stim->num_unrolled_vecs || ret_test_cycle > stim->num_unrolled_vecs){
-            slog_error(0, "test failed (executed %i of %i vectors)!", ret_test_cycle, stim->num_unrolled_vecs);
+        if(ret_test_cycle < (stim->num_unrolled_vecs+stim->num_padding_vecs) || ret_test_cycle > (stim->num_unrolled_vecs+stim->num_padding_vecs)){
+            slog_error(0, "test failed (executed %i of %i vectors)!", ret_test_cycle, (stim->num_unrolled_vecs+stim->num_padding_vecs));
             test_failed = true;
         }else{
-            slog_info(0, "test PASS (executed %i of %i vectors)!", ret_test_cycle, stim->num_unrolled_vecs);
+            slog_info(0, "test PASS (executed %i of %i vectors)!", ret_test_cycle, (stim->num_unrolled_vecs+stim->num_padding_vecs));
         }
     }
 

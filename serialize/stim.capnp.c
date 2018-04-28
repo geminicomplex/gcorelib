@@ -151,8 +151,9 @@ void read_SerialStim(struct SerialStim *s capnp_unused, SerialStim_ptr p) {
 	s->pins.p = capn_getp(p.p, 0, 0);
 	s->numVecs = capn_read32(p.p, 4);
 	s->numUnrolledVecs = capn_read32(p.p, 8);
-	s->numA1VecChunks = capn_read32(p.p, 12);
-	s->numA2VecChunks = capn_read32(p.p, 16);
+	s->numPaddingVecs = capn_read32(p.p, 12);
+	s->numA1VecChunks = capn_read32(p.p, 16);
+	s->numA2VecChunks = capn_read32(p.p, 20);
 	s->a1VecChunks.p = capn_getp(p.p, 1, 0);
 	s->a2VecChunks.p = capn_getp(p.p, 2, 0);
 }
@@ -164,8 +165,9 @@ void write_SerialStim(const struct SerialStim *s capnp_unused, SerialStim_ptr p)
 	capn_setp(p.p, 0, s->pins.p);
 	capn_write32(p.p, 4, s->numVecs);
 	capn_write32(p.p, 8, s->numUnrolledVecs);
-	capn_write32(p.p, 12, s->numA1VecChunks);
-	capn_write32(p.p, 16, s->numA2VecChunks);
+	capn_write32(p.p, 12, s->numPaddingVecs);
+	capn_write32(p.p, 16, s->numA1VecChunks);
+	capn_write32(p.p, 20, s->numA2VecChunks);
 	capn_setp(p.p, 1, s->a1VecChunks.p);
 	capn_setp(p.p, 2, s->a2VecChunks.p);
 }

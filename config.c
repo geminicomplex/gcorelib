@@ -245,7 +245,7 @@ struct profile_pin **get_config_profile_pins(struct profile *profile, int32_t du
  * set only once.
  *
  */
-struct config *create_config(struct profile *profile, enum config_types type, uint32_t num_loop_vecs, uint32_t num_padding_vecs){
+struct config *create_config(struct profile *profile, enum config_types type, uint32_t num_loop_vecs){
     struct config *config = NULL;
     uint32_t num_pins = 0;
     struct profile_pin **pins = NULL;
@@ -277,7 +277,7 @@ struct config *create_config(struct profile *profile, enum config_types type, ui
     if((pins = get_config_profile_pins(profile, dut_id, &num_pins)) == NULL){
         die("error: failed to get profile config pins");
     }
-    config->dots = create_dots((num_loop_vecs*num_dots_vecs)+num_padding_vecs, pins, num_pins);
+    config->dots = create_dots((num_loop_vecs*num_dots_vecs), pins, num_pins);
 
     // save order of config pins, so stim can iterate through correct
     // order when accessing it's pins
@@ -301,15 +301,6 @@ struct config *create_config(struct profile *profile, enum config_types type, ui
 
     for(int v=0; v<num_loop_vecs; v++){
         for(int i=0; i<(num_dots_vecs*2); i=i+2){
-            append_dots_vec_by_vec_str(config->dots, vec_data[i+0], vec_data[i+1]);
-        }
-    }
-
-    // TODO: do a nop instead of the last vector
-
-    // always pad with the last vector
-    for(int v=0; v<num_padding_vecs; v++){
-        for(int i=((num_dots_vecs*2)-2); i<(num_dots_vecs*2); i=i+2){
             append_dots_vec_by_vec_str(config->dots, vec_data[i+0], vec_data[i+1]);
         }
     }

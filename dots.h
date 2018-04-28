@@ -66,6 +66,7 @@ struct dots *create_dots(uint32_t num_dots_vecs, struct profile_pin **pins,
     uint32_t num_pins);
 void append_dots_vec_by_vec_str(struct dots *dots, 
     const char *repeat, const char *vec_str);
+void append_dots_vec_by_nop_vecs(struct dots *dots, uint32_t num_nop_vecs);
 void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, 
     enum subvecs *data_subvecs, uint32_t num_data_subvecs);
 void unexpand_dots_vec_subvecs(struct dots_vec *dots_vec);

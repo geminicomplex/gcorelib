@@ -61,6 +61,50 @@ void append_dots_vec_by_vec_str(struct dots *dots,
 }
 
 /*
+ * Appends given number of NOP vecs to dots.
+ *
+ */
+void append_dots_vec_by_nop_vecs(struct dots *dots, uint32_t num_nop_vecs){
+    uint32_t vec_len = 0;
+    char *nop_vec_str = NULL;
+
+    if(dots == NULL){
+        die("pointer is NULL");
+    }
+
+    vec_len = dots->num_pins;
+
+    if(vec_len == 0){
+        die("failed to get vec_str len");
+    }
+
+    if((nop_vec_str = (char*)calloc(vec_len+1, sizeof(char))) == NULL){
+        die("failed to malloc string");
+    }
+    for(int i=0; i<vec_len; i++){
+        nop_vec_str[i] = 'X';
+    }
+    nop_vec_str[vec_len] = '\0';
+
+    // re-allocate memory if needed
+    if(dots->cur_appended_dots_vec_id >= dots->num_dots_vecs){
+        dots->num_dots_vecs += num_nop_vecs;
+        if((dots->dots_vecs = (struct dots_vec**)realloc(dots->dots_vecs, dots->num_dots_vecs*sizeof(struct dots_vec*))) == NULL){
+            die("failed to realloc memory");
+        }
+    }
+
+    // always pad with NOPs
+    for(int v=0; v<num_nop_vecs; v++){
+        append_dots_vec_by_vec_str(dots, "1", nop_vec_str);
+    }
+
+    free(nop_vec_str);
+
+    return;
+}
+
+/*
  * Expands a vector string into an array of un-packed subvecs. 
  *
  */

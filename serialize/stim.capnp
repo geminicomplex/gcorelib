@@ -52,10 +52,11 @@ struct SerialStim {
     pins @2 :List(ProfilePin);
     numVecs @3 :UInt32;
     numUnrolledVecs @4 :UInt32;
-    numA1VecChunks @5 :UInt32;
-    numA2VecChunks @6 :UInt32;
-    a1VecChunks @7 :List(VecChunk);
-    a2VecChunks @8 :List(VecChunk);
+    numPaddingVecs @5 :UInt32;
+    numA1VecChunks @6 :UInt32;
+    numA2VecChunks @7 :UInt32;
+    a1VecChunks @8 :List(VecChunk);
+    a2VecChunks @9 :List(VecChunk);
 
     enum StimTypes {
         stimTypeNone @0;

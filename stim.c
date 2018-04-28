@@ -70,6 +70,23 @@ ssize_t write_fd(int fd, const void *p, size_t count){
     return bytes;
 }
 
+/*
+ * Calculates number of padding vecs needed based on number of
+ * vectors given. 
+ *
+ * Number of vectors must be divisible by 8 because there are
+ * 8 vectors per burst. A burst must always complete as per the
+ * axi spec, so just pad with NOPs
+ *
+ */
+uint32_t calc_num_padding_vecs(uint32_t num_vecs){
+    uint32_t num_padding_vecs = 0;
+    if(num_vecs % STIM_NUM_VECS_PER_BURST != 0){
+        num_padding_vecs = STIM_NUM_VECS_PER_BURST - (num_vecs % STIM_NUM_VECS_PER_BURST);
+    }
+    return num_padding_vecs;
+}
+
 
 /*
  * Given a 32 bit word, iterate through the bits and return 
@@ -433,19 +450,11 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         die("error: failed to init stim, num_vecs == 0");
     }
 
-    // PADDING
-    // Number of vectors must be divisible by 8 because there are
-    // 8 vectors per burst. A burst must always complete as per the
-    // axi spec, so just pad with NOPs.
-    if(stim->num_vecs % STIM_NUM_VECS_PER_BURST != 0){
-        stim->num_padding_vecs = STIM_NUM_VECS_PER_BURST - (stim->num_vecs % STIM_NUM_VECS_PER_BURST);
-        stim->num_vecs += stim->num_padding_vecs;
-        stim->num_unrolled_vecs += stim->num_padding_vecs;
-    }
+    stim->num_padding_vecs = calc_num_padding_vecs(stim->num_vecs);
     
     // get vector size and total size
     bool last_chunk_partial = false;
-    uint64_t vecs_size = stim->num_vecs*STIM_VEC_SIZE;
+    uint64_t vecs_size = (stim->num_vecs+stim->num_padding_vecs)*STIM_VEC_SIZE;
     
     // calculate the number of chunks needed based on vecs_size
     uint32_t num_vec_chunks = 0;
@@ -514,7 +523,9 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         }
     }
 
-    slog_debug(0,"num_vecs: %i num_unrolled_vecs: %i", stim->num_vecs, stim->num_unrolled_vecs);
+    slog_debug(0,"num_vecs: %i num_unrolled_vecs: %i", 
+            (stim->num_vecs+stim->num_padding_vecs), 
+            (stim->num_unrolled_vecs+stim->num_padding_vecs));
 
     return stim;
 }
@@ -737,7 +748,7 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
     if(stim->type == STIM_TYPE_RBT || stim->type == STIM_TYPE_BIN || stim->type == STIM_TYPE_BIT){
         // First chunk so fill it with the config header. Size will always be less than chunk size.
         if(is_first_chunk){
-            if((config = create_config(stim->profile, CONFIG_TYPE_HEADER, 1, 0)) == NULL){
+            if((config = create_config(stim->profile, CONFIG_TYPE_HEADER, 1)) == NULL){
                 die("error: pointer is NULL");
             }
             if((chunk = stim_fill_chunk_by_dots(stim, chunk, 
@@ -760,7 +771,7 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         num_vecs_to_load = end_num_vecs - start_num_vecs;
          
         // fill chunk with one data word and the corresponding body config
-        if((config = create_config(stim->profile, CONFIG_TYPE_BODY, num_vecs_to_load, 0)) == NULL){
+        if((config = create_config(stim->profile, CONFIG_TYPE_BODY, num_vecs_to_load)) == NULL){
             die("error: pointer is NULL");
         }
         if((chunk = stim_fill_chunk_by_dots(stim, chunk, config->dots, 
@@ -772,17 +783,25 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
         // if we're in the last chunk and we loaded all the data from the source
         // file already, then copy the footer after
         if(is_last_chunk){
-            if((config = create_config(stim->profile, CONFIG_TYPE_FOOTER, 1, stim->num_padding_vecs)) == NULL){
+            if((config = create_config(stim->profile, CONFIG_TYPE_FOOTER, 1)) == NULL){
                 die("error: pointer is NULL");
             }
-            if((chunk = stim_fill_chunk_by_dots(stim, chunk, 
-                    config->dots, NULL)) == NULL){
+
+            // last chunk so we need to pad with NOP vecs
+            append_dots_vec_by_nop_vecs(config->dots, stim->num_padding_vecs);
+
+            if((chunk = stim_fill_chunk_by_dots(stim, chunk, config->dots, NULL)) == NULL){
                 die("error: failed to pack chunk by config vecs");
             }
             config = free_config(config);
         }
     }else if(stim->type == STIM_TYPE_DOTS){
         if(stim->dots != NULL){
+            // last chunk so we need to pad with NOP vecs
+            if(is_last_chunk){
+                append_dots_vec_by_nop_vecs(stim->dots, stim->num_padding_vecs);
+            }
+
             if((chunk = stim_fill_chunk_by_dots(stim, chunk, stim->dots, NULL)) == NULL){
                 die("failed to fill chunk by dots");
             }
@@ -908,11 +927,18 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             die("failed to expand dots_vec subvecs");
         }
 
+        // if all subvecs are don't-care then it's a NOP
+        bool is_nop_vec = true;
+
         // pack chunk vec with subvecs (which represent pins)
         for(int pin_id=0; pin_id<dots_vec->num_subvecs; pin_id++){
             struct profile_pin *pin = dots->pins[pin_id];
             enum subvecs subvec = dots_vec->subvecs[pin_id];
             pack_subvecs_by_dut_io_id(chunk_vec->packed_subvecs, pin->dut_io_id, subvec);
+
+            if(subvec != DUT_SUBVEC_X){
+                is_nop_vec = false;
+            }
         }
 
         //slog_debug(0, "dots vec %i %s has_clk: %i", dots_vec->repeat, dots_vec->vec_str, dots_vec->has_clk);
@@ -924,6 +950,8 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             pack_subvecs_with_opcode_and_operand(chunk_vec->packed_subvecs, DUT_OPCODE_VECCLK, dots_vec->repeat);
         }else if(dots_vec->repeat > 1){
             pack_subvecs_with_opcode_and_operand(chunk_vec->packed_subvecs, DUT_OPCODE_VECLOOP, dots_vec->repeat);
+        }else if(is_nop_vec){
+            pack_subvecs_with_opcode_and_operand(chunk_vec->packed_subvecs, DUT_OPCODE_NOP, dots_vec->repeat);
         }else{
             pack_subvecs_with_opcode_and_operand(chunk_vec->packed_subvecs, DUT_OPCODE_VEC, dots_vec->repeat);
         }
@@ -1306,7 +1334,7 @@ struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots){
     stim->cur_a1_dots_vec_id = 0;
     stim->cur_a2_dots_vec_id = 0;
 
-    num_unrolled_vecs = get_num_unrolled_dots_vecs(stim->dots); 
+    num_unrolled_vecs = get_num_unrolled_dots_vecs(stim->dots);
 
     if((stim = init_stim(stim, dots->pins, dots->num_pins, 
                 dots->num_dots_vecs, num_unrolled_vecs)) == NULL){
@@ -1547,6 +1575,7 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         .numPins = stim->num_pins,
         .numVecs = stim->num_vecs,
         .numUnrolledVecs = stim->num_unrolled_vecs,
+        .numPaddingVecs = stim->num_padding_vecs,
         .numA1VecChunks = stim->num_a1_vec_chunks,
         .numA2VecChunks = stim->num_a2_vec_chunks,
     };
@@ -1642,7 +1671,7 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
     if(setp_ret != 0){
         die("capn setp failed");
     }
-    capn_write_fd(&c, &write_fd, fd, 0 /* packed */);
+    capn_write_fd(&c, (const void*)&write_fd, fd, 0 /* packed */);
     capn_free(&c);
 
     close(fd);
@@ -1733,6 +1762,7 @@ struct stim *stim_deserialize(struct stim *stim){
     stim->num_pins = serialStim.numPins;
     stim->num_vecs = serialStim.numVecs;
     stim->num_unrolled_vecs = serialStim.numUnrolledVecs;
+    stim->num_padding_vecs = serialStim.numPaddingVecs;
     stim->num_a1_vec_chunks = serialStim.numA1VecChunks;
     stim->num_a2_vec_chunks = serialStim.numA2VecChunks;
 

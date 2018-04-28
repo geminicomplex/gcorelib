@@ -198,6 +198,7 @@ void stim_unload_chunk(struct vec_chunk *chunk);
 enum subvecs *convert_bitstream_word_to_subvecs(uint32_t *word, 
     uint32_t *num_subvecs);
 uint32_t stim_get_next_bitstream_word(struct stim *stim);
+uint32_t calc_num_padding_vecs(uint32_t num_vecs);
 
 struct stim *create_stim(void);
 struct vec_chunk **create_vec_chunks(uint32_t num_vec_chunks);
