@@ -699,7 +699,7 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
             helper_print_agent_status(artix_select);
             break;
         }else{
-            if(counter >= 0x000000ff){
+            if(counter >= 0x000fffff){
                 helper_get_agent_status(artix_select, &packet);
                 ret_test_cycle = packet.addr;
                 helper_print_agent_status(artix_select);
