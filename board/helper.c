@@ -147,14 +147,14 @@ void helper_agent_load_run(enum artix_selects artix_select,
 }
 
 /*
- * Place dutcore into MEM_BURST, place agent into BURST_LOAD
+ * Place gvpu into MEM_BURST, place agent into BURST_LOAD
  * then pass num_bursts on data channel and it will config
- * agent, which will then auto-config dutcore/memcore.
+ * agent, which will then auto-config gvpu/memcore.
  *
  */
 void helper_num_bursts_load(enum artix_selects artix_select,
     uint32_t num_bursts){
-    enum dutcore_states dutcore_state;
+    enum gvpu_states gvpu_state;
     enum agent_states agent_state;
     enum subcore_states subcore_state;
     struct gcore_ctrl_packet packet;
@@ -166,9 +166,9 @@ void helper_num_bursts_load(enum artix_selects artix_select,
     slog_info(0,"agent burst: %d @ %d = %d bytes", BURST_BYTES, 
         num_bursts, (num_bursts*BURST_BYTES));
 
-    // load number of bursts into dutcore and memcore
-    dutcore_state = MEM_BURST;
-    helper_dutcore_load_run(artix_select, dutcore_state);
+    // load number of bursts into gvpu and memcore
+    gvpu_state = MEM_BURST;
+    helper_gvpu_load_run(artix_select, gvpu_state);
     
 	// load  number of bursts into agent
     agent_state = BURST_LOAD;
@@ -179,7 +179,7 @@ void helper_num_bursts_load(enum artix_selects artix_select,
     helper_subcore_load_run(artix_select, subcore_state);
     
     // load num_bursts into agent, which will auto-load num_bursts
-    // into dutcore and memcore
+    // into gvpu and memcore
     gcore_ctrl_write(&packet);
     
     // check if subcore is back to idle
@@ -189,13 +189,13 @@ void helper_num_bursts_load(enum artix_selects artix_select,
 }
 
 /*
- * Loads subcore, agent and dutcore to proxy the FSM state to 
+ * Loads subcore, agent and gvpu to proxy the FSM state to 
  * load into memcore. Runs the state after loading it.
  *
  */
 void helper_memcore_load_run(enum artix_selects artix_select,
     struct gcore_ctrl_packet *packet, uint32_t num_bursts){
-    enum dutcore_states dutcore_state;
+    enum gvpu_states gvpu_state;
     struct gcore_ctrl_packet status_packet;
 
     if(packet == NULL){
@@ -206,24 +206,24 @@ void helper_memcore_load_run(enum artix_selects artix_select,
     // save memcore state which we'll load
     enum memcore_states loading_state = (packet->data & 0x0000000f);
 
-    dutcore_state = MEM_LOAD;
-    helper_dutcore_load_run(artix_select, dutcore_state);
+    gvpu_state = MEM_LOAD;
+    helper_gvpu_load_run(artix_select, gvpu_state);
     
     helper_print_agent_status(artix_select);
     
-    // check if dutcore is in mem_load state
+    // check if gvpu is in mem_load state
     helper_get_agent_status(artix_select, &status_packet);
     if((status_packet.data & 0x000000f0) != 0x00000030){
-        slog_error(0,"error: dutcore is not in MEM_LOAD state. 0x%08X", status_packet.data);
+        slog_error(0,"error: gvpu is not in MEM_LOAD state. 0x%08X", status_packet.data);
         exit(1);
     }
 
     // send the packet to MEM_LOAD
-    helper_dutcore_packet_write(artix_select, packet);
+    helper_gvpu_packet_write(artix_select, packet);
     
     // run the loaded state
-    dutcore_state = MEM_RUN;
-    helper_dutcore_load_run(artix_select, dutcore_state);
+    gvpu_state = MEM_RUN;
+    helper_gvpu_load_run(artix_select, gvpu_state);
     
     // memcore is reading into a fifo so if the number of bursts 
     // read is less than the fifos capacity it will exit
@@ -241,24 +241,24 @@ void helper_memcore_load_run(enum artix_selects artix_select,
 }
 
 /* 
- * Loads dutcore with given fsm state through agent and
+ * Loads gvpu with given fsm state through agent and
  * through subcore, then checks if subcore is idle.
  *
  */
-void helper_dutcore_load_run(enum artix_selects artix_select,
-        enum dutcore_states dutcore_state){
+void helper_gvpu_load_run(enum artix_selects artix_select,
+        enum gvpu_states gvpu_state){
     struct gcore_ctrl_packet packet;
     enum agent_states agent_state;
 
     // fill packet
     packet.rank_select = 0;
     packet.addr = 0;
-    packet.data = dutcore_state;
-    print_dutcore_state(dutcore_state, "dutcore: ");
+    packet.data = gvpu_state;
+    print_gvpu_state(gvpu_state, "gvpu: ");
 
-    helper_dutcore_packet_write(artix_select, &packet);
+    helper_gvpu_packet_write(artix_select, &packet);
     
-    agent_state = DUT_RUN;
+    agent_state = GVPU_RUN;
     helper_agent_load_run(artix_select, agent_state);
     
     // wait for subcore idle state
@@ -269,16 +269,16 @@ void helper_dutcore_load_run(enum artix_selects artix_select,
 
 /*
  * Performs a packet write through the ctrl axi-lite registers
- * from a gcore packet, through subcore and agent to dutcore.
+ * from a gcore packet, through subcore and agent to gvpu.
  *
  */
-void helper_dutcore_packet_write(enum artix_selects artix_select,
+void helper_gvpu_packet_write(enum artix_selects artix_select,
         struct gcore_ctrl_packet *packet){
     enum agent_states agent_state;
     enum subcore_states subcore_state;
 
     // set agent to proxy data
-    agent_state = DUT_LOAD;
+    agent_state = GVPU_LOAD;
     helper_agent_load_run(artix_select, agent_state);
     
     // set subcore to proxy ctrl data
@@ -467,20 +467,20 @@ void print_agent_state(enum agent_states agent_state, char *pre){
         case BURST_LOAD:
             slog_info(0,"%sburst_load", pre);
             break;
-        case DUT_LOAD:
-            slog_info(0,"%sdut_load", pre);
+        case GVPU_LOAD:
+            slog_info(0,"%sgvpu_load", pre);
             break;
-        case DUT_RUN:
-            slog_info(0,"%sdut_run", pre);
+        case GVPU_RUN:
+            slog_info(0,"%sgvpu_run", pre);
             break;
-        case DUT_WRITE:
-            slog_info(0,"%sdut_write", pre);
+        case GVPU_WRITE:
+            slog_info(0,"%sgvpu_write", pre);
             break;
-        case DUT_READ:
-            slog_info(0,"%sdut_read", pre);
+        case GVPU_READ:
+            slog_info(0,"%sgvpu_read", pre);
             break;
-        case DUT_RESET:
-            slog_info(0,"%sdut_reset", pre);
+        case GVPU_RESET:
+            slog_info(0,"%sgvpu_reset", pre);
             break;
         default:
             break;
@@ -489,19 +489,19 @@ void print_agent_state(enum agent_states agent_state, char *pre){
 }
 
 /*
- * Given a dutcore state enum, print the state name to stdout.
+ * Given a gvpu state enum, print the state name to stdout.
  *
  */
-void print_dutcore_state(enum dutcore_states dutcore_state, char *pre){
+void print_gvpu_state(enum gvpu_states gvpu_state, char *pre){
     if(pre == NULL){
         return;
     }
-    switch(dutcore_state){
-        case DUTCORE_IDLE:
-            slog_info(0,"%sdutcore_idls", pre);
+    switch(gvpu_state){
+        case GVPU_IDLE:
+            slog_info(0,"%sgvpu_idle", pre);
 			break;
-        case DUTCORE_PAUSED:
-            slog_info(0,"%sdutcore_paused", pre);
+        case GVPU_PAUSED:
+            slog_info(0,"%sgvpu_paused", pre);
 			break;
         case MEM_BURST:
             slog_info(0,"%smem_burst", pre);

@@ -89,20 +89,20 @@ void artix_mem_write(enum artix_selects artix_select,
 	// debug status
     helper_print_agent_status(artix_select);
 
-	// load agent, dutcore and memcore with num bursts
+	// load agent, gvpu and memcore with num bursts
 	helper_num_bursts_load(artix_select, num_bursts);
 
 	// debug status
     helper_print_agent_status(artix_select);
 
-	// config dutcore to proxy data
-    helper_dutcore_load_run(artix_select, MEM_WRITE);
+	// config gvpu to proxy data
+    helper_gvpu_load_run(artix_select, MEM_WRITE);
 
 	// debug status
     helper_print_agent_status(artix_select);
 
 	// config agent to proxy data
-    helper_agent_load_run(artix_select,  DUT_WRITE);
+    helper_agent_load_run(artix_select,  GVPU_WRITE);
 
 	// reset dma buffer
     gcore_dma_alloc_reset();
@@ -134,12 +134,12 @@ void artix_mem_write(enum artix_selects artix_select,
 			gcore_dma_start(GCORE_WAIT_TX);
         }
 
-        // get burst count from dutcore
+        // get burst count from gvpu
         helper_get_agent_status(artix_select, &packet);
-        uint32_t dutcore_burst_count = packet.addr + 1;
+        uint32_t gvpu_burst_count = packet.addr + 1;
         slog_info(0,"sent %zu total bytes (actual %i).", 
             (num_chunks*DMA_SIZE)+data_mod, 
-            dutcore_burst_count*BURST_BYTES);
+            gvpu_burst_count*BURST_BYTES);
 
     }else{
         // this always ensures that what we read is a multiple of a burst
@@ -151,12 +151,12 @@ void artix_mem_write(enum artix_selects artix_select,
         memcpy(dma_buf, write_data, write_size);
         gcore_dma_prep_start(GCORE_WAIT_TX, dma_buf, size, NULL, 0);
         
-        // get burst count from dutcore
+        // get burst count from gvpu
         helper_get_agent_status(artix_select, &packet);
 
-        uint32_t dutcore_burst_count = packet.addr + 1;
+        uint32_t gvpu_burst_count = packet.addr + 1;
         slog_info(0,"sent %zu bytes (actual %i).", 
-            write_size, dutcore_burst_count*BURST_BYTES);
+            write_size, gvpu_burst_count*BURST_BYTES);
 
     }
 
@@ -170,7 +170,7 @@ void artix_mem_write(enum artix_selects artix_select,
     gcore_subcore_idle();
 
     // reset burst count
-    helper_dutcore_load_run(artix_select, TEST_CLEANUP);
+    helper_gvpu_load_run(artix_select, TEST_CLEANUP);
 
 	// debug status
     helper_print_agent_status(artix_select);
@@ -180,7 +180,7 @@ void artix_mem_write(enum artix_selects artix_select,
 // subcore must assert last on the last burst of the last beat and a dma
 // descriptor transfer can't be more than 2^23-1 due to axi dma ip
 // limitation. If transfering more, than 8MB just keep calling this. For
-// agent, dutcore and memcore you can just set max num_bursts.
+// agent, gvpu and memcore you can just set max num_bursts.
 // TODO: modify subcore to automatically send last
 // if it's num_bursts > 65504
 static void subcore_prep_dma_read(enum artix_selects artix_select, uint32_t num_bursts){
@@ -241,9 +241,9 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 
 	helper_print_agent_status(artix_select);
 
-    helper_dutcore_load_run(artix_select, MEM_READ);
+    helper_gvpu_load_run(artix_select, MEM_READ);
 
-    helper_agent_load_run(artix_select, DUT_READ);
+    helper_agent_load_run(artix_select, GVPU_READ);
 
     gcore_dma_alloc_reset();
 
@@ -274,12 +274,12 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
             memcpy(((uint8_t*)read_data)+(read_size-data_mod), dma_buf, data_mod);
         }
 
-        // get burst count from dutcore
+        // get burst count from gvpu
         helper_get_agent_status(artix_select, &packet);
-        uint32_t dutcore_burst_count = packet.addr + 1;
+        uint32_t gvpu_burst_count = packet.addr + 1;
         slog_info(0,"received %zu total bytes (actual %i).", 
             (num_chunks*DMA_SIZE)+data_mod, 
-            dutcore_burst_count*BURST_BYTES);
+            gvpu_burst_count*BURST_BYTES);
     }else{
         // this always ensures that what we read is a multiple of a burst
         // since num_bursts is calculated based on read_size
@@ -292,11 +292,11 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 		gcore_dma_start(GCORE_WAIT_RX);
         memcpy(read_data, dma_buf, read_size);
 
-        // get burst count from dutcore
+        // get burst count from gvpu
         helper_get_agent_status(artix_select, &packet);
-        uint32_t dutcore_burst_count = packet.addr + 1;
+        uint32_t gvpu_burst_count = packet.addr + 1;
         slog_info(0,"received %zu bytes (actual %i).", 
-            read_size, dutcore_burst_count*BURST_BYTES);
+            read_size, gvpu_burst_count*BURST_BYTES);
     }
 
 //#ifdef GEM_DEBUG
@@ -309,7 +309,7 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
     gcore_subcore_idle();
 
     // reset burst count
-    helper_dutcore_load_run(artix_select, TEST_CLEANUP);
+    helper_gvpu_load_run(artix_select, TEST_CLEANUP);
 
     helper_print_agent_status(artix_select);
     return;
@@ -379,7 +379,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     slog_debug(0, "writing mem data...");
     artix_mem_write(artix_select, addr, write_data, MAX_CHUNK_SIZE);
 
-    // load agent, dutcore and memcore with num bursts
+    // load agent, gvpu and memcore with num bursts
 	helper_num_bursts_load(artix_select, num_bursts);
 
 	// debug status
@@ -389,7 +389,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     // beat in each burst
     if(run_crc){
         slog_info(0, "loading crc test...");
-        helper_dutcore_load_run(artix_select, MEM_TEST);
+        helper_gvpu_load_run(artix_select, MEM_TEST);
         helper_print_agent_status(artix_select);
     
         slog_info(0, "running crc test...");
@@ -433,7 +433,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 	gcore_subcore_idle();
 
     // reset cycle count and failed flag
-    helper_dutcore_load_run(artix_select, TEST_CLEANUP);
+    helper_gvpu_load_run(artix_select, TEST_CLEANUP);
 
 	helper_print_agent_status(artix_select);
 
@@ -539,15 +539,15 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     assert_dut_io_range(stim, artix_select);
     
     // perform test init
-    helper_dutcore_load_run(artix_select, TEST_INIT);
+    helper_gvpu_load_run(artix_select, TEST_INIT);
     packet.rank_select = 0;
     packet.addr = 0;
     packet.data = (stim->num_vecs+stim->num_padding_vecs);
-    helper_dutcore_packet_write(artix_select, &packet);
+    helper_gvpu_packet_write(artix_select, &packet);
 
     // perform test setup by writing enable_pins burst
-    helper_dutcore_load_run(artix_select, TEST_SETUP);
-    helper_agent_load_run(artix_select, DUT_WRITE);
+    helper_gvpu_load_run(artix_select, TEST_SETUP);
+    helper_agent_load_run(artix_select, GVPU_WRITE);
 
 	// reset dma buffer
     gcore_dma_alloc_reset();
@@ -586,7 +586,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     }
 
     // Note: no need to swap the endianess of enable_pins because of the
-    // way 64 bit words are packed in agent, dutcore and memcore
+    // way 64 bit words are packed in agent, gvpu and memcore
 
     // write the enable pins to TEST_SETUP
     dma_buf = (uint64_t *)gcore_dma_alloc(burst_size, sizeof(uint8_t));
@@ -603,7 +603,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     free(enable_pins);
     
     // reset cycle count and failed flag
-    helper_dutcore_load_run(artix_select, TEST_CLEANUP);
+    helper_gvpu_load_run(artix_select, TEST_CLEANUP);
 
     // address we are dma-ing to in the artix unit
     uint32_t addr = 0x00000000;
@@ -621,7 +621,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     }
 
     // reset test_cycle counter and test_failed flag
-    helper_dutcore_load_run(artix_select, TEST_CLEANUP);
+    helper_gvpu_load_run(artix_select, TEST_CLEANUP);
 
 }
 
@@ -689,7 +689,7 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
     
     // run the test
     slog_info(0, "running test...");
-    helper_dutcore_load_run(artix_select, TEST_RUN);
+    helper_gvpu_load_run(artix_select, TEST_RUN);
     helper_print_agent_status(artix_select);
 
     uint32_t counter = 0;

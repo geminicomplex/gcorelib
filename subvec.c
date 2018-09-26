@@ -35,7 +35,7 @@ void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum
     uint8_t packed_subvec = packed_subvecs[subvec_id];
 
     // note: because of the way we pack 64bit words into the 1024 bit
-    // fifo and because the bus is [1023:0] in dutcore, we need to 
+    // fifo and because the bus is [1023:0] in gvpu, we need to 
     // pack high dut_io to low dut_io from msb to lsb
 
     // clear and load high nibble

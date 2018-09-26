@@ -957,7 +957,7 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         }
 
         // No need to swap the endianess of packed_subvecs because 64 bit
-        // words are packed lsb to msb in the 1024 bit word in agent, dutcore
+        // words are packed lsb to msb in the 1024 bit word in agent, gvpu
         // and memcore. The zynq fabric dma uses a 64 bit bus and uses little
         // endian, so when it gets a 64 bit word it will load it in the
         // register big endian and pass that down the wire. So we fill the
