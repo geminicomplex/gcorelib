@@ -13,6 +13,8 @@
 
 #include "common.h"
 #include <stdio.h>
+#include <execinfo.h>
+#include <unistd.h>
 
 static bool did_init = false;
 
@@ -36,7 +38,14 @@ void gcore_init_log(const char *log_path){
 }
 
 
-
+// helper-function to print the current stack trace
+void print_stacktrace(){
+    void *buffer[MAX_STACK_LEVELS];
+    int levels = backtrace(buffer, MAX_STACK_LEVELS);
+    fprintf(stderr, "----------------------------------------------------------------------\n");
+    backtrace_symbols_fd(buffer + 1, levels - 1, STDERR_FILENO);
+    fprintf(stderr, "----------------------------------------------------------------------\n");
+}
 
 
 

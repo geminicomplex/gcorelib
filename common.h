@@ -13,6 +13,7 @@
 extern "C" {
 #endif
 
+
 #include "lib/slog/slog.h"
 
 #include <stdlib.h>
@@ -35,9 +36,16 @@ extern "C" {
 
 #define GCORE_LOG_PATH "/var/log/gcore.log"
 
+// stack levels to print when dying
+#define MAX_STACK_LEVELS (100)
+
+// declare prototype
+void print_stacktrace();
+
 #ifndef die
 #define die(fmt, ...) do{\
     slog_fatal(0, fmt, ##__VA_ARGS__);\
+    print_stacktrace();\
     exit(EXIT_FAILURE);\
     } while(0);
 #endif
