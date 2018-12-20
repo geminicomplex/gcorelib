@@ -764,6 +764,52 @@ struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, in
     }
     return found_pin;
 }
+/*
+ * Get a profile pin by the net alias name. Note that the net alias is unique
+ * for a given dut. The net alias name can be used across duts if you have
+ * more than one, but again, never more than once within a dut. Pass a -1
+ * to search all duts, however, it will error out if it finds more than one
+ * dut with the name. 
+ *
+ */
+struct profile_pin *get_profile_pin_by_net_alias(struct profile *profile, int32_t dut_id, char *net_alias){
+    struct profile_pin *found_pin = NULL;
+
+    if(profile == NULL){
+        die("pointer is NULL");
+    }
+
+    if(net_alias == NULL){
+        die("pointer is NULL");
+    }
+
+    if(dut_id < -1){
+        die("invalid dut_id given %i; less than -1", dut_id);
+    }else if(dut_id >= 0 && (dut_id+1) > profile->num_duts){
+        die("invalid dut_id given %i; greater than num duts %i", dut_id, profile->num_duts);
+    }
+
+    for(int i=0; i<profile->num_pins; i++){
+        if(dut_id >= 0 && profile->pins[i]->dut_io_id != dut_id){
+            continue;
+        }
+        if(strcmp(net_alias, profile->pins[i]->net_alias) == 0){
+            if(found_pin != NULL){
+                if(dut_id == -1){
+                    die("Multiple net_alias '%s' found when searching all duts for profile '%s'.\
+                            Pass a dut_id to filter by dut.", 
+                            net_alias, profile->path);
+                }else{
+                    die("multiple net_alias '%s' found for dut id '%d' for profile '%s'", 
+                        net_alias, dut_id, profile->path);
+                }
+            }else{
+                found_pin = create_profile_pin_from_pin(profile->pins[i]);
+            }
+        }
+    }
+    return found_pin;
+}
 
 /*
  * Profile pins can be part of the dut_io bus or other miscellaneous pin.

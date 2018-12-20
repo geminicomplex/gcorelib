@@ -125,6 +125,8 @@ struct profile_pin *get_profile_pin_by_pin_name(struct profile *profile,
         char *pin_name);
 struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, 
         int32_t dut_id, char *dest_pin_name);
+struct profile_pin *get_profile_pin_by_net_alias(struct profile *profile, 
+        int32_t dut_id, char *net_alias);
 enum artix_selects get_artix_select_by_profile_pin(struct profile_pin *pin);
 enum artix_selects get_artix_select_by_profile_pins(
         struct profile_pin **pins, uint32_t num_pins);
