@@ -1037,6 +1037,10 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
         die("pointer is NULL");
     }
 
+    if(path == NULL){
+        die("pointer is NULL");
+    }
+
     if((stim = create_stim()) == NULL){
         die("error: pointer is NULL");
     }
@@ -1084,12 +1088,16 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
     }else if(stim->type == STIM_TYPE_BIN || stim->type == STIM_TYPE_BIT){
         bool found = false;
         while(1){
-            uint32_t word = read_map_32(stim, false);
-            if(word == 0xaa995566){
+            // Don't increment cur_map_byte by 4 bytes since the sync word
+            // might not be boundry aligned if it's a bit file.
+            uint32_t *word = (uint32_t*)&(stim->map)[stim->cur_map_byte++];
+            if(word == NULL){
+                die("map word is NULL");
+            }else if(*word == 0xaa995566){
                 stim->is_little_endian = true;
                 found = true;
                 break;
-            }else if (word == 0x665599aa){
+            }else if (*word == 0x665599aa){
                 stim->is_little_endian = false;
                 found = true;
                 break;
