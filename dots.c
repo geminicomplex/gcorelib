@@ -89,7 +89,8 @@ void append_dots_vec_by_nop_vecs(struct dots *dots, uint32_t num_nop_vecs){
     // re-allocate memory if needed
     if(dots->cur_appended_dots_vec_id >= dots->num_dots_vecs){
         dots->num_dots_vecs += num_nop_vecs;
-        if((dots->dots_vecs = (struct dots_vec**)realloc(dots->dots_vecs, dots->num_dots_vecs*sizeof(struct dots_vec*))) == NULL){
+        if((dots->dots_vecs = (struct dots_vec**)realloc(dots->dots_vecs, 
+                dots->num_dots_vecs*sizeof(struct dots_vec*))) == NULL){
             die("failed to realloc memory");
         }
     }
