@@ -325,7 +325,15 @@ struct vec_chunk *create_vec_chunk(uint8_t vec_chunk_id,
 
     // raw compiled vectors that get DMAed to artix units
     chunk->vec_data = NULL;
-    chunk->vec_data_size = 0;
+
+    // 1 burst is 1024 bytes, 1 vector is 128 bytes, 8 vecs per burst
+    uint32_t num_bursts = chunk->num_vecs/8;
+    chunk->vec_data_size = num_bursts*BURST_BYTES;
+
+    if((chunk->num_vecs % 8) != 0){
+        die("error: chunk num_vecs %d must be divisible by 8 so we don't \
+            have partially filled bursts, just pad NOP vecs", chunk->num_vecs);
+    }
 
     // If raw stim, pointer to lz4 compressed data on disk
     // from capn. Do not free this pointer.
@@ -454,8 +462,8 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     
     // get vector size and total size
     bool last_chunk_partial = false;
-    uint64_t vecs_size = (stim->num_vecs+stim->num_padding_vecs)*STIM_VEC_SIZE;
-    
+    uint64_t vecs_size = ((uint64_t)stim->num_vecs+(uint64_t)stim->num_padding_vecs)*(uint64_t)STIM_VEC_SIZE;
+
     // calculate the number of chunks needed based on vecs_size
     uint32_t num_vec_chunks = 0;
     if(vecs_size > STIM_CHUNK_SIZE){
@@ -612,15 +620,6 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects art
     // get the next chunk
     next_chunk = vec_chunks[cur_vec_chunk_id];
 
-    // 1 burst is 1024 bytes, 1 vector is 128 bytes, 8 vecs per burst
-    uint32_t num_bursts = next_chunk->num_vecs/8;
-    next_chunk->vec_data_size = num_bursts*BURST_BYTES;
-
-    if((next_chunk->num_vecs % 8) != 0){
-        die("error: num_vecs %d must be divisible by 8 so we don't \
-            have partially filled bursts, just pad NOP vecs", next_chunk->num_vecs);
-    }
-
     // allocate vecs array
     if((next_chunk->vec_data = (uint8_t *)calloc(next_chunk->vec_data_size, sizeof(uint8_t))) == NULL){
         die("error: failed to calloc vec chunk's vecs");
@@ -654,7 +653,6 @@ void stim_unload_chunk(struct vec_chunk *chunk){
         free(chunk->vec_data);
         chunk->vec_data = NULL;
     }
-    chunk->vec_data_size = 0;
     chunk->is_loaded = false;
     chunk->is_filled = false;
     return;
@@ -858,9 +856,9 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
     // to keep track of which unit we're filling for.
     uint32_t cur_dots_vec_id = 0;
     if(chunk->artix_select == ARTIX_SELECT_A1){
-        cur_dots_vec_id = stim->cur_a1_vec_chunk_id;
+        cur_dots_vec_id = stim->cur_a1_dots_vec_id;
     }else if(chunk->artix_select == ARTIX_SELECT_A2){
-        cur_dots_vec_id = stim->cur_a2_vec_chunk_id;
+        cur_dots_vec_id = stim->cur_a2_dots_vec_id;
     }else{
         die("invalid chunk artix select %i", chunk->artix_select);
     }
@@ -1671,7 +1669,17 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         total_saved_size += stim_serialize_chunk(stim, ARTIX_SELECT_A2, cs, &serialStim);
     }
 
-    slog_info(0,"compression saved %zu bytes", total_saved_size);
+    uint64_t total_uncompressed_bytes = 0;
+    for(uint32_t i=0; i<stim->num_a1_vec_chunks; i++){
+        total_uncompressed_bytes += (uint64_t)(stim->a1_vec_chunks[i]->vec_data_size);
+    }
+    for(uint32_t i=0; i<stim->num_a2_vec_chunks; i++){
+        total_uncompressed_bytes += (uint64_t)(stim->a2_vec_chunks[i]->vec_data_size);
+    }
+
+    slog_info(0,"total uncompressed size: %"PRIu64" bytes", total_uncompressed_bytes);
+    slog_info(0,"total compressed size: %"PRIu64" bytes", total_uncompressed_bytes-total_saved_size);
+    slog_info(0,"compression saved %"PRIu64" bytes", total_saved_size);
 
     SerialStim_ptr serialStimPtr = new_SerialStim(cs);
     write_SerialStim(&serialStim, serialStimPtr);

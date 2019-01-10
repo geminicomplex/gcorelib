@@ -374,7 +374,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 #endif
 
     // always start the test at address zero
-    uint32_t addr = 0x00000000;
+    uint64_t addr = 0x0000000000000000;
 
     slog_debug(0, "writing mem data...");
     artix_mem_write(artix_select, addr, write_data, MAX_CHUNK_SIZE);
@@ -606,18 +606,19 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     helper_gvpu_load_run(artix_select, TEST_CLEANUP);
 
     // address we are dma-ing to in the artix unit
-    uint32_t addr = 0x00000000;
+    uint64_t addr = 0x0000000000000000;
 
     slog_info(0, "writing vectors to memory...");
     // load one chunk at a time and dma the vecs to artix memory
     while((chunk = stim_load_next_chunk(stim, artix_select)) != NULL){
 
         // copy over the vec data buffer
-        slog_info(0, "writing %i vecs (%zu bytes) to dma buffer...", chunk->num_vecs, chunk->vec_data_size);
+        slog_info(0, "writing %i vecs (%zu bytes) to artix memory at address 0x%016"PRIX64"...", 
+            chunk->num_vecs, chunk->vec_data_size, addr);
         artix_mem_write(artix_select, addr, (uint64_t*)(chunk->vec_data), chunk->vec_data_size);
 
         // update the address pointer based on how much we copied in bytes
-        addr += chunk->vec_data_size;
+        addr += (uint64_t)chunk->vec_data_size;
     }
 
     // reset test_cycle counter and test_failed flag

@@ -7,14 +7,6 @@
 #error "version mismatch between capnp_c.h and generated code"
 #endif
 
-#ifndef capnp_nowarn
-# ifdef __GNUC__
-#  define capnp_nowarn __extension__
-# else
-#  define capnp_nowarn
-# endif
-#endif
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -67,12 +59,6 @@ struct String {
 	capn_text string;
 };
 
-static const size_t String_word_count = 0;
-
-static const size_t String_pointer_count = 1;
-
-static const size_t String_struct_bytes_count = 8;
-
 struct ProfilePin {
 	int32_t dutId;
 	capn_text pinName;
@@ -87,12 +73,6 @@ struct ProfilePin {
 	String_list destPinNames;
 };
 
-static const size_t ProfilePin_word_count = 3;
-
-static const size_t ProfilePin_pointer_count = 6;
-
-static const size_t ProfilePin_struct_bytes_count = 72;
-
 struct VecChunk {
 	uint8_t id;
 	enum VecChunk_ArtixSelects artixSelect;
@@ -101,12 +81,6 @@ struct VecChunk {
 	uint32_t vecDataSize;
 	uint32_t vecDataCompressedSize;
 };
-
-static const size_t VecChunk_word_count = 2;
-
-static const size_t VecChunk_pointer_count = 1;
-
-static const size_t VecChunk_struct_bytes_count = 24;
 
 struct SerialStim {
 	enum SerialStim_StimTypes type;
@@ -120,12 +94,6 @@ struct SerialStim {
 	VecChunk_list a1VecChunks;
 	VecChunk_list a2VecChunks;
 };
-
-static const size_t SerialStim_word_count = 3;
-
-static const size_t SerialStim_pointer_count = 3;
-
-static const size_t SerialStim_struct_bytes_count = 48;
 
 String_ptr new_String(struct capn_segment*);
 ProfilePin_ptr new_ProfilePin(struct capn_segment*);
