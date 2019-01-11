@@ -156,8 +156,6 @@ struct stim {
     bool is_little_endian;
     struct profile *profile;
     struct dots *dots;
-    uint32_t cur_a1_dots_vec_id;
-    uint32_t cur_a2_dots_vec_id;
 };
 
 

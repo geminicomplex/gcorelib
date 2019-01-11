@@ -322,6 +322,11 @@ struct dots *create_dots(uint32_t num_dots_vecs, struct profile_pin **pins,
         dots->pins[i] = create_profile_pin_from_pin(pins[i]);
     }
 
+    // when chunk is reading vecs from the dots, 
+    // cur vec is stored here.
+    dots->cur_a1_dots_vec_id = 0; 
+    dots->cur_a2_dots_vec_id = 0; 
+
     dots->cur_appended_dots_vec_id = 0;
 
     return dots;
@@ -367,6 +372,8 @@ struct dots *free_dots(struct dots *dots){
     free(dots->dots_vecs);
     dots->dots_vecs = NULL;
     dots->num_dots_vecs = 0;
+    dots->cur_a1_dots_vec_id = 0; 
+    dots->cur_a2_dots_vec_id = 0;
     dots->cur_appended_dots_vec_id = 0;
 
     if(dots->pins != NULL){

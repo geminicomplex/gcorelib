@@ -391,8 +391,6 @@ struct stim *create_stim(){
     // will get set there.  
     // 
     stim->dots = NULL;
-    stim->cur_a1_dots_vec_id = 0;
-    stim->cur_a2_dots_vec_id = 0;
 
     return stim;
 }
@@ -856,9 +854,9 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
     // to keep track of which unit we're filling for.
     uint32_t cur_dots_vec_id = 0;
     if(chunk->artix_select == ARTIX_SELECT_A1){
-        cur_dots_vec_id = stim->cur_a1_dots_vec_id;
+        cur_dots_vec_id = dots->cur_a1_dots_vec_id;
     }else if(chunk->artix_select == ARTIX_SELECT_A2){
-        cur_dots_vec_id = stim->cur_a2_dots_vec_id;
+        cur_dots_vec_id = dots->cur_a2_dots_vec_id;
     }else{
         die("invalid chunk artix select %i", chunk->artix_select);
     }
@@ -977,9 +975,9 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         // increment the dots vec for the next cycle and save it
         cur_dots_vec_id += 1;
         if(chunk->artix_select == ARTIX_SELECT_A1){
-            stim->cur_a1_dots_vec_id = cur_dots_vec_id;
+            dots->cur_a1_dots_vec_id = cur_dots_vec_id;
         }else if(chunk->artix_select == ARTIX_SELECT_A2){
-            stim->cur_a2_dots_vec_id = cur_dots_vec_id;
+            dots->cur_a2_dots_vec_id = cur_dots_vec_id;
         }
     }
 
@@ -1330,6 +1328,10 @@ struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots){
         }
     }
 
+    // reset read dots vec id
+    dots->cur_a1_dots_vec_id = 0;
+    dots->cur_a2_dots_vec_id = 0;
+
     if((stim = create_stim()) == NULL){
         die("pointer is NULL");
     }
@@ -1337,8 +1339,6 @@ struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots){
     stim->profile = profile;
     stim->type = STIM_TYPE_DOTS;
     stim->dots = dots;
-    stim->cur_a1_dots_vec_id = 0;
-    stim->cur_a2_dots_vec_id = 0;
 
     num_unrolled_vecs = get_num_unrolled_dots_vecs(stim->dots);
 
@@ -1460,8 +1460,6 @@ struct stim *free_stim(struct stim *stim){
     // Don't free dots here. It was passed externally by get_stim_by_dots so
     // it's not our responsibility.
     stim->dots = NULL;
-    stim->cur_a1_dots_vec_id = 0;
-    stim->cur_a2_dots_vec_id = 0;
 
     free_profile(stim->profile);
     stim->profile = NULL;

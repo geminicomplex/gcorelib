@@ -50,6 +50,12 @@ struct dots_vec {
 /*
  * dots
  *
+ * num_dots_vecs: len of dots_vecs
+ * dots_vecs: array of dots_vecs
+ * num_pins: len of pins
+ * cur_a1_dots_vec_id: current chunk read index
+ * cur_a2_dots_vec_id: current chunk read index
+ *
  */
 struct dots {
     // public
@@ -57,6 +63,8 @@ struct dots {
     struct dots_vec **dots_vecs;
     uint16_t num_pins;
     struct profile_pin **pins;
+    uint32_t cur_a1_dots_vec_id;
+    uint32_t cur_a2_dots_vec_id;
     
     // private
     uint32_t cur_appended_dots_vec_id;
