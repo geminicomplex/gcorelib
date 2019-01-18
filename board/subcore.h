@@ -32,6 +32,11 @@ void gcore_ctrl_write(struct gcore_ctrl_packet *packet);
 void gcore_ctrl_read(struct gcore_ctrl_packet *packet);
 
 /*
+ * Artix Ctrl
+ */
+void gcore_artix_sync(bool sync);
+
+/*
  * Registers
  *
  */

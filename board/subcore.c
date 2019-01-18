@@ -141,6 +141,32 @@ void gcore_ctrl_read(struct gcore_ctrl_packet *packet){
 }
 
 /*
+ * Asserts the artix sync line. Do this if running duttest
+ * in dual mode which will force the gvpus to wait for each
+ * other before starting the dut test.
+ *
+ */
+void gcore_artix_sync(bool sync){
+    int gcore_fd = -1;
+    struct gcore_ctrl_packet packet;
+
+    packet.rank_select = 0;
+    packet.addr = 0x00000000;
+    if(sync){
+        packet.data = 0x00000001;
+    }else{
+        packet.data = 0x00000000;
+    }
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
+    if(ioctl(gcore_fd, GCORE_ARTIX_SYNC, &packet) < 0){
+		die("gcorelib: error artix_sync failed");
+	}
+    return;
+}
+
+/*
  * Gets all values of the registers.
  */
 struct gcore_registers* gcore_get_regs(){

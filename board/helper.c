@@ -331,7 +331,13 @@ void helper_get_agent_status(enum artix_selects artix_select,
 void helper_print_agent_status(enum artix_selects artix_select){
     struct gcore_ctrl_packet packet;
     helper_get_agent_status(artix_select, &packet);
-    print_packet(&packet, "status: ");
+    if(artix_select == ARTIX_SELECT_A1){
+        print_packet(&packet, "a1 status: ");
+    }else if(artix_select == ARTIX_SELECT_A2){
+        print_packet(&packet, "a2 status: ");
+    }else{
+        die("no artix unit given.");
+    }
     return;
 }
 
@@ -438,7 +444,7 @@ void sprint_subcore_mode_state(char *mode_state_str) {
             strcpy(state_str, "dma_read"); break;
     };
 
-    sprintf(mode_state_str, "subcore: mode=%s state=%s", mode_str, state_str);
+    sprintf(mode_state_str, "subcore: mode=%s state=%s\n", mode_str, state_str);
 
     return;
 }

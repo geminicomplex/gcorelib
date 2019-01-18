@@ -831,8 +831,10 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
     struct dots_vec *dots_vec = NULL;
     enum subvecs *data_subvecs = NULL;
     uint32_t num_data_subvecs = 0;
-    struct vec *chunk_vec = create_vec();
-    
+    uint32_t range_low = 0;
+    uint32_t range_high = 0;
+    struct vec *chunk_vec = NULL;
+
     if(stim == NULL){
         die("error: pointer is NULL");
     }
@@ -850,6 +852,10 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             "calling unload", chunk->id);
     }
 
+    if((chunk_vec = create_vec()) == NULL){
+        die("pointer is NULL");
+    }
+
     // Each artix select chunk can be filled with the same dots so need
     // to keep track of which unit we're filling for.
     uint32_t cur_dots_vec_id = 0;
@@ -859,6 +865,15 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         cur_dots_vec_id = dots->cur_a2_dots_vec_id;
     }else{
         die("invalid chunk artix select %i", chunk->artix_select);
+    }
+
+    // check for correct dut_io_id based on artix unit 
+    if(chunk->artix_select == ARTIX_SELECT_A1){
+        range_low = 0;
+        range_high = DUT_NUM_PINS-1;
+    }else if(chunk->artix_select == ARTIX_SELECT_A2){
+        range_low = DUT_NUM_PINS;
+        range_high = DUT_TOTAL_NUM_PINS-1;
     }
 
     //
@@ -929,6 +944,12 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
         // pack chunk vec with subvecs (which represent pins)
         for(int pin_id=0; pin_id<dots_vec->num_subvecs; pin_id++){
             struct profile_pin *pin = dots->pins[pin_id];
+
+            // skip past pins that are not in this artix_select
+            if(pin->dut_io_id < range_low || pin->dut_io_id > range_high){
+                continue;
+            }
+
             enum subvecs subvec = dots_vec->subvecs[pin_id];
             pack_subvecs_by_dut_io_id(chunk_vec->packed_subvecs, pin->dut_io_id, subvec);
 
