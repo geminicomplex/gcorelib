@@ -536,6 +536,9 @@ void print_gvpu_state(enum gvpu_states gvpu_state, char *pre){
         case TEST_RUN:
             slog_info(0,"%stest_run", pre);
 			break;
+        case TEST_CHECK:
+            slog_info(0,"%stest_check", pre);
+			break;
         case TEST_CLEANUP:
             slog_info(0,"%stest_cleanup", pre);
 			break;

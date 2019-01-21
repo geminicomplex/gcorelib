@@ -121,6 +121,8 @@ struct profile_pin **sort_profile_pins_by_tag_data(
         struct profile_pin **pins, uint32_t num_pins);
 struct profile_pin **get_profile_pins_by_tag(struct profile *profile, 
         int32_t dut_id, enum profile_tags tag, uint32_t *found_num_pins);
+struct profile_pin *get_profile_pin_by_dut_io_id(struct profile *profile, 
+        uint32_t dut_io_id);
 struct profile_pin *get_profile_pin_by_pin_name(struct profile *profile, 
         char *pin_name);
 struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, 

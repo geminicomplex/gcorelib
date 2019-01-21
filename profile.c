@@ -697,6 +697,30 @@ struct profile_pin **get_profile_pins_by_tag(struct profile *profile,
 }
 
 /*
+ * Return a profile pin given a dut_io id.
+ *
+ */
+struct profile_pin *get_profile_pin_by_dut_io_id(struct profile *profile, 
+        uint32_t dut_io_id){
+    struct profile_pin *found_pin = NULL;
+
+    if(profile == NULL){
+        die("pointer is NULL");
+    }
+
+    for(int i=0; i<profile->num_pins; i++){
+        if(profile->pins[i]->dut_io_id == dut_io_id){
+            if(found_pin != NULL){
+                die("found multiple pins for dut_io_id '%d'", dut_io_id);
+            }else{
+                found_pin = create_profile_pin_from_pin(profile->pins[i]);
+            }
+        }
+    }
+    return found_pin;
+}
+
+/*
  * Return a profile pin with a given pin name. Pin names are always unique.
  *
  */

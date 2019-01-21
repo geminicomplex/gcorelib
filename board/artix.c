@@ -191,6 +191,9 @@ static void subcore_prep_dma_read(enum artix_selects artix_select, uint32_t num_
 		die("gcore: subcore_prep_dma_read error, can't set num bursts: %i > 65535", num_bursts);
 	}
 
+    slog_debug(0, "subcore bursts: %d @ %d = %d bytes", BURST_BYTES, 
+		num_bursts, (num_bursts*BURST_BYTES));
+
 	gcore_subcore_idle();
 
 	// kernel sends bursts of 128 bytes to subcore. However
@@ -205,6 +208,7 @@ static void subcore_prep_dma_read(enum artix_selects artix_select, uint32_t num_
 
     gcore_subcore_idle();
 
+	slog_debug(0, "subcore: dma_read");
     helper_subcore_load_run(artix_select, DMA_READ);
 	return;
 }
@@ -288,7 +292,7 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         dma_buf = (uint64_t *)gcore_dma_alloc(size, sizeof(uint8_t));
         memset(dma_buf, 0, size);
         gcore_dma_prep(NULL, 0, dma_buf, size);
-		subcore_prep_dma_read(artix_select, size);
+		subcore_prep_dma_read(artix_select, num_bursts);
 		gcore_dma_start(GCORE_WAIT_RX);
         memcpy(read_data, dma_buf, read_size);
 
@@ -644,7 +648,114 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     // reset test_cycle counter and test_failed flag
     helper_gvpu_load_run(artix_select, TEST_CLEANUP);
 
+    return;
 }
+
+
+void get_dut_test_fail_pins(uint8_t **fail_pins, uint32_t *num_fail_pins){
+	uint64_t *dma_buf = NULL;
+    uint32_t num_bursts = 1;
+    size_t burst_size = num_bursts*BURST_BYTES;
+    enum artix_selects artix_select = ARTIX_SELECT_NONE;
+
+    // grab a1 and a2 fail pins
+    (*fail_pins) = NULL;
+    (*num_fail_pins) = 400;
+    if(((*fail_pins) = (uint8_t*)calloc((*num_fail_pins), sizeof(uint8_t))) == NULL){
+        die("error: calloc failed");
+    }
+    for(int i=0; i<(*num_fail_pins); i++){
+        (*fail_pins)[i] = 0x00;
+    }
+
+    for(int select=0; select<2; select++){
+        if(select == 0){
+            artix_select = ARTIX_SELECT_A1;
+        }else if(select == 1){
+            artix_select = ARTIX_SELECT_A2;
+        }else{
+            continue;
+        }
+
+        helper_gvpu_load_run(artix_select, TEST_CHECK);
+        helper_agent_load_run(artix_select, GVPU_READ);
+
+        // reset dma buffer
+        gcore_dma_alloc_reset();
+
+        // send one burst of data (1024 bytes)
+        subcore_prep_dma_read(artix_select, num_bursts);
+     
+        slog_info(0, "sending setup burst (%i bytes)...", burst_size);
+
+        // write the enable pins to TEST_SETUP
+        dma_buf = (uint64_t *)gcore_dma_alloc(burst_size, sizeof(uint8_t));
+        memset(dma_buf, 0xffffffff, burst_size);
+
+        gcore_dma_prep(NULL, 0, dma_buf, burst_size);
+        //subcore_prep_dma_read(artix_select, burst_size);
+        gcore_dma_start(GCORE_WAIT_RX);
+        if(select == 0){
+            for(int i=0; i<200; i++){
+                if(((uint8_t *)dma_buf)[i]){
+                    (*fail_pins)[i] = 1;
+                }else{
+                    (*fail_pins)[i] = 0;
+                }
+            }
+        }else if(select == 1){
+            for(int i=0; i<200; i++){
+                if(((uint8_t *)dma_buf)[i]){
+                    (*fail_pins)[i+200] = 1;
+                }else{
+                    (*fail_pins)[i+200] = 0;
+                }
+            }
+        }
+
+#ifdef GEM_DEBUG
+        for(int i=0; i<32;i++){
+            slog_debug(0, "fail_pin %02i: 0x%016"PRIX64"", i, dma_buf[i]);
+        }
+#endif
+    }
+
+    return;
+}
+
+void print_dut_test_fail_pins(struct stim *stim, uint8_t *fail_pins, uint32_t num_fail_pins){
+    struct profile_pin *pin = NULL;
+
+    if(stim == NULL){
+        die("pointer is NULL");
+    }
+    if(fail_pins == NULL){
+        die("pointer is NULL");
+    }
+
+    printf("   pins: ");
+
+    for(int i=0; i<stim->num_pins; i++){
+        pin = stim->pins[i];
+        printf("%s ", pin->net_name);
+    }
+    printf("\n");
+
+    printf("                ");
+    for(int i=0; i<stim->num_pins; i++){
+        pin = stim->pins[i];
+        if(fail_pins[pin->dut_io_id]){
+            printf("F ");
+        }else{
+            printf(". ");
+        }
+        for(int j=0; j<strlen(pin->net_name); j++){
+            printf(" ");
+        }
+    }
+    printf("\n");
+}
+
 
 //
 // Given a dots, rbt, bin, bit or stim path, create a stim file and
@@ -792,7 +903,7 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
 
         if(master_test_failed || slave_test_failed){
             if(master_test_cycle != slave_test_cycle){
-                slog_fatal(0, "fail test cycle is not the same. a1:%d a2:%d out of %i", master_test_cycle, slave_test_cycle, total_unrolled_vecs);
+                slog_fatal(0, "fail test cycle is not the same. a1:%d a2:%d", master_test_cycle, slave_test_cycle);
             }
 
             if(master_test_failed && slave_test_failed){
@@ -812,12 +923,20 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
                 slave_test_failed = true;
             }
             
-            if((master_test_failed || slave_test_failed) == false){
+            if((master_test_failed && slave_test_failed) == false){
                 if(master_test_cycle != slave_test_cycle){
                     slog_fatal(0, "test passed in a1 and a2 but the test cycle is not the same");
                 }
                 slog_info(0, "test PASS (executed %i of %i vectors)!", master_test_cycle, total_unrolled_vecs);
             }
+        }
+
+        if(master_test_failed || slave_test_failed){
+            uint32_t num_fail_pins = 0;
+            uint8_t *fail_pins = NULL;
+            get_dut_test_fail_pins(&fail_pins, &num_fail_pins);
+            print_dut_test_fail_pins(stim, fail_pins, num_fail_pins);
+            free(fail_pins);
         }
     }else{
         // msb byte is 0:did_stall:status_switch
@@ -838,6 +957,14 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
             }else{
                 slog_info(0, "test PASS (executed %i of %i vectors)!", master_test_cycle, total_unrolled_vecs);
             }
+        }
+
+        if(master_test_failed){
+            uint32_t num_fail_pins = 0;
+            uint8_t *fail_pins = NULL;
+            get_dut_test_fail_pins(&fail_pins, &num_fail_pins);
+            print_dut_test_fail_pins(stim, fail_pins, num_fail_pins);
+            free(fail_pins);
         }
     }
 
