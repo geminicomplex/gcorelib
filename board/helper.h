@@ -36,6 +36,7 @@ void helper_gvpu_load_run(enum artix_selects artix_select,
     enum gvpu_states gvpu_state);
 void helper_gvpu_packet_write(enum artix_selects artix_select,
     struct gcore_ctrl_packet *packet);
+uint64_t helper_get_agent_status_cycle(enum artix_selects artix_select);
 void helper_get_agent_status(enum artix_selects artix_select, struct gcore_ctrl_packet *packet);
 void helper_print_agent_status(enum artix_selects artix_select);
 void helper_fopen(char *file_path, int *fd, FILE **fp, off_t *file_size);

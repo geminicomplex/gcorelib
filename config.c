@@ -103,9 +103,9 @@ uint32_t get_config_num_vecs_by_type(enum config_types type){
  * clock is enabled to get the actual number of vectors.
  *
  */
-uint32_t get_config_unrolled_num_vecs_by_type(enum config_types type){
+uint64_t get_config_unrolled_num_vecs_by_type(enum config_types type){
     const char **vec_data = NULL;
-    uint32_t unrolled_num_vecs = 0;
+    uint64_t unrolled_num_vecs = 0;
 
     if(type == CONFIG_TYPE_NONE){
         die("error: no config type given");
@@ -124,7 +124,7 @@ uint32_t get_config_unrolled_num_vecs_by_type(enum config_types type){
     uint32_t num_vecs = get_config_num_vecs_by_type(type);
 
     for(int i=0; i<(num_vecs*2); i=i+2){
-        uint32_t repeat = atoi(vec_data[i+0]);
+        uint64_t repeat = strtoull(vec_data[i+0], (char**)NULL, 10);
         if(vec_data[i+1][CONFIG_VEC_CCLK_INDEX] == 'C'){
             repeat *= 2;
         }

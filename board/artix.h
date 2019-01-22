@@ -25,7 +25,7 @@ void artix_mem_write(enum artix_selects artix_select,
 void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
     uint64_t *read_data, size_t read_size);
 void artix_mem_test(enum artix_selects artix_select, bool run_crc);
-bool artix_dut_test(struct stim *stim, int64_t *test_cycle);
+bool artix_dut_test(struct stim *stim, uint64_t *test_cycle);
 void get_dut_test_fail_pins(uint8_t **fail_pins, uint32_t *num_fail_pins);
 void print_dut_test_fail_pins(struct stim *stim, 
     uint8_t *fail_pins, uint32_t num_fail_pins);

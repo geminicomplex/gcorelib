@@ -87,7 +87,7 @@ struct SerialStim {
 	uint16_t numPins;
 	ProfilePin_list pins;
 	uint32_t numVecs;
-	uint32_t numUnrolledVecs;
+	uint64_t numUnrolledVecs;
 	uint32_t numPaddingVecs;
 	uint32_t numA1VecChunks;
 	uint32_t numA2VecChunks;

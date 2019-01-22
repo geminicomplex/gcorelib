@@ -405,8 +405,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
                 break;
             }else{
                 if(counter >= 0x000000ff){
-                    helper_get_agent_status(artix_select, &packet);
-                    crc_cycle = packet.addr;
+                    crc_cycle = helper_get_agent_status_cycle(artix_select);
                     helper_print_agent_status(artix_select);
                     counter = 0;
                     break;
@@ -417,8 +416,8 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         }
 
         // grab number of test cycles and if it failed
+        crc_cycle = helper_get_agent_status_cycle(artix_select);
         helper_get_agent_status(artix_select, &packet);
-        crc_cycle = packet.addr;
         if((packet.data & 0x000f0000) == 0x00010000){
             crc_failed = true;
         }
@@ -446,9 +445,9 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 
     if(run_crc){
         if(crc_failed){
-            slog_info(0, "mem test failed at word %d :(", ((crc_cycle*1024)/8));
+            slog_info(0, "mem test failed at word %llu :(", ((crc_cycle*1024)/8));
         }else{
-            slog_info(0, "mem test PASS (ran %i cycles)!", crc_cycle);
+            slog_info(0, "mem test PASS (ran %llu cycles)!", crc_cycle);
         }
     }
 
@@ -651,7 +650,6 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     return;
 }
 
-
 void get_dut_test_fail_pins(uint8_t **fail_pins, uint32_t *num_fail_pins){
 	uint64_t *dma_buf = NULL;
     uint32_t num_bursts = 1;
@@ -677,7 +675,7 @@ void get_dut_test_fail_pins(uint8_t **fail_pins, uint32_t *num_fail_pins){
             continue;
         }
 
-        helper_gvpu_load_run(artix_select, TEST_CHECK);
+        helper_gvpu_load_run(artix_select, TEST_FAIL_PINS);
         helper_agent_load_run(artix_select, GVPU_READ);
 
         // reset dma buffer
@@ -773,18 +771,18 @@ void print_dut_test_fail_pins(struct stim *stim, uint8_t *fail_pins, uint32_t nu
 // returns -1 if pass or failing cycle number (zero indexed)
 //
 //
-bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
+bool artix_dut_test(struct stim *stim, uint64_t *test_cycle){
     struct gcore_ctrl_packet master_packet;
     struct gcore_ctrl_packet slave_packet;
 	bool master_test_failed = false;
 	bool slave_test_failed = false;
-    uint32_t master_test_cycle = 0;
-    uint32_t slave_test_cycle = 0;
+    uint64_t master_test_cycle = 0;
+    uint64_t slave_test_cycle = 0;
     enum artix_selects artix_select = ARTIX_SELECT_NONE;
     uint64_t total_unrolled_vecs = 0;
 
     if(test_cycle != NULL){
-        (*test_cycle) = -1;
+        (*test_cycle) = 0;
     }
 
     if(stim == NULL){
@@ -799,7 +797,7 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
         die("stim has neither a1 nor a2 chunks");
     }
 
-    total_unrolled_vecs = (stim->num_unrolled_vecs+stim->num_padding_vecs);
+    total_unrolled_vecs = (stim->num_unrolled_vecs+(uint64_t)(stim->num_padding_vecs));
 
     bool dual_mode = false;
     if(stim->num_a1_vec_chunks > 0 && stim->num_a2_vec_chunks > 0){
@@ -851,8 +849,7 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
             break;
         }else{
             if(counter >= 0x000fffff){
-                helper_get_agent_status(artix_select, &master_packet);
-                master_test_cycle = master_packet.addr;
+                master_test_cycle = helper_get_agent_status_cycle(artix_select);
                 if(dual_mode){
                     helper_print_agent_status(ARTIX_SELECT_A1);
                     helper_print_agent_status(ARTIX_SELECT_A2);
@@ -869,18 +866,19 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
 
     // grab number of test cycles and if it failed
     helper_get_agent_status(artix_select, &master_packet);
-    master_test_cycle = (master_packet.addr & 0x0fffffff);
     if((master_packet.data & 0x000f0000) == 0x00010000){
         master_test_failed = true;
     }
 
+    master_test_cycle = helper_get_agent_status_cycle(artix_select);
+
     if(dual_mode){
         helper_get_agent_status(ARTIX_SELECT_A2, &slave_packet);
-
-        slave_test_cycle = (slave_packet.addr & 0x0fffffff);
         if((slave_packet.data & 0x000f0000) == 0x00010000){
             slave_test_failed = true;
         }
+
+        slave_test_cycle = helper_get_agent_status_cycle(ARTIX_SELECT_A2);
 
         if((master_packet.addr & 0xf0000000) >> 30){
             slog_warn(0, "warning: a1 read fifo stalled during test");
@@ -903,23 +901,23 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
 
         if(master_test_failed || slave_test_failed){
             if(master_test_cycle != slave_test_cycle){
-                slog_fatal(0, "fail test cycle is not the same. a1:%d a2:%d", master_test_cycle, slave_test_cycle);
+                slog_fatal(0, "fail test cycle is not the same. a1:%llu a2:%llu", master_test_cycle, slave_test_cycle);
             }
 
             if(master_test_failed && slave_test_failed){
-                slog_error(0, "test failed in a1 and a2 at vector %d out of %i :(", master_test_cycle, total_unrolled_vecs);
+                slog_error(0, "test failed in a1 and a2 at vector %llu out of %llu :(", master_test_cycle, total_unrolled_vecs);
             }else if(master_test_failed){
-                slog_error(0, "test failed in a1 at vector %d out of %i :(", master_test_cycle, total_unrolled_vecs);
+                slog_error(0, "test failed in a1 at vector %llu out of %llu :(", master_test_cycle, total_unrolled_vecs);
             }else if(slave_test_failed){
-                slog_error(0, "test failed in a2 at vector %d out of %i :(", slave_test_cycle, total_unrolled_vecs);
+                slog_error(0, "test failed in a2 at vector %llu out of %llu :(", slave_test_cycle, total_unrolled_vecs);
             }
         }else{
             if(master_test_cycle < total_unrolled_vecs || master_test_cycle > total_unrolled_vecs){
-                slog_error(0, "a1 test failed (executed %i of %i vectors) (fail flag didn't assert)!", master_test_cycle, total_unrolled_vecs);
+                slog_error(0, "a1 test failed (executed %llu of %llu vectors) (fail flag didn't assert)!", master_test_cycle, total_unrolled_vecs);
                 master_test_failed = true;
             }
             if(slave_test_cycle < total_unrolled_vecs || slave_test_cycle > total_unrolled_vecs){
-                slog_error(0, "a2 test failed (executed %i of %i vectors) (fail flag didn't assert)!", slave_test_cycle, total_unrolled_vecs);
+                slog_error(0, "a2 test failed (executed %llu of %llu vectors) (fail flag didn't assert)!", slave_test_cycle, total_unrolled_vecs);
                 slave_test_failed = true;
             }
             
@@ -927,7 +925,7 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
                 if(master_test_cycle != slave_test_cycle){
                     slog_fatal(0, "test passed in a1 and a2 but the test cycle is not the same");
                 }
-                slog_info(0, "test PASS (executed %i of %i vectors)!", master_test_cycle, total_unrolled_vecs);
+                slog_info(0, "test PASS (executed %llu of %llu vectors)!", master_test_cycle, total_unrolled_vecs);
             }
         }
 
@@ -939,6 +937,9 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
             free(fail_pins);
         }
     }else{
+
+        master_test_cycle = helper_get_agent_status_cycle(artix_select);
+
         // msb byte is 0:did_stall:status_switch
         if((master_packet.addr & 0xf0000000) >> 30){
             slog_warn(0, "warning: read fifo stalled during test");
@@ -949,13 +950,13 @@ bool artix_dut_test(struct stim *stim, int64_t *test_cycle){
         }
 
         if(master_test_failed){
-            slog_error(0, "test failed at vector %d out of %i :(", master_test_cycle, total_unrolled_vecs);
+            slog_error(0, "test failed at vector %llu out of %llu :(", master_test_cycle, total_unrolled_vecs);
         }else{
             if(master_test_cycle < total_unrolled_vecs || master_test_cycle > total_unrolled_vecs){
-                slog_error(0, "test failed (executed %i of %i vectors) (fail flag didn't assert)!", master_test_cycle, total_unrolled_vecs);
+                slog_error(0, "test failed (executed %llu of %llu vectors) (fail flag didn't assert)!", master_test_cycle, total_unrolled_vecs);
                 master_test_failed = true;
             }else{
-                slog_info(0, "test PASS (executed %i of %i vectors)!", master_test_cycle, total_unrolled_vecs);
+                slog_info(0, "test PASS (executed %llu of %llu vectors)!", master_test_cycle, total_unrolled_vecs);
             }
         }
 

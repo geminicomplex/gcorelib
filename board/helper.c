@@ -294,6 +294,32 @@ void helper_gvpu_packet_write(enum artix_selects artix_select,
     return;
 }
 
+uint64_t helper_get_agent_status_cycle(enum artix_selects artix_select){
+    struct gcore_ctrl_packet packet;
+	uint64_t status_cycle = 0;
+
+    // clean packet
+    packet.rank_select = 0;
+    packet.addr = 0;
+    packet.data = 0;
+
+    helper_agent_load_run(artix_select, GVPU_CYCLE);
+
+    // agent is in gvpu_cycle, do ctrl_read to grab data
+    helper_subcore_load_run(artix_select, CTRL_READ);
+    
+    // read ctrl_axi
+    gcore_ctrl_read(&packet);
+    
+    // wait for subcore idle state
+    gcore_subcore_idle();
+
+    status_cycle = (((uint64_t)(packet.addr)) << 32);
+    status_cycle = status_cycle | ((uint64_t)(packet.data));
+
+    return status_cycle;
+}
+
 /*
  * There are two ways to get the status of agent, one is through
  * a1/a2 status registers, and the second is to load agent with
@@ -303,6 +329,11 @@ void helper_gvpu_packet_write(enum artix_selects artix_select,
  */
 void helper_get_agent_status(enum artix_selects artix_select, 
         struct gcore_ctrl_packet *packet){
+
+    if(packet == NULL){
+        die("pointer is NULL");
+    }
+
     // clean packet
     packet->rank_select = 0;
     packet->addr = 0;
@@ -485,6 +516,9 @@ void print_agent_state(enum agent_states agent_state, char *pre){
         case GVPU_READ:
             slog_info(0,"%sgvpu_read", pre);
             break;
+        case GVPU_CYCLE:
+            slog_info(0,"%sgvpu_cycle", pre);
+            break;
         case GVPU_RESET:
             slog_info(0,"%sgvpu_reset", pre);
             break;
@@ -536,8 +570,8 @@ void print_gvpu_state(enum gvpu_states gvpu_state, char *pre){
         case TEST_RUN:
             slog_info(0,"%stest_run", pre);
 			break;
-        case TEST_CHECK:
-            slog_info(0,"%stest_check", pre);
+        case TEST_FAIL_PINS:
+            slog_info(0,"%stest_fail_pins", pre);
 			break;
         case TEST_CLEANUP:
             slog_info(0,"%stest_cleanup", pre);

@@ -53,7 +53,7 @@ void append_dots_vec_by_vec_str(struct dots *dots,
     }
 
     dots_vec = create_dots_vec(dots);
-    dots_vec->repeat = atoi(repeat);
+    dots_vec->repeat = strtoull(repeat, (char**)NULL, 10);
     dots_vec->vec_str = strdup(vec_str);
     dots->dots_vecs[dots->cur_appended_dots_vec_id++] = dots_vec;
 
@@ -229,9 +229,9 @@ void unexpand_dots_vec_subvecs(struct dots_vec *dots_vec){
  * Return which vector bucket the id falls into.
  *
  */
-struct dots_vec *get_dots_vec_by_unrolled_id(struct dots *dots, uint32_t id){
+struct dots_vec *get_dots_vec_by_unrolled_id(struct dots *dots, uint64_t id){
     struct dots_vec *dots_vec = NULL;
-    uint32_t start = 0;
+    uint64_t start = 0;
     if(dots == NULL){
         die("error: pointer is NULL");
     }
@@ -251,8 +251,8 @@ struct dots_vec *get_dots_vec_by_unrolled_id(struct dots *dots, uint32_t id){
  * value to get the total unrolled vec count.
  *
  */
-uint32_t get_num_unrolled_dots_vecs(struct dots *dots){
-    uint32_t num_unrolled_vecs = 0;
+uint64_t get_num_unrolled_dots_vecs(struct dots *dots){
+    uint64_t num_unrolled_vecs = 0;
 
     if(dots == NULL){
         die("pointer is NULL");

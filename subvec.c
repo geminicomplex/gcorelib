@@ -14,6 +14,7 @@
 #include "common.h"
 #include "subvec.h"
 
+#include <inttypes.h>
 
 /*
  * Given a vector , pack the subvec for the given dut_io_id.
@@ -54,10 +55,10 @@ void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, uint32_t dut_io_id, enum
 /*
  * Given a vector, packs the opcode and it's operand in the remaining space.
  *
- * TODO: operand is 27 bytes long, but we're only using 32bits of it. Support the full size.
+ * Note: operand is 27 bytes long, but we only support a 64 bit operand.
  *
  */
-void pack_subvecs_with_opcode_and_operand(uint8_t *packed_subvecs, enum subvec_opcode opcode, uint32_t operand){
+void pack_subvecs_with_opcode_and_operand(uint8_t *packed_subvecs, enum subvec_opcode opcode, uint64_t operand){
     if(packed_subvecs == NULL){
         die("error: pointer is null");
     }
@@ -76,10 +77,11 @@ void pack_subvecs_with_opcode_and_operand(uint8_t *packed_subvecs, enum subvec_o
     packed_subvecs[operand_index+1] = *((uint8_t*)(&operand)+1);
     packed_subvecs[operand_index+2] = *((uint8_t*)(&operand)+2);
     packed_subvecs[operand_index+3] = *((uint8_t*)(&operand)+3);
-    //
-    //packed_subvecs[operand_index] = 1;
-    //
-    //packed_subvecs[100] = operand;
+    packed_subvecs[operand_index+4] = *((uint8_t*)(&operand)+4);
+    packed_subvecs[operand_index+5] = *((uint8_t*)(&operand)+5);
+    packed_subvecs[operand_index+6] = *((uint8_t*)(&operand)+6);
+    packed_subvecs[operand_index+7] = *((uint8_t*)(&operand)+7);
+
     return;
 }
 

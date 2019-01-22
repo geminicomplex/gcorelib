@@ -136,7 +136,7 @@ struct stim {
     uint16_t num_pins;
     struct profile_pin **pins;
     uint32_t num_vecs;
-    uint32_t num_unrolled_vecs;
+    uint64_t num_unrolled_vecs;
     uint32_t num_a1_vec_chunks;
     uint32_t num_a2_vec_chunks;
     struct vec_chunk **a1_vec_chunks;
@@ -183,7 +183,7 @@ struct vec_chunk *stim_decompress_vec_chunk(struct vec_chunk *chunk);
 
 // private
 struct stim *init_stim(struct stim *stim, struct profile_pin **pins, 
-    uint32_t num_pins, uint32_t num_vecs, uint32_t num_unrolled_vecs);
+    uint32_t num_pins, uint32_t num_vecs, uint64_t num_unrolled_vecs);
 
 struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk);
 struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,

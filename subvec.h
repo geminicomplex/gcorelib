@@ -59,7 +59,7 @@ void pack_subvecs_by_pin_id(uint8_t *packed_subvecs,
 void pack_subvecs_by_dut_io_id(uint8_t *packed_subvecs, 
     uint32_t dut_io_id, enum subvecs subvec);
 void pack_subvecs_with_opcode_and_operand(uint8_t *packed_subvecs, 
-    enum subvec_opcode opcode, uint32_t operand);
+    enum subvec_opcode opcode, uint64_t operand);
 
 
 #ifdef __cplusplus

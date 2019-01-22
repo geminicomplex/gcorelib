@@ -33,7 +33,7 @@ extern "C" {
  */
 struct dots_vec {
     // vector repeat count and stimulus string
-    uint32_t repeat;
+    uint64_t repeat;
     char *vec_str;
 
     // has the repeat/vec_str been converted to subvecs
@@ -78,8 +78,8 @@ void append_dots_vec_by_nop_vecs(struct dots *dots, uint32_t num_nop_vecs);
 void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, 
     enum subvecs *data_subvecs, uint32_t num_data_subvecs);
 void unexpand_dots_vec_subvecs(struct dots_vec *dots_vec);
-struct dots_vec *get_dots_vec_by_unrolled_id(struct dots *dots, uint32_t id);
-uint32_t get_num_unrolled_dots_vecs(struct dots *dots);
+struct dots_vec *get_dots_vec_by_unrolled_id(struct dots *dots, uint64_t id);
+uint64_t get_num_unrolled_dots_vecs(struct dots *dots);
 struct dots_vec *create_dots_vec(struct dots *dots);
 struct dots *free_dots(struct dots *dots);
 struct dots_vec *free_dots_vec(struct dots_vec *dots_vec);

@@ -51,7 +51,7 @@ struct SerialStim {
     numPins @1 :UInt16;
     pins @2 :List(ProfilePin);
     numVecs @3 :UInt32;
-    numUnrolledVecs @4 :UInt32;
+    numUnrolledVecs @4 :UInt64;
     numPaddingVecs @5 :UInt32;
     numA1VecChunks @6 :UInt32;
     numA2VecChunks @7 :UInt32;

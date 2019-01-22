@@ -407,7 +407,7 @@ struct stim *create_stim(){
  *
  */
 struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t num_pins, 
-        uint32_t num_vecs, uint32_t num_unrolled_vecs){
+        uint32_t num_vecs, uint64_t num_unrolled_vecs){
     enum artix_selects artix_select = ARTIX_SELECT_NONE;
     if(stim == NULL){
         die("error: failed to initialized stim, pointer is NULL");
@@ -529,9 +529,9 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         }
     }
 
-    slog_debug(0,"num_vecs: %i num_unrolled_vecs: %i", 
+    slog_debug(0,"num_vecs: %i num_unrolled_vecs: %llu", 
             (stim->num_vecs+stim->num_padding_vecs), 
-            (stim->num_unrolled_vecs+stim->num_padding_vecs));
+            (stim->num_unrolled_vecs+(uint64_t)(stim->num_padding_vecs)));
 
     return stim;
 }
@@ -1046,7 +1046,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
     uint32_t num_pins = 0;
     struct profile_pin **pins = NULL;
     uint32_t num_vecs = 0;
-    uint32_t num_unrolled_vecs = 0;
+    uint64_t num_unrolled_vecs = 0;
     char buffer[BUFFER_LENGTH];
     char *real_path = NULL;
 
@@ -1280,7 +1280,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             uint32_t num_body_vecs = num_file_vecs*get_config_num_vecs_by_type(CONFIG_TYPE_BODY);
             num_vecs += num_body_vecs; 
 
-            uint32_t num_unrolled_body_vecs = num_file_vecs*get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_BODY);
+            uint64_t num_unrolled_body_vecs = ((uint64_t)num_file_vecs)*get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_BODY);
             num_unrolled_vecs += num_unrolled_body_vecs;
 
             // must get the profile pins from the particular file we're loading
@@ -1315,7 +1315,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
  */
 struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots){
     struct stim *stim = NULL;
-    uint32_t num_unrolled_vecs = 0;
+    uint64_t num_unrolled_vecs = 0;
     struct profile *profile = NULL;
 
     if((profile = get_profile_by_path(profile_path)) == NULL){
