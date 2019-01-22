@@ -59,7 +59,6 @@ void print_stacktrace();
 // number of bytes per dma burst
 #define BURST_BYTES (1024)
 
-
 // number of pins per artix unit
 #define DUT_NUM_PINS (200)
 
@@ -78,6 +77,17 @@ void print_stacktrace();
 
 // 8 vecs per 1024 byte burst
 #define STIM_NUM_VECS_PER_BURST (8)
+
+// maximum number of vectors we can fit in 8GB memory
+#define MAX_NUM_VECS (67108864)
+
+// maximum number of unrolled vectors. 64 bit number, but 
+// arbitrarily limit it to (2**37), which is around 45 mins
+// runtime at 20 ns per vec.
+#define MAX_NUM_UNROLLED_VECS (137438953472)
+
+// (2**35) vecs. Runtime around 11 mins at 20 ns per vec
+#define MAX_NUM_UNROLLED_VECS_WARNING (34359738368)
 
 void gcore_init_log(const char *log_path);
 

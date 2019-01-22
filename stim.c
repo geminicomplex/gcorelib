@@ -429,6 +429,19 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         die("error: failed to init stim, num_profile_pins %i > %i", stim->num_pins, DUT_TOTAL_NUM_PINS);
     }
 
+    if(stim->num_vecs > MAX_NUM_VECS){
+        die("number of vectors cannot exceed %"PRIu64"", MAX_NUM_VECS);
+    }
+
+    if(stim->num_unrolled_vecs > MAX_NUM_UNROLLED_VECS){
+        die("number of unrolled vectors cannot exceed %"PRIu64"", MAX_NUM_UNROLLED_VECS);
+    }
+
+    if(stim->num_unrolled_vecs > MAX_NUM_UNROLLED_VECS_WARNING){
+        slog_warn(0, "number of unrolled vectors is over %"PRIu64", "
+            "which will run for over 10 mins. Are you sure?", MAX_NUM_UNROLLED_VECS_WARNING);
+    }
+
     // Check if pins given are for both units or for either a1 or a2.
     // If both, then we double the number of chunks, each half going
     // to either unit.
@@ -529,7 +542,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         }
     }
 
-    slog_debug(0,"num_vecs: %i num_unrolled_vecs: %llu", 
+    slog_info(0,"num_vecs: %i num_unrolled_vecs: %llu", 
             (stim->num_vecs+stim->num_padding_vecs), 
             (stim->num_unrolled_vecs+(uint64_t)(stim->num_padding_vecs)));
 
