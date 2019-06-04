@@ -1,4 +1,4 @@
-#include "stim.capnp.h"
+#include "stim_serdes.capnp.h"
 /* AUTO GENERATED - DO NOT EDIT */
 static const capn_text capn_val0 = {0,""};
 

@@ -252,7 +252,7 @@ size_t util_str_split(char* a_str, const char a_delim, char*** results){
     /* Add space for trailing token. */
     count += last_delim < (a_str + strlen(a_str) - 1);
 
-    if(((*results) = malloc(sizeof(char*) * count)) == NULL){
+    if(((*results) = (char**)malloc(sizeof(char*) * count)) == NULL){
         die("malloc failed for count %zu", count);
     }
 

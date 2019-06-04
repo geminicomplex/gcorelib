@@ -17,7 +17,7 @@
 #include "util.h"
 #include "profile.h"
 #include "config.h"
-#include "serialize/stim.capnp.h"
+#include "serialize/stim_serdes.capnp.h"
 #include "lib/capnp/capnp_c.h"
 #include "lib/lz4/lz4.h"
 #include "../driver/gcore_common.h"
@@ -430,15 +430,15 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     }
 
     if(stim->num_vecs > MAX_NUM_VECS){
-        die("number of vectors cannot exceed %"PRIu64"", MAX_NUM_VECS);
+        die("number of vectors cannot exceed %" PRIu64"", MAX_NUM_VECS);
     }
 
     if(stim->num_unrolled_vecs > MAX_NUM_UNROLLED_VECS){
-        die("number of unrolled vectors cannot exceed %"PRIu64"", MAX_NUM_UNROLLED_VECS);
+        die("number of unrolled vectors cannot exceed %" PRIu64"", MAX_NUM_UNROLLED_VECS);
     }
 
     if(stim->num_unrolled_vecs > MAX_NUM_UNROLLED_VECS_WARNING){
-        slog_warn(0, "number of unrolled vectors is over %"PRIu64", "
+        slog_warn(0, "number of unrolled vectors is over %" PRIu64", "
             "which will run for over 10 mins. Are you sure?", MAX_NUM_UNROLLED_VECS_WARNING);
     }
 
@@ -1243,6 +1243,12 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
         stim->start_map_byte = stim->cur_map_byte;
     }
 
+    // initialize
+    int32_t dut_id = -1;
+    uint32_t num_file_vecs = 0;
+    uint32_t num_body_vecs = 0;
+    uint64_t num_unrolled_body_vecs = 0;
+
     // get the pins, num_pins and num_vecs for each file type
     switch(stim->type){
         case STIM_TYPE_NONE:
@@ -1257,7 +1263,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
 
             // TODO: dut_id = -1 filters by all duts. Which only works if there is one dut.
             //       Pass the correct dut_id when supported multiple-duts.
-            int32_t dut_id = -1;
+            dut_id = -1;
             if((pins = get_config_profile_pins(stim->profile, dut_id, &num_pins)) == NULL){
                 die("error: failed to get profile config pins");
             }
@@ -1286,14 +1292,14 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             num_unrolled_vecs += get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_FOOTER);
 
             // bin files have no header, it's just raw words ready to use.
-            uint32_t num_file_vecs = (uint32_t)(bitstream_size/sizeof(uint32_t));
+            num_file_vecs = (uint32_t)(bitstream_size/sizeof(uint32_t));
             if(bitstream_size % sizeof(uint32_t) != 0){
                 die("error: bitstream given '%s' is not 32 bit word aligned", path);
             }
-            uint32_t num_body_vecs = num_file_vecs*get_config_num_vecs_by_type(CONFIG_TYPE_BODY);
+            num_body_vecs = num_file_vecs*get_config_num_vecs_by_type(CONFIG_TYPE_BODY);
             num_vecs += num_body_vecs; 
 
-            uint64_t num_unrolled_body_vecs = ((uint64_t)num_file_vecs)*get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_BODY);
+            num_unrolled_body_vecs = ((uint64_t)num_file_vecs)*get_config_unrolled_num_vecs_by_type(CONFIG_TYPE_BODY);
             num_unrolled_vecs += num_unrolled_body_vecs;
 
             // must get the profile pins from the particular file we're loading
@@ -1505,8 +1511,8 @@ struct stim *free_stim(struct stim *stim){
 static size_t stim_serialize_chunk(struct stim *stim, enum artix_selects artix_select, 
         struct capn_segment *cs, struct SerialStim *serialStim){
     struct vec_chunk *chunk = NULL;
-    char *compressed_data = NULL;
-    int compressed_data_size = 0;
+    uint8_t *compressed_data = NULL;
+    uint32_t compressed_data_size = 0;
     size_t total_saved_size = 0;
 
     if(stim == NULL){
@@ -1535,20 +1541,20 @@ static size_t stim_serialize_chunk(struct stim *stim, enum artix_selects artix_s
             .id = chunk->id,
             .artixSelect = (enum VecChunk_ArtixSelects)chunk->artix_select,
             .numVecs = chunk->num_vecs,
-            .vecDataSize = chunk->vec_data_size,
+            .vecDataSize = (uint32_t)chunk->vec_data_size,
         };
 
         int max_dst_size = LZ4_compressBound(chunk->vec_data_size);
-        if((compressed_data = malloc(max_dst_size)) == NULL){
+        if((compressed_data = (uint8_t*)malloc(max_dst_size)) == NULL){
             die("failed to malloc");
         }
         compressed_data_size = LZ4_compress_default((char*)chunk->vec_data, 
-                compressed_data, chunk->vec_data_size, max_dst_size);
+                (char*)compressed_data, chunk->vec_data_size, max_dst_size);
 
-        if(compressed_data <= 0){
+        if(compressed_data_size <= 0){
             die("compression failed");
         }
-        if((compressed_data = (char*)realloc(compressed_data, 
+        if((compressed_data = (uint8_t*)realloc(compressed_data, 
                 compressed_data_size)) == NULL){
             die("re-alloc failed");
         }
@@ -1625,7 +1631,7 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
 
     for(int i=0; i<stim->num_pins; i++){
         struct profile_pin *profile_pin = stim->pins[i];
-        enum ProfilePin_ProfileTags profileTag = 0; 
+        enum ProfilePin_ProfileTags profileTag = ProfilePin_ProfileTags_profileTagNone; 
         switch(profile_pin->tag){
             case PROFILE_TAG_NONE:
                 profileTag = ProfilePin_ProfileTags_profileTagNone;
@@ -1709,9 +1715,9 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         total_uncompressed_bytes += (uint64_t)(stim->a2_vec_chunks[i]->vec_data_size);
     }
 
-    slog_info(0,"total uncompressed size: %"PRIu64" bytes", total_uncompressed_bytes);
-    slog_info(0,"total compressed size: %"PRIu64" bytes", total_uncompressed_bytes-total_saved_size);
-    slog_info(0,"compression saved %"PRIu64" bytes", total_saved_size);
+    slog_info(0,"total uncompressed size: %" PRIu64" bytes", total_uncompressed_bytes);
+    slog_info(0,"total compressed size: %" PRIu64" bytes", total_uncompressed_bytes-total_saved_size);
+    slog_info(0,"compression saved %" PRIu64" bytes", total_saved_size);
 
     SerialStim_ptr serialStimPtr = new_SerialStim(cs);
     write_SerialStim(&serialStim, serialStimPtr);
@@ -1719,7 +1725,7 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
     if(setp_ret != 0){
         die("capn setp failed");
     }
-    capn_write_fd(&c, (const void*)&write_fd, fd, 0 /* packed */);
+    capn_write_fd(&c, &write_fd, fd, 0 /* packed */);
     capn_free(&c);
 
     close(fd);

@@ -61,7 +61,7 @@ AVLTree *CreateAVL(AVLComparator comparator) {
 
    AVLTreeData *tree;
 
-   tree = malloc(sizeof(AVLTreeData));
+   tree = (AVLTreeData *)malloc(sizeof(AVLTreeData));
    tree->root = NULL;
    tree->comparator = comparator;
    tree->size = 0;
@@ -116,7 +116,7 @@ void *Insert(AVLTreeData *data, AVLTreeNode **node,
 
    /* If this is an empty tree, just set the root and return. */
    if(!*node) {
-      *node = malloc(sizeof(AVLTreeNode));
+      *node = (AVLTreeNode *)malloc(sizeof(AVLTreeNode));
       (*node)->key = key;
       (*node)->value = value;
       (*node)->left = NULL;
@@ -133,7 +133,7 @@ void *Insert(AVLTreeData *data, AVLTreeNode **node,
          Balance(node);
          return result;
       } else {
-         (*node)->left = malloc(sizeof(AVLTreeNode));
+         (*node)->left = (AVLTreeNode *)malloc(sizeof(AVLTreeNode));
          np = (*node)->left;
       }
    } else if(rc > 0) {
@@ -142,7 +142,7 @@ void *Insert(AVLTreeData *data, AVLTreeNode **node,
          Balance(node);
          return result;
       } else {
-         (*node)->right = malloc(sizeof(AVLTreeNode));
+         (*node)->right = (AVLTreeNode *)malloc(sizeof(AVLTreeNode));
          np = (*node)->right;
       }
    } else {

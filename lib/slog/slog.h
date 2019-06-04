@@ -44,7 +44,7 @@ extern "C" {
  */
 #define LVL1(x) #x
 #define LVL2(x) LVL1(x)
-#define SOURCE_THROW_LOCATION "<"__FILE__":"LVL2(__LINE__)"> -- "
+#define SOURCE_THROW_LOCATION "<" __FILE__ ":" LVL2( __LINE__ )"> -- "
 
 
 /* 
