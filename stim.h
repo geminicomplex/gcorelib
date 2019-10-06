@@ -181,6 +181,9 @@ void stim_serialize_to_path(struct stim *stim, const char *path);
 struct stim *stim_deserialize(struct stim *stim);
 struct vec_chunk *stim_decompress_vec_chunk(struct vec_chunk *chunk);
 
+// get enable_pins array for gvpu TEST_SETUP
+uint8_t *stim_get_enable_pins_data(struct stim *stim, enum artix_selects artix_select);
+
 // private
 struct stim *init_stim(struct stim *stim, struct profile_pin **pins, 
     uint32_t num_pins, uint32_t num_vecs, uint64_t num_unrolled_vecs);

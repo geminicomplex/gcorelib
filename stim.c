@@ -64,7 +64,11 @@ static capn_text chars_to_text(const char *chars) {
  * capn_write_fd write callback funciton.
  *
  */
+#if defined(__APPLE__)
 ssize_t write_fd(int fd, const void *p, size_t count){
+#else
+ssize_t write_fd(int fd, void *p, size_t count){
+#endif
     ssize_t bytes = 0;
     bytes = write(fd, p, count);
     return bytes;
@@ -1910,5 +1914,71 @@ struct vec_chunk *stim_decompress_vec_chunk(struct vec_chunk *chunk){
     return chunk;
 }
 
+/*
+ * Returns byte array that we can pass to GVPU TEST_SETUP
+ * to enable/disable the DUT IO pins.
+ *
+ * Make sure you free array after use.
+ *
+ */
+uint8_t *stim_get_enable_pins_data(struct stim *stim, enum artix_selects artix_select){
+    uint32_t range_low = 0;
+    uint32_t range_high = 0;
+    struct profile_pin *pin = NULL;
+
+    if(stim == NULL){
+        die("pointer is NULL");
+    }
+
+    if(artix_select == ARTIX_SELECT_NONE){
+        die("no artix unit selected");
+    }
+
+    // check for correct dut_io_id based on artix unit 
+    if(artix_select == ARTIX_SELECT_A1){
+        range_low = 0;
+        range_high = DUT_NUM_PINS-1;
+    }else if(artix_select == ARTIX_SELECT_A2){
+        range_low = DUT_NUM_PINS;
+        range_high = DUT_TOTAL_NUM_PINS-1;
+    }
+
+    size_t burst_size = BURST_BYTES;
+
+    // clear all pins by FFing them. This will cause test_run to not 
+    // process those pins.
+    uint8_t *enable_pins = NULL;
+    uint32_t num_enable_pins = 256;
+    if((enable_pins = (uint8_t*)calloc(burst_size, sizeof(uint8_t))) == NULL){
+        die("error: calloc failed");
+    }
+    for(int i=0; i<num_enable_pins; i++){
+        enable_pins[i] = 0xff;
+    }
+
+    // turn on only the pins we're using based on the found dut_io_ids
+    for(int pin_id=0; pin_id<stim->num_pins; pin_id++){
+        pin = stim->pins[pin_id];
+
+        // skip past pins that are not in this artix_select
+        if(pin->dut_io_id < range_low || pin->dut_io_id > range_high){
+            continue;
+        }
+
+        // clamp the id from 0 to 200 since we're only writing to one
+        // dut at a time and so packed_subvecs will always be len of 200
+        uint8_t dut_io_id = (uint8_t)(pin->dut_io_id % DUT_NUM_PINS);
+
+        enable_pins[dut_io_id] = 0x00;
+
+#ifdef GEM_DEBUG
+        slog_debug(0, "%s : %i", pin->net_alias, dut_io_id);
+#endif
+    }
+
+    // Note: no need to swap the endianess of enable_pins because of the
+    // way 64 bit words are packed in agent, gvpu and memcore
+    return enable_pins;
+}
 
 
