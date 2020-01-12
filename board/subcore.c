@@ -28,10 +28,18 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
+#ifdef VERILATOR
+#include "../../sim/chip_top/chip.h"
+#endif
+
 /*
  * Configure subcore with an FSM state and artix unit.
  */
-void gcore_subcore_load(struct gcore_cfg *gcfg){
+void subcore_load(struct gcore_cfg *gcfg){
+#ifdef VERILATOR
+    struct chip *chip = get_chip_instance();
+    sim_ioctl_subcore_load(chip, gcfg->artix_select, gcfg->subcore_state);
+#else
     int gcore_fd = -1;
     if((gcore_fd = gcore_dev_get_fd()) == -1){
         die("failed to get gcore fd");
@@ -39,13 +47,18 @@ void gcore_subcore_load(struct gcore_cfg *gcfg){
     if(ioctl(gcore_fd, GCORE_SUBCORE_LOAD, gcfg) < 0){
 		die("gcorelib: error subcore_load failed");
 	}
+#endif
     return;
 }
 
 /*
  * Run loaded state.
  */
-void gcore_subcore_run(){
+void subcore_run(){
+#ifdef VERILATOR
+    struct chip *chip = get_chip_instance();
+    sim_ioctl_subcore_run(chip);
+#else
     int gcore_fd = -1;
     if((gcore_fd = gcore_dev_get_fd()) == -1){
         die("failed to get gcore fd");
@@ -53,13 +66,18 @@ void gcore_subcore_run(){
     if(ioctl(gcore_fd, GCORE_SUBCORE_RUN) < 0){
 		die("gcorelib: error subcore_run failed");
 	}
+#endif
     return;
 }
 
 /*
  * Waits for subcore to go back to IDLE state.
  */
-void gcore_subcore_idle(){
+void subcore_idle(){
+#ifdef VERILATOR
+    struct chip *chip = get_chip_instance();
+    sim_ioctl_subcore_idle(chip);
+#else
     int gcore_fd = -1;
     if((gcore_fd = gcore_dev_get_fd()) == -1){
         die("failed to get gcore fd");
@@ -68,6 +86,7 @@ void gcore_subcore_idle(){
     if(ioctl(gcore_fd, GCORE_SUBCORE_IDLE) < 0){
 		die("gcorelib: error subcore_idle failed");
 	}
+#endif
     return;
 }
 
@@ -75,8 +94,12 @@ void gcore_subcore_idle(){
  * Return the current state of subcore.
  *
  */
-void gcore_subcore_mode_state(uint32_t *mode_state){
+void subcore_mode_state(uint32_t *mode_state){
     struct gcore_registers *regs;
+#ifdef VERILATOR
+    struct chip *chip = get_chip_instance();
+    sim_ioctl_subcore_state(chip);
+#else
     int gcore_fd = -1;
     if((gcore_fd = gcore_dev_get_fd()) == -1){
         die("failed to get gcore fd");
@@ -84,16 +107,21 @@ void gcore_subcore_mode_state(uint32_t *mode_state){
     if(ioctl(gcore_fd, GCORE_SUBCORE_STATE) < 0){
 		die("gcorelib: error subcore_state failed");
 	}
-    regs = gcore_get_regs();
+#endif
+    regs = subcore_get_regs();
     (*mode_state) = (uint32_t)regs->data;
-    regs = gcore_free_regs(regs);
+    regs = subcore_free_regs(regs);
     return;
 }
 
 /*
  * Peform a subcore soft reset.
  */
-void gcore_subcore_reset(){
+void subcore_reset(){
+#ifdef VERILATOR
+    struct chip *chip = get_chip_instance();
+    sim_ioctl_subcore_reset(chip);
+#else
     int gcore_fd = -1;
     if((gcore_fd = gcore_dev_get_fd()) == -1){
         die("failed to get gcore fd");
@@ -101,6 +129,7 @@ void gcore_subcore_reset(){
     if(ioctl(gcore_fd, GCORE_SUBCORE_RESET) < 0){
 		die("gcorelib: error subcore_reset failed");
 	}
+#endif
     return;
 }
 
@@ -114,7 +143,11 @@ void gcore_subcore_reset(){
  * will write to subcore what's in the rank_sel, addr
  * and data regs.
  */
-void gcore_ctrl_write(struct gcore_ctrl_packet *packet){
+void subcore_write_packet(struct gcore_ctrl_packet *packet){
+#ifdef VERILATOR
+    struct chip *chip = get_chip_instance();
+    sim_ioctl_subcore_ctrl_write(chip, packet);
+#else
     int gcore_fd = -1;
     if((gcore_fd = gcore_dev_get_fd()) == -1){
         die("failed to get gcore fd");
@@ -122,6 +155,7 @@ void gcore_ctrl_write(struct gcore_ctrl_packet *packet){
     if(ioctl(gcore_fd, GCORE_CTRL_WRITE, packet) < 0){
 		die("gcorelib: error ctrl_write failed");
 	}
+#endif
     return;
 }
 
@@ -129,7 +163,11 @@ void gcore_ctrl_write(struct gcore_ctrl_packet *packet){
  * Subcore must be in ctrl_read state. Calling this ioctl
  * will read from subcore into the rank_sel, addr, data.
  */
-void gcore_ctrl_read(struct gcore_ctrl_packet *packet){
+void subcore_read_packet(struct gcore_ctrl_packet *packet){
+#ifdef VERILATOR
+    struct chip *chip = get_chip_instance();
+    sim_ioctl_subcore_ctrl_read(chip, packet);
+#else
     int gcore_fd = -1;
     if((gcore_fd = gcore_dev_get_fd()) == -1){
         die("failed to get gcore fd");
@@ -137,6 +175,7 @@ void gcore_ctrl_read(struct gcore_ctrl_packet *packet){
     if(ioctl(gcore_fd, GCORE_CTRL_READ, packet) < 0){
 		die("gcorelib: error ctrl_read failed");
 	}
+#endif
     return;
 }
 
@@ -146,7 +185,7 @@ void gcore_ctrl_read(struct gcore_ctrl_packet *packet){
  * other before starting the dut test.
  *
  */
-void gcore_artix_sync(bool sync){
+void subcore_artix_sync(bool sync){
     int gcore_fd = -1;
     struct gcore_ctrl_packet packet;
 
@@ -157,24 +196,25 @@ void gcore_artix_sync(bool sync){
     }else{
         packet.data = 0x00000000;
     }
+#ifdef VERILATOR
+    struct chip *chip = get_chip_instance();
+    sim_ioctl_subcore_artix_sync(chip, &packet);
+#else
     if((gcore_fd = gcore_dev_get_fd()) == -1){
         die("failed to get gcore fd");
     }
     if(ioctl(gcore_fd, GCORE_ARTIX_SYNC, &packet) < 0){
 		die("gcorelib: error artix_sync failed");
 	}
+#endif
     return;
 }
 
 /*
  * Gets all values of the registers.
  */
-struct gcore_registers* gcore_get_regs(){
+struct gcore_registers* subcore_get_regs(){
     struct gcore_registers *regs = NULL;
-    int gcore_fd = -1;
-    if((gcore_fd = gcore_dev_get_fd()) == -1){
-        die("failed to get gcore fd");
-    }
     if((regs = (struct gcore_registers *) malloc(sizeof(struct gcore_registers))) == NULL){
         die("error: malloc failed");
     }
@@ -184,9 +224,20 @@ struct gcore_registers* gcore_get_regs(){
 	regs->data = (u32) 0;
 	regs->a1_status = (u32) 0;
 	regs->a2_status = (u32) 0;
+
+#ifdef VERILATOR
+    struct chip *chip = get_chip_instance();
+    sim_ioctl_regs_read(chip, regs);
+#else
+    int gcore_fd = -1;
+    if((gcore_fd = gcore_dev_get_fd()) == -1){
+        die("failed to get gcore fd");
+    }
+    
     if(ioctl(gcore_fd, GCORE_REGS_READ, regs) < 0){
 		die("gcorelib: error regs_read failed");
 	}
+#endif
     return regs;
 }
 
@@ -194,7 +245,7 @@ struct gcore_registers* gcore_get_regs(){
  * Free the allocated regs.
  *
  */
-struct gcore_registers *gcore_free_regs(struct gcore_registers *regs){
+struct gcore_registers *subcore_free_regs(struct gcore_registers *regs){
     if(regs == NULL){
         die("pointer is NULL");
     }

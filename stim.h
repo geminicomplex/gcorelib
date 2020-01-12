@@ -120,13 +120,6 @@ struct vec_chunk {
  *
  */
 struct stim {
-    // TODO: Store data for both a1 and a2 in a stim. Right now it only stores
-    //       vec chunks for one unit. Obviously, if stim has vec data for both,
-    //       it will not work in multi-dut mode.
-    // TODO: Stims are board (profile) specific. A stim can run single-dut
-    //       mode or multi-dut mode if each artix unit goes to it's own dut.
-    //       If multi-mode, the stim can only have vec chunks for one unit.
-    //       Store which dut_ids the stim supports. 
     // TODO: Save the paths for reference when we serialize.
     // TODO: Save the stim api revision.
 

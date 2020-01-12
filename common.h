@@ -23,8 +23,9 @@ extern "C" {
 
 #include "../driver/gcore_common.h"
 
-
-//#define GEM_DEBUG
+#ifdef VERILATOR
+#define GEM_DEBUG
+#endif
 
 // can't include kernel headers so add defines here
 #ifndef u32
@@ -88,6 +89,9 @@ void print_stacktrace();
 
 // (2**35) vecs. Runtime around 11 mins at 20 ns per vec
 #define MAX_NUM_UNROLLED_VECS_WARNING (34359738368)
+
+// len=0x0f, size 2**6=64, incr_mode=0x1
+#define MEMCORE_BURST_CFG (0x0000f610)
 
 void gcore_init_log(const char *log_path);
 

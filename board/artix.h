@@ -16,9 +16,6 @@ extern "C" {
 #include "../../driver/gcore_common.h"
 
 #include "../stim.h"
-    
-// len=0x0f, size 2**6=64, incr_mode=0x1
-#define MEMCORE_BURST_CFG (0x0000f610)
 
 void artix_mem_write(enum artix_selects artix_select,
     uint64_t addr, uint64_t *write_data, size_t write_size);

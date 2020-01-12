@@ -31,7 +31,7 @@
  * state and run it.
  *
  */
-void helper_subcore_load_run(enum artix_selects artix_select,
+void helper_subcore_load(enum artix_selects artix_select,
         enum subcore_states subcore_state){
     struct gcore_cfg gcfg;
 
@@ -40,15 +40,15 @@ void helper_subcore_load_run(enum artix_selects artix_select,
     }
 
     // subcore must be in IDLE state to load and run
-    gcore_subcore_idle();
+    subcore_idle();
     
     // load the state machine
     gcfg.subcore_state = subcore_state;
     gcfg.artix_select = artix_select;
-    gcore_subcore_load(&gcfg);
+    subcore_load(&gcfg);
     
     // subcore is paused, run!
-    gcore_subcore_run();
+    subcore_run();
     return;
 }
 
@@ -58,7 +58,7 @@ void helper_subcore_load_run(enum artix_selects artix_select,
  * subcore to agent.
  *
  */
-void helper_agent_load_run(enum artix_selects artix_select,
+void helper_agent_load(enum artix_selects artix_select,
     enum agent_states agent_state){
     struct gcore_ctrl_packet packet;
     enum subcore_states subcore_state;
@@ -66,7 +66,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
     bool agent_did_startup = false;
 
     // Need to check for error
-    regs = gcore_get_regs();
+    regs = subcore_get_regs();
     if(regs != NULL){
 
         if(artix_select == ARTIX_SELECT_A1){
@@ -83,7 +83,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
             die("error: no artix unit given");
         }
     }
-    regs = gcore_free_regs(regs);
+    regs = subcore_free_regs(regs);
 
     /*
      * Only run state once. Each time it runs it asserts artix_reset_b and
@@ -100,18 +100,18 @@ void helper_agent_load_run(enum artix_selects artix_select,
         // wait for pll and mmcms to lock
         // init and calibrate ddr
         subcore_state = AGENT_STARTUP;
-        helper_subcore_load_run(artix_select, subcore_state);
+        helper_subcore_load(artix_select, subcore_state);
 
         sleep(2);
 
         // read agent status through ctrl_axi
-        gcore_ctrl_read(&packet);
+        subcore_read_packet(&packet);
 
         slog_info(0,"done.");
         print_packet(&packet, "start: ");
 
         // Need to check for error
-        regs = gcore_get_regs();
+        regs = subcore_get_regs();
         if(regs != NULL){
             if((regs->status & GCORE_STATUS_INIT_ERROR_MASK) == GCORE_STATUS_INIT_ERROR_MASK){
                 print_regs(regs);
@@ -119,7 +119,7 @@ void helper_agent_load_run(enum artix_selects artix_select,
                 exit(1);
             }
         }
-        regs = gcore_free_regs(regs);
+        regs = subcore_free_regs(regs);
     }
     
     // fill packet
@@ -129,20 +129,20 @@ void helper_agent_load_run(enum artix_selects artix_select,
 
     // set subcore to proxy ctrl data
     subcore_state = CTRL_WRITE;
-    helper_subcore_load_run(artix_select, subcore_state);
+    helper_subcore_load(artix_select, subcore_state);
     
     // subcore will go to ctrl_write, agent will be idle
-    gcore_ctrl_write(&packet);
+    subcore_write_packet(&packet);
     
     // wait for subcore idle state
-    gcore_subcore_idle();
+    subcore_idle();
     
     // runs loaded agent state
     subcore_state = CTRL_RUN;
-    helper_subcore_load_run(artix_select, subcore_state);
+    helper_subcore_load(artix_select, subcore_state);
     
     // wait for subcore idle state
-    gcore_subcore_idle();
+    subcore_idle();
     return;
 }
 
@@ -168,22 +168,22 @@ void helper_num_bursts_load(enum artix_selects artix_select,
 
     // load number of bursts into gvpu and memcore
     gvpu_state = MEM_BURST;
-    helper_gvpu_load_run(artix_select, gvpu_state);
+    helper_gvpu_load(artix_select, gvpu_state);
     
 	// load  number of bursts into agent
     agent_state = BURST_LOAD;
-    helper_agent_load_run(artix_select, agent_state);
+    helper_agent_load(artix_select, agent_state);
     
     // set subcore to proxy ctrl data
     subcore_state = CTRL_WRITE;
-    helper_subcore_load_run(artix_select, subcore_state);
+    helper_subcore_load(artix_select, subcore_state);
     
     // load num_bursts into agent, which will auto-load num_bursts
     // into gvpu and memcore
-    gcore_ctrl_write(&packet);
+    subcore_write_packet(&packet);
     
     // check if subcore is back to idle
-    gcore_subcore_idle();
+    subcore_idle();
     return;
 
 }
@@ -193,46 +193,57 @@ void helper_num_bursts_load(enum artix_selects artix_select,
  * load into memcore. Runs the state after loading it.
  *
  */
-void helper_memcore_load_run(enum artix_selects artix_select,
-    struct gcore_ctrl_packet *packet, uint32_t num_bursts){
+void helper_memcore_load(enum artix_selects artix_select, enum memcore_states memcore_state){
     enum gvpu_states gvpu_state;
-    struct gcore_ctrl_packet status_packet;
+    struct gcore_ctrl_packet packet;
 
-    if(packet == NULL){
-        die("error: pointer is NULL");
-    }
-    print_packet(packet, "memcore: ");
-
-    // save memcore state which we'll load
-    enum memcore_states loading_state = (packet->data & 0x0000000f);
+    uint32_t data = 0x00000000;
+    data |= MEMCORE_BURST_CFG | memcore_state;
 
     gvpu_state = MEM_LOAD;
-    helper_gvpu_load_run(artix_select, gvpu_state);
+    helper_gvpu_load(artix_select, gvpu_state);
     
     helper_print_agent_status(artix_select);
     
     // check if gvpu is in mem_load state
-    helper_get_agent_status(artix_select, &status_packet);
-    if((status_packet.data & 0x000000f0) != 0x00000030){
-        slog_error(0,"error: gvpu is not in MEM_LOAD state. 0x%08X", status_packet.data);
+    helper_get_agent_status(artix_select, &packet);
+    if((packet.data & 0x000000f0) != 0x00000030){
+        slog_error(0,"error: gvpu is not in MEM_LOAD state. 0x%08X", packet.data);
         exit(1);
     }
 
     // send the packet to MEM_LOAD
-    helper_gvpu_packet_write(artix_select, packet);
+    uint32_t addr = 0x00000000;
+    packet.rank_select = (uint32_t)((addr & 0x0000000100000000) >> 32);
+    packet.addr = (uint32_t)(addr & 0x00000000ffffffff);
+    packet.data = data;
+    helper_gvpu_packet_write(artix_select, &packet);
     
     // run the loaded state
     gvpu_state = MEM_RUN;
-    helper_gvpu_load_run(artix_select, gvpu_state);
-    
+    helper_gvpu_load(artix_select, gvpu_state);
+
+    return;
+}
+
+/*
+ * Call this after helper_memcore_load to check if memcore entered into the
+ * desired state. When reading, memcore reads into a fifo buffer so if read
+ * amount is less than fifo buffer size, memcore will exit the state and we
+ * won't catch it here.
+ *
+ */
+void helper_memcore_check_state(enum artix_selects artix_select, 
+        enum memcore_states memcore_state, uint32_t num_bursts){
+    struct gcore_ctrl_packet packet;
     // memcore is reading into a fifo so if the number of bursts 
     // read is less than the fifos capacity it will exit
-    if((loading_state == MEMCORE_READ_BURST && (num_bursts*BURST_BYTES) > ARTIX_READ_FIFO_BYTES)
-        || loading_state != MEMCORE_READ_BURST) {
-        helper_get_agent_status(artix_select, &status_packet);
-        if((status_packet.data & 0x00000f00) != (loading_state << 8)){
+    if((memcore_state == MEMCORE_READ_BURST && (num_bursts*BURST_BYTES) > ARTIX_READ_FIFO_BYTES)
+        || memcore_state != MEMCORE_READ_BURST) {
+        helper_get_agent_status(artix_select, &packet);
+        if((packet.data & 0x00000f00) != (memcore_state << 8)){
             slog_error(0,"error: memcore is not in desired state. desired: 0x%08X actual: 0x%08X", 
-                (loading_state << 8), (status_packet.data & 0x00000f00));
+                (memcore_state << 8), (packet.data & 0x00000f00));
             exit(1);
         }
     }
@@ -245,7 +256,7 @@ void helper_memcore_load_run(enum artix_selects artix_select,
  * through subcore, then checks if subcore is idle.
  *
  */
-void helper_gvpu_load_run(enum artix_selects artix_select,
+void helper_gvpu_load(enum artix_selects artix_select,
         enum gvpu_states gvpu_state){
     struct gcore_ctrl_packet packet;
     enum agent_states agent_state;
@@ -259,10 +270,10 @@ void helper_gvpu_load_run(enum artix_selects artix_select,
     helper_gvpu_packet_write(artix_select, &packet);
     
     agent_state = GVPU_RUN;
-    helper_agent_load_run(artix_select, agent_state);
+    helper_agent_load(artix_select, agent_state);
     
     // wait for subcore idle state
-    gcore_subcore_idle();
+    subcore_idle();
     
     return;
 }
@@ -279,17 +290,17 @@ void helper_gvpu_packet_write(enum artix_selects artix_select,
 
     // set agent to proxy data
     agent_state = GVPU_LOAD;
-    helper_agent_load_run(artix_select, agent_state);
+    helper_agent_load(artix_select, agent_state);
     
     // set subcore to proxy ctrl data
     subcore_state = CTRL_WRITE;
-    helper_subcore_load_run(artix_select, subcore_state);
+    helper_subcore_load(artix_select, subcore_state);
     
     // write ctrl_axi
-    gcore_ctrl_write(packet);
+    subcore_write_packet(packet);
     
     // wait for subcore idle state
-    gcore_subcore_idle();
+    subcore_idle();
     
     return;
 }
@@ -303,16 +314,16 @@ uint64_t helper_get_agent_status_cycle(enum artix_selects artix_select){
     packet.addr = 0;
     packet.data = 0;
 
-    helper_agent_load_run(artix_select, GVPU_CYCLE);
+    helper_agent_load(artix_select, GVPU_CYCLE);
 
     // agent is in gvpu_cycle, do ctrl_read to grab data
-    helper_subcore_load_run(artix_select, CTRL_READ);
+    helper_subcore_load(artix_select, CTRL_READ);
     
     // read ctrl_axi
-    gcore_ctrl_read(&packet);
+    subcore_read_packet(&packet);
     
     // wait for subcore idle state
-    gcore_subcore_idle();
+    subcore_idle();
 
     status_cycle = (((uint64_t)(packet.addr)) << 32);
     status_cycle = status_cycle | ((uint64_t)(packet.data));
@@ -340,17 +351,17 @@ void helper_get_agent_status(enum artix_selects artix_select,
     packet->data = 0;
 
     enum agent_states agent_state = STATUS;
-    helper_agent_load_run(artix_select, agent_state);
+    helper_agent_load(artix_select, agent_state);
     
 	// agent is in status, do ctrl_read to grab data
     enum subcore_states subcore_state = CTRL_READ;
-    helper_subcore_load_run(artix_select, subcore_state);
+    helper_subcore_load(artix_select, subcore_state);
     
     // read ctrl_axi
-    gcore_ctrl_read(packet);
+    subcore_read_packet(packet);
     
     // wait for subcore idle state
-    gcore_subcore_idle();
+    subcore_idle();
     return;
 }
 
@@ -421,7 +432,7 @@ void sprint_subcore_mode_state(char *mode_state_str) {
         die("error: pointer is NULL");
     }
 
-    gcore_subcore_mode_state(&mode_state);
+    subcore_mode_state(&mode_state);
     
     char mode_str[16];
     char state_str[256];

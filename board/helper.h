@@ -24,15 +24,17 @@ extern "C" {
 
 #define ARTIX_READ_FIFO_BYTES (2097152)
 
-void helper_subcore_load_run(enum artix_selects artix_select,
-    enum subcore_states subcore_state);
-void helper_agent_load_run(enum artix_selects artix_select,
-    enum agent_states agent_state);
 void helper_num_bursts_load(enum artix_selects artix_select,
     uint32_t num_bursts);
-void helper_memcore_load_run(enum artix_selects artix_select,
-    struct gcore_ctrl_packet *packet, uint32_t num_bursts);
-void helper_gvpu_load_run(enum artix_selects artix_select,
+void helper_subcore_load(enum artix_selects artix_select,
+    enum subcore_states subcore_state);
+void helper_agent_load(enum artix_selects artix_select,
+    enum agent_states agent_state);
+void helper_memcore_load(enum artix_selects artix_select,
+    enum memcore_states memcore_state);
+void helper_memcore_check_state(enum artix_selects artix_select, 
+        enum memcore_states memcore_state, uint32_t num_bursts);
+void helper_gvpu_load(enum artix_selects artix_select,
     enum gvpu_states gvpu_state);
 void helper_gvpu_packet_write(enum artix_selects artix_select,
     struct gcore_ctrl_packet *packet);

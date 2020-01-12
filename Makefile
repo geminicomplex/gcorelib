@@ -36,9 +36,17 @@ else
 endif
 endif
 
-SRCS = $(shell find . -name '*.c')
-OBJS = $(SRCS:%.c=%_$(PLAT).o)
-HEADERS = $(SRCS:%.c=%.h)
+SRCS := common.c dots.c util.c board/gpio.c board/artix.c board/i2c.c \
+	   board/helper.c board/dma.c board/subcore.c board/dev.c subvec.c \
+	   serialize/stim_serdes.capnp.c config.c lib/capnp/capn.c lib/capnp/capn-malloc.c \
+	   lib/capnp/capn-stream.c lib/lz4/lz4hc.c lib/lz4/lz4frame.c lib/lz4/xxhash.c \
+	   lib/lz4/lz4.c lib/jsmn/jsmn.c lib/avl/avl.c lib/slog/slog.c profile.c stim.c
+
+HEADERS := profile.h stim.h config.h board/dma.h board/helper.h board/subcore.h board/dev.h \
+		board/gpio.h board/artix.h board/i2c.h serialize/stim_serdes.capnp.h dots.h common.h \
+		subvec.h util.h lib/capnp/capnp_priv.h lib/capnp/capnp_c.h lib/lz4/xxhash.h lib/lz4/lz4.h \
+		lib/lz4/lz4frame_static.h lib/lz4/lz4hc.h lib/lz4/lz4frame.h lib/jsmn/jsmn.h \
+		lib/avl/avl.h lib/slog/slog.h libgcore.h
 
 #
 # Don't run anything if all is given
@@ -56,21 +64,17 @@ arm: build/arm/libgcore.so
 #
 # Build mac, linux and arm. Must run clean before.
 #
-build/macosx/libgcore.dylib: $(OBJS)
-	$(CC) $(INCLUDES) $(LDFLAGS) $? -o build/macosx/libgcore.dylib
+build/macosx/libgcore.dylib: $(SRCS) $(HEADERS)
+	$(CC) $(INCLUDES) $(LDFLAGS) $(SRCS) -o build/macosx/libgcore.dylib
 
-build/linux/libgcore.so: $(OBJS)
-	$(CC) $(INCLUDES) $(LDFLAGS) $? -o build/linux/libgcore.so
+build/linux/libgcore.so: $(SRCS) $(HEADERS)
+	$(CC) $(INCLUDES) $(LDFLAGS) $(SRCS) -o build/linux/libgcore.so
 
-build/arm/libgcore.so: $(OBJS)
-	$(CC) $(INCLUDES) $(LDFLAGS) $? -o build/arm/libgcore.so
+build/arm/libgcore.so: $(SRCS) $(HEADERS)
+	$(CC) $(INCLUDES) $(LDFLAGS) $(SRCS) -o build/arm/libgcore.so
 
 %.c: %.h
 	touch $@
-
-%_$(PLAT).o: %.c
-	mkdir -p $(BUILD_PATH)
-	$(CC) $(INCLUDES) $(CFLAGS) $< -o $@
 
 clean-mac:
 	$(shell find . -name '*_mac.o' -delete)

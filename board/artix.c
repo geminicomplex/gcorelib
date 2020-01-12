@@ -35,22 +35,22 @@
 static void subcore_prep_dma_write(enum artix_selects artix_select, uint32_t num_bursts){
 	struct gcore_ctrl_packet packet;
 
-	gcore_subcore_idle();
+	subcore_idle();
 
 	// pass number of bursts to subcore
 	slog_debug(0, "subcore bursts: %d @ %d = %d bytes", BURST_BYTES, 
 		num_bursts, (num_bursts*BURST_BYTES));
-	helper_subcore_load_run(artix_select, SETUP_BURST);
+	helper_subcore_load(artix_select, SETUP_BURST);
 	
 	packet.rank_select = 0;
 	packet.addr = 0;
 	packet.data = num_bursts;
-	gcore_ctrl_write(&packet);
+	subcore_write_packet(&packet);
 	
-	gcore_subcore_idle();
+	subcore_idle();
 
 	slog_debug(0, "subcore: dma_write");
-    helper_subcore_load_run(artix_select, DMA_WRITE);
+    helper_subcore_load(artix_select, DMA_WRITE);
 
 	return;
 }
@@ -81,10 +81,8 @@ void artix_mem_write(enum artix_selects artix_select,
     }
 
 	// place memcore into write burst mode
-    packet.rank_select = (uint32_t)((addr & 0x0000000100000000) >> 32);
-    packet.addr = (uint32_t)(addr & 0x00000000ffffffff);
-    packet.data = MEMCORE_BURST_CFG | MEMCORE_WRITE_BURST;
-    helper_memcore_load_run(artix_select, &packet, num_bursts);
+    helper_memcore_load(artix_select, MEMCORE_WRITE_BURST);
+    helper_memcore_check_state(artix_select, MEMCORE_WRITE_BURST, num_bursts);
     
 	// debug status
     helper_print_agent_status(artix_select);
@@ -96,13 +94,13 @@ void artix_mem_write(enum artix_selects artix_select,
     helper_print_agent_status(artix_select);
 
 	// config gvpu to proxy data
-    helper_gvpu_load_run(artix_select, MEM_WRITE);
+    helper_gvpu_load(artix_select, MEM_WRITE);
 
 	// debug status
     helper_print_agent_status(artix_select);
 
 	// config agent to proxy data
-    helper_agent_load_run(artix_select,  GVPU_WRITE);
+    helper_agent_load(artix_select,  GVPU_WRITE);
 
 	// reset dma buffer
     gcore_dma_alloc_reset();
@@ -162,15 +160,15 @@ void artix_mem_write(enum artix_selects artix_select,
 
 //#ifdef GEM_DEBUG
 //    for(int i=0; i<32;i++){
-//		slog_debug(0,"dma_buf %02i: 0x%016"PRIX64"", i, write_data[i]);
+//		slog_debug(0,"dma_buf %02i: 0x%016" PRIX64 "", i, write_data[i]);
 //	}
 //#endif
 
 	// subcore must be idle
-    gcore_subcore_idle();
+    subcore_idle();
 
     // reset burst count
-    helper_gvpu_load_run(artix_select, TEST_CLEANUP);
+    helper_gvpu_load(artix_select, TEST_CLEANUP);
 
 	// debug status
     helper_print_agent_status(artix_select);
@@ -194,22 +192,22 @@ static void subcore_prep_dma_read(enum artix_selects artix_select, uint32_t num_
     slog_debug(0, "subcore bursts: %d @ %d = %d bytes", BURST_BYTES, 
 		num_bursts, (num_bursts*BURST_BYTES));
 
-	gcore_subcore_idle();
+	subcore_idle();
 
 	// kernel sends bursts of 128 bytes to subcore. However
 	// artix core operates with bursts of 1024 bytes so the
 	// number of bursts will be different.
-    helper_subcore_load_run(artix_select, SETUP_BURST);
+    helper_subcore_load(artix_select, SETUP_BURST);
 
     packet.rank_select = 0;
     packet.addr = 0;
     packet.data = num_bursts;
-    gcore_ctrl_write(&packet);
+    subcore_write_packet(&packet);
 
-    gcore_subcore_idle();
+    subcore_idle();
 
 	slog_debug(0, "subcore: dma_read");
-    helper_subcore_load_run(artix_select, DMA_READ);
+    helper_subcore_load(artix_select, DMA_READ);
 	return;
 }
 
@@ -238,16 +236,14 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 	helper_print_agent_status(artix_select);
 
 	// fill packet
-    packet.rank_select = (uint32_t)((addr & 0x0000000100000000) >> 32);
-    packet.addr = (uint32_t)(addr & 0x00000000ffffffff);
-    packet.data = MEMCORE_BURST_CFG | MEMCORE_READ_BURST;
-	helper_memcore_load_run(artix_select, &packet, num_bursts);
+	helper_memcore_load(artix_select, MEMCORE_READ_BURST);
+    helper_memcore_check_state(artix_select, MEMCORE_READ_BURST, num_bursts);
 
 	helper_print_agent_status(artix_select);
 
-    helper_gvpu_load_run(artix_select, MEM_READ);
+    helper_gvpu_load(artix_select, MEM_READ);
 
-    helper_agent_load_run(artix_select, GVPU_READ);
+    helper_agent_load(artix_select, GVPU_READ);
 
     gcore_dma_alloc_reset();
 
@@ -305,15 +301,15 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 
 //#ifdef GEM_DEBUG
 //	for(int i=0; i<32;i++){
-//		slog_debug(0,"dma_buf %02i: 0x%016"PRIX64"", i, read_data[i]);
+//		slog_debug(0,"dma_buf %02i: 0x%016" PRIX64 "", i, read_data[i]);
 //	}
 //#endif
 
     // wait for idle state
-    gcore_subcore_idle();
+    subcore_idle();
 
     // reset burst count
-    helper_gvpu_load_run(artix_select, TEST_CLEANUP);
+    helper_gvpu_load(artix_select, TEST_CLEANUP);
 
     helper_print_agent_status(artix_select);
     return;
@@ -330,35 +326,42 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 	bool crc_failed = false;
 	uint32_t crc_cycle = 0;
 
+#ifdef VERILATOR
+    //uint32_t test_data_size = 8384512/4; 
+    uint32_t test_data_size = 1024*32; 
+#else
+    uint32_t test_data_size = MAX_CHUNK_SIZE; 
+#endif
+
     // each burst is 1024 bytes
-    uint32_t num_bursts = (MAX_CHUNK_SIZE / BURST_BYTES);
+    uint32_t num_bursts = (test_data_size / BURST_BYTES);
 
     // extra data so add one more burst
-    if((MAX_CHUNK_SIZE % BURST_BYTES) != 0){
+    if((test_data_size % BURST_BYTES) != 0){
         num_bursts = num_bursts + 1;
     }
 
     // malloc write buffer
-    //if((write_data = (uint64_t *)calloc(MAX_CHUNK_SIZE, sizeof(uint8_t))) == NULL){
+    //if((write_data = (uint64_t *)calloc(test_data_size, sizeof(uint8_t))) == NULL){
     //    die("error: calloc failed");
     //}
 
     // malloc read buffer
-    if((read_data = (uint64_t *)calloc(MAX_CHUNK_SIZE, sizeof(uint8_t))) == NULL){
+    if((read_data = (uint64_t *)calloc(test_data_size, sizeof(uint8_t))) == NULL){
         die("error: calloc failed");
     }
     
     if(run_crc){
         // include xor data and clear last beat in burst
-	    write_data = util_get_static_data(MAX_CHUNK_SIZE, true, true);
+	    write_data = util_get_static_data(test_data_size, true, true);
     }else if(!run_crc){
         // include xor data and write to last beat as well
-	    write_data = util_get_static_data(MAX_CHUNK_SIZE, true, false);
+	    write_data = util_get_static_data(test_data_size, true, false);
     }
 
 #ifdef GEM_DEBUG
 	// print only max three beats from burst
-	if((MAX_CHUNK_SIZE/8) > (16*2)){
+	if((test_data_size/8) > (16*2)){
         if(run_crc) {
             start_beat = 16*5;
             end_beat = 16*8;
@@ -370,10 +373,10 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         }
 	}else{
         start_beat = 0;
-		end_beat = (MAX_CHUNK_SIZE/8);
+		end_beat = (test_data_size/8);
 	}
     for(int i=start_beat; i<end_beat;i++){
-        slog_debug(0, "dma_buf %02i: 0x%016"PRIX64"", i, write_data[i]);
+        slog_debug(0, "dma_buf %02i: 0x%016" PRIX64 "", i, write_data[i]);
     }
 #endif
 
@@ -381,7 +384,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     uint64_t addr = 0x0000000000000000;
 
     slog_debug(0, "writing mem data...");
-    artix_mem_write(artix_select, addr, write_data, MAX_CHUNK_SIZE);
+    artix_mem_write(artix_select, addr, write_data, test_data_size);
 
     // load agent, gvpu and memcore with num bursts
 	helper_num_bursts_load(artix_select, num_bursts);
@@ -393,7 +396,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     // beat in each burst
     if(run_crc){
         slog_info(0, "loading crc test...");
-        helper_gvpu_load_run(artix_select, MEM_TEST);
+        helper_gvpu_load(artix_select, MEM_TEST);
         helper_print_agent_status(artix_select);
     
         slog_info(0, "running crc test...");
@@ -427,21 +430,22 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 	helper_print_agent_status(artix_select);
 
 	slog_debug(0, "reset agent num bursts to 1...");
-	helper_agent_load_run(artix_select, BURST_LOAD);
-	helper_subcore_load_run(artix_select, CTRL_WRITE);
+	helper_agent_load(artix_select, BURST_LOAD);
+	helper_subcore_load(artix_select, CTRL_WRITE);
 	packet.rank_select = 0;
 	packet.addr = 0;
 	packet.data = 1;
-	gcore_ctrl_write(&packet);
-	gcore_subcore_idle();
+	subcore_write_packet(&packet);
+	subcore_idle();
 
     // reset cycle count and failed flag
-    helper_gvpu_load_run(artix_select, TEST_CLEANUP);
+    helper_gvpu_load(artix_select, TEST_CLEANUP);
 
 	helper_print_agent_status(artix_select);
 
-    slog_info(0, "reading mem data...");
-    artix_mem_read(artix_select, addr, read_data, MAX_CHUNK_SIZE);
+    slog_info(0, "will read mem data...");
+    artix_mem_read(artix_select, addr, read_data, test_data_size);
+    slog_info(0, "did read mem data...");
 
     if(run_crc){
         if(crc_failed){
@@ -453,7 +457,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 
 #ifdef GEM_DEBUG
 	// print only max three beats from burst
-	if((MAX_CHUNK_SIZE/8) > (16*2)){
+	if((test_data_size/8) > (16*2)){
         if(run_crc) {
             start_beat = 16*5;
             end_beat = 16*8;
@@ -465,20 +469,20 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         }
 	}else{
         start_beat = 0;
-		end_beat = (MAX_CHUNK_SIZE/8);
+		end_beat = (test_data_size/8);
 	}
     for(int i=start_beat; i<end_beat;i++){
-        slog_debug(0, "dma_buf %02i: 0x%016"PRIX64"", i, read_data[i]);
+        slog_debug(0, "dma_buf %02i: 0x%016" PRIX64 "", i, read_data[i]);
     }
 #endif
         
     // re-generate write data with results not cleared out so 
     // it will match read_data
-    write_data = util_get_static_data(MAX_CHUNK_SIZE, true, false);
+    write_data = util_get_static_data(test_data_size, true, false);
     slog_info(0, "checking write/read array difference...");
     uint32_t starting = 0;
     uint32_t found = 0;
-    for(int i=0; i<(MAX_CHUNK_SIZE/sizeof(uint64_t)); i++){
+    for(int i=0; i<(test_data_size/sizeof(uint64_t)); i++){
         if(write_data[i] != read_data[i]){
             if(!starting){
                 starting = i;
@@ -545,15 +549,15 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     //assert_dut_io_range(stim, artix_select);
     
     // perform test init
-    helper_gvpu_load_run(artix_select, TEST_INIT);
+    helper_gvpu_load(artix_select, TEST_INIT);
     packet.rank_select = 0;
     packet.addr = 0;
     packet.data = (stim->num_vecs+stim->num_padding_vecs);
     helper_gvpu_packet_write(artix_select, &packet);
 
     // perform test setup by writing enable_pins burst
-    helper_gvpu_load_run(artix_select, TEST_SETUP);
-    helper_agent_load_run(artix_select, GVPU_WRITE);
+    helper_gvpu_load(artix_select, TEST_SETUP);
+    helper_agent_load(artix_select, GVPU_WRITE);
 
 	// reset dma buffer
     gcore_dma_alloc_reset();
@@ -580,7 +584,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
 
 #ifdef GEM_DEBUG
     for(int i=0; i<32;i++){
-        slog_debug(0, "pin_enable %02i: 0x%016"PRIX64"", i, dma_buf[i]);
+        slog_debug(0, "pin_enable %02i: 0x%016" PRIX64 "", i, dma_buf[i]);
     }
 #endif
 
@@ -588,7 +592,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     free(enable_pins);
     
     // reset cycle count and failed flag
-    helper_gvpu_load_run(artix_select, TEST_CLEANUP);
+    helper_gvpu_load(artix_select, TEST_CLEANUP);
 
     // address we are dma-ing to in the artix unit
     uint64_t addr = 0x0000000000000000;
@@ -598,7 +602,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     while((chunk = stim_load_next_chunk(stim, artix_select)) != NULL){
 
         // copy over the vec data buffer
-        slog_info(0, "writing %i vecs (%zu bytes) to artix memory at address 0x%016"PRIX64"...", 
+        slog_info(0, "writing %i vecs (%zu bytes) to artix memory at address 0x%016" PRIX64 "...", 
             chunk->num_vecs, chunk->vec_data_size, addr);
         artix_mem_write(artix_select, addr, (uint64_t*)(chunk->vec_data), chunk->vec_data_size);
 
@@ -607,7 +611,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     }
 
     // reset test_cycle counter and test_failed flag
-    helper_gvpu_load_run(artix_select, TEST_CLEANUP);
+    helper_gvpu_load(artix_select, TEST_CLEANUP);
 
     return;
 }
@@ -637,8 +641,8 @@ void get_dut_test_fail_pins(uint8_t **fail_pins, uint32_t *num_fail_pins){
             continue;
         }
 
-        helper_gvpu_load_run(artix_select, TEST_FAIL_PINS);
-        helper_agent_load_run(artix_select, GVPU_READ);
+        helper_gvpu_load(artix_select, TEST_FAIL_PINS);
+        helper_agent_load(artix_select, GVPU_READ);
 
         // reset dma buffer
         gcore_dma_alloc_reset();
@@ -675,7 +679,7 @@ void get_dut_test_fail_pins(uint8_t **fail_pins, uint32_t *num_fail_pins){
 
 #ifdef GEM_DEBUG
         for(int i=0; i<32;i++){
-            slog_debug(0, "fail_pin %02i: 0x%016"PRIX64"", i, dma_buf[i]);
+            slog_debug(0, "fail_pin %02i: 0x%016" PRIX64 "", i, dma_buf[i]);
         }
 #endif
     }
@@ -780,9 +784,9 @@ bool artix_dut_test(struct stim *stim, uint64_t *test_cycle){
 
     // setup a1 and a2 for dual mode
     if(dual_mode){
-        gcore_artix_sync(true);
+        subcore_artix_sync(true);
     }else{
-        gcore_artix_sync(false);
+        subcore_artix_sync(false);
     }
 
     helper_print_agent_status(artix_select);
@@ -790,11 +794,11 @@ bool artix_dut_test(struct stim *stim, uint64_t *test_cycle){
     // run the test
     if(dual_mode){
         slog_info(0, "running test (dual mode)...");
-        helper_gvpu_load_run(ARTIX_SELECT_A1, TEST_RUN);
-        helper_gvpu_load_run(ARTIX_SELECT_A2, TEST_RUN);
+        helper_gvpu_load(ARTIX_SELECT_A1, TEST_RUN);
+        helper_gvpu_load(ARTIX_SELECT_A2, TEST_RUN);
     }else{
         slog_info(0, "running test...");
-        helper_gvpu_load_run(artix_select, TEST_RUN);
+        helper_gvpu_load(artix_select, TEST_RUN);
         helper_print_agent_status(artix_select);
     }
 
@@ -932,7 +936,7 @@ bool artix_dut_test(struct stim *stim, uint64_t *test_cycle){
     }
 
     struct gcore_registers *regs = NULL;
-    regs = gcore_get_regs();
+    regs = subcore_get_regs();
     print_regs(regs);
 
     return (master_test_failed || slave_test_failed);
@@ -969,16 +973,16 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
     close(fd);
 
     // load the state machine
-    helper_subcore_load_run(artix_select, CONFIG_SETUP);
+    helper_subcore_load(artix_select, CONFIG_SETUP);
 
     //check for any init errors
-    regs = gcore_get_regs();
+    regs = subcore_get_regs();
     if(regs != NULL){
         if((regs->status & GCORE_STATUS_INIT_ERROR_MASK) == GCORE_STATUS_INIT_ERROR_MASK){
             die("error: failed to configure artix, init_error is high.");
         }
     }
-    regs = gcore_free_regs(regs);
+    regs = subcore_free_regs(regs);
 
     // dma over the data from start of dma buffer sending file_size bytes
     
@@ -992,16 +996,16 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
     fflush(stdout);
     gcore_dma_prep_start(GCORE_WAIT_TX, dma_buf, (size_t)file_size, NULL, 0);
 
-    // doing gcore_subcore_state ioctl will write
+    // doing subcore_state ioctl will write
     // config_num_bytes in the addr reg
-    gcore_subcore_mode_state(&mode_state);
-    regs = gcore_get_regs();
+    subcore_mode_state(&mode_state);
+    regs = subcore_get_regs();
 
     //if(regs->addr != file_size){
     //    slog_error(0,"config: only %d bytes of %ld bytes sent.", regs->addr, file_size);
     //}
 
-    gcore_subcore_idle();
+    subcore_idle();
 
     // check done
     if(regs != NULL){
@@ -1024,7 +1028,7 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
         }
     }
 
-    regs = gcore_free_regs(regs);
+    regs = subcore_free_regs(regs);
 
     return;
 }

@@ -44,7 +44,10 @@ static void gcore_dev_init() {
 		close(gcore_fd);
 		die("gcorelib: mmapping the file");
     }
-
+#elif VERILATOR
+    if((gcore_map = (uint8_t *)malloc(MMAP_SIZE)) == NULL){
+		die("gcorelib: failed to malloc gcore_map dma buffer\n");
+    }
 #endif
     return;
 }
@@ -59,12 +62,15 @@ static void gcore_dev_destroy() {
 		die("gcorelib: error un-mmapping the file");
 	}
 	close(gcore_fd);
-
-    
+#elif VERILATOR
+    if(gcore_map == NULL){
+        die("gcorelib: failed to free gcore_map dma buffer\n");
+    }else{
+        free(gcore_map);
+    }
 #endif
 	return;
 }
-
 
 uint8_t gcore_dev_get_fd(){
     return gcore_fd;

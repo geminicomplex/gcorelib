@@ -24,6 +24,19 @@
 #include <errno.h>
 #include <string.h>
 
+#ifdef VERILATOR
+
+#include "../../sim/chip_top/chip.h"
+
+struct sim_dma_trans {
+    uint64_t *dma_buf;
+    size_t dma_size;
+};
+
+struct sim_dma_trans sim_tx_trans;
+struct sim_dma_trans sim_rx_trans;
+#endif
+
 /*
  * gcore_map is an mmap to the gcore driver.
  * mem_map is an mmap to raw memory. We use this to read from the dma registers
@@ -36,7 +49,7 @@ static int mem_fd = -1;
 static uint32_t *mem_map = NULL;
 struct gcore_chan_cfg rx_config;
 struct gcore_chan_cfg tx_config;
-static bool is_initialized = false;
+static bool is_dma_reg_mmap_init = false;
 static bool is_rx_prepared = false;
 static bool is_tx_prepared = false;
 
@@ -45,14 +58,14 @@ __attribute__((constructor))
 static void gcore_dma_init() {
 
     gcore_init_log(GCORE_LOG_PATH);
-#ifdef __arm__
-	gcore_dma_alloc_reset();
 
+	gcore_dma_alloc_reset();
+#ifdef __arm__
     // mmap the axi lite register block
     mem_fd = open("/dev/mem", O_RDONLY); 
     mem_map = mmap(NULL, 65535, PROT_READ, MAP_SHARED, mem_fd, DMA_BASE_ADDR);
 
-    is_initialized = true;
+    is_dma_reg_mmap_init = true;
 #else
     mem_fd = -1;
 #endif
@@ -64,7 +77,7 @@ static void gcore_dma_destroy() {
 
     gcore_init_log(GCORE_LOG_PATH);
 #ifdef __arm__
-    if(!is_initialized){
+    if(!is_dma_reg_mmap_init){
         die("gcorelib: failed to exit, gcore not initialized");
     }
 
@@ -74,7 +87,7 @@ static void gcore_dma_destroy() {
 	close(mem_fd);
 #endif
 
-    is_initialized = false;
+    is_dma_reg_mmap_init = false;
 	return;
 }
 
@@ -89,10 +102,17 @@ void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
 	const bool tx_used = ((tx_ptr != NULL) && (tx_size != 0));
 	const bool rx_used = ((rx_ptr != NULL) && (rx_size != 0));
     
-    if(!is_initialized){
-        die("gcorelib: failed to dma prep, gcore not initialized");
+#ifdef VERILATOR
+    if(tx_used){
+        sim_tx_trans.dma_buf = tx_ptr;
+        sim_tx_trans.dma_size = tx_size;
     }
 
+	if(rx_used){
+        sim_rx_trans.dma_buf = rx_ptr;
+        sim_rx_trans.dma_size = rx_size;
+    }
+#else
     int gcore_fd = -1;
 
     if((gcore_fd = gcore_dev_get_fd()) == -1){
@@ -141,6 +161,7 @@ void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
 			die("gcorelib: error prep dma rx buf");
 		}
 	}
+#endif
     
     if(tx_used){
         is_tx_prepared = true;
@@ -167,14 +188,23 @@ void gcore_dma_start(enum gcore_wait wait)
 	struct gcore_transfer rx_trans;
 	struct gcore_transfer tx_trans;
 
-    if(!is_initialized){
-        die("gcorelib: failed to start dma, gcore not initialized");
-    }
-
     if(!(is_tx_prepared || is_rx_prepared)){
         die("gcorelib: error starting dma, not prepared yet");
     }
 
+#ifdef VERILATOR
+    struct chip *chip = get_chip_instance();
+	if(is_tx_prepared){
+        sim_ioctl_subcore_dma_write(chip, sim_tx_trans.dma_buf, sim_tx_trans.dma_size);
+        is_tx_prepared = false;
+    }
+
+	if(is_rx_prepared){
+        sim_ioctl_subcore_dma_read(chip, sim_rx_trans.dma_buf, sim_rx_trans.dma_size);
+        is_rx_prepared = false;
+    }
+
+#else
     int gcore_fd = -1;
 
     if((gcore_fd = gcore_dev_get_fd()) == -1){
@@ -213,6 +243,7 @@ void gcore_dma_start(enum gcore_wait wait)
         // reset flag
         is_rx_prepared = false;
 	}
+#endif
 
 	return;
 }
@@ -226,13 +257,14 @@ void gcore_dma_stop()
 	struct gcore_transfer rx_trans;
 	struct gcore_transfer tx_trans;
 
-    if(!is_initialized){
-        die("gcorelib: failed to stop dma, gcore not initialized");
-    }
-
     if(!(is_tx_prepared || is_rx_prepared)){
         die("gcorelib: error failed to stop dma, nothing is running");
     }
+
+#ifdef VERILATOR
+        is_tx_prepared = false;
+        is_rx_prepared = false;
+#else
 
     int gcore_fd = -1;
 
@@ -257,6 +289,7 @@ void gcore_dma_stop()
 		}
         is_rx_prepared = false;
 	}
+#endif
 	return;
 }
 
@@ -348,7 +381,7 @@ void dma_control_reg(uint32_t control){
 
 void dma_mm2s_status(){
     uint32_t status = 0;
-    if(!is_initialized){
+    if(!is_dma_reg_mmap_init){
         die("gcorelib: failed to get mm2s status, gcore not initialized");
         return;
     }
@@ -369,7 +402,7 @@ void dma_mm2s_status(){
 
 void dma_s2mm_status(){
     uint32_t status = 0;
-    if(!is_initialized){
+    if(!is_dma_reg_mmap_init){
         die("gcorelib: failed to get s2mm status, gcore not initialized");
         return;
     }
