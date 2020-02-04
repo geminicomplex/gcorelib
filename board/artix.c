@@ -80,16 +80,16 @@ void artix_mem_write(enum artix_selects artix_select,
         num_bursts = num_bursts + 1;
     }
 
+    // setup memcore with start_addr and num_bursts will load
+    helper_memcore_setup(artix_select, addr, num_bursts);
+
+	// debug status
+    helper_print_agent_status(artix_select);
+
 	// place memcore into write burst mode
     helper_memcore_load(artix_select, MEMCORE_WRITE_BURST);
     helper_memcore_check_state(artix_select, MEMCORE_WRITE_BURST, num_bursts);
     
-	// debug status
-    helper_print_agent_status(artix_select);
-
-	// load agent, gvpu and memcore with num bursts
-	helper_num_bursts_load(artix_select, num_bursts);
-
 	// debug status
     helper_print_agent_status(artix_select);
 
@@ -230,9 +230,10 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 		num_bursts = num_bursts + 1;
 	}
 
-    // load num bursts before memcore is placed into read mode
-    helper_num_bursts_load(artix_select, num_bursts);
+    // setup memcore with start_addr and num_bursts will read
+	helper_memcore_setup(artix_select, addr, num_bursts);
 
+	// debug status
 	helper_print_agent_status(artix_select);
 
 	// fill packet
@@ -387,7 +388,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     artix_mem_write(artix_select, addr, write_data, test_data_size);
 
     // load agent, gvpu and memcore with num bursts
-	helper_num_bursts_load(artix_select, num_bursts);
+	//helper_num_bursts_load(artix_select, num_bursts);
 
 	// debug status
     helper_print_agent_status(artix_select);
@@ -395,6 +396,10 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     // performs crc on [0:5], check against 6th, and write to 7th
     // beat in each burst
     if(run_crc){
+
+        // this sets gvpu_num_bursts reg since memtest looks at this
+        helper_memcore_setup(artix_select, addr, num_bursts);
+
         slog_info(0, "loading crc test...");
         helper_gvpu_load(artix_select, MEM_TEST);
         helper_print_agent_status(artix_select);
@@ -429,14 +434,14 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 
 	helper_print_agent_status(artix_select);
 
-	slog_debug(0, "reset agent num bursts to 1...");
-	helper_agent_load(artix_select, BURST_LOAD);
-	helper_subcore_load(artix_select, CTRL_WRITE);
-	packet.rank_select = 0;
-	packet.addr = 0;
-	packet.data = 1;
-	subcore_write_packet(&packet);
-	subcore_idle();
+	//slog_debug(0, "reset agent num bursts to 1...");
+	//helper_agent_load(artix_select, BURST_LOAD);
+	//helper_subcore_load(artix_select, CTRL_WRITE);
+	//packet.rank_select = 0;
+	//packet.addr = 0;
+	//packet.data = 1;
+	//subcore_write_packet(&packet);
+	//subcore_idle();
 
     // reset cycle count and failed flag
     helper_gvpu_load(artix_select, TEST_CLEANUP);

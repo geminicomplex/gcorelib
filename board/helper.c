@@ -152,31 +152,27 @@ void helper_agent_load(enum artix_selects artix_select,
  * agent, which will then auto-config gvpu/memcore.
  *
  */
-void helper_num_bursts_load(enum artix_selects artix_select,
-    uint32_t num_bursts){
-    enum gvpu_states gvpu_state;
-    enum agent_states agent_state;
-    enum subcore_states subcore_state;
+void helper_memcore_setup(enum artix_selects artix_select,
+    uint32_t start_addr, uint32_t num_bursts){
     struct gcore_ctrl_packet packet;
 
     // load packet
     packet.rank_select = 0;
-    packet.addr = 0;
+    packet.addr = start_addr;
     packet.data = num_bursts;
     slog_info(0,"agent burst: %d @ %d = %d bytes", BURST_BYTES, 
         num_bursts, (num_bursts*BURST_BYTES));
 
+    helper_memcore_load(artix_select, MEMCORE_SETUP_BURST);
+
     // load number of bursts into gvpu and memcore
-    gvpu_state = MEM_BURST;
-    helper_gvpu_load(artix_select, gvpu_state);
+    helper_gvpu_load(artix_select, MEM_BURST);
     
 	// load  number of bursts into agent
-    agent_state = BURST_LOAD;
-    helper_agent_load(artix_select, agent_state);
+    helper_agent_load(artix_select, BURST_LOAD);
     
     // set subcore to proxy ctrl data
-    subcore_state = CTRL_WRITE;
-    helper_subcore_load(artix_select, subcore_state);
+    helper_subcore_load(artix_select, CTRL_WRITE);
     
     // load num_bursts into agent, which will auto-load num_bursts
     // into gvpu and memcore
@@ -198,7 +194,7 @@ void helper_memcore_load(enum artix_selects artix_select, enum memcore_states me
     struct gcore_ctrl_packet packet;
 
     uint32_t data = 0x00000000;
-    data |= MEMCORE_BURST_CFG | memcore_state;
+    data |= memcore_state;
 
     gvpu_state = MEM_LOAD;
     helper_gvpu_load(artix_select, gvpu_state);
@@ -608,17 +604,14 @@ void print_memcore_state(enum memcore_states memcore_state, char *pre){
         case MEMCORE_PAUSED:
             slog_info(0,"%smemcore_paused", pre);
 			break;
-        case MEMCORE_AUTO_BURST:
-            slog_info(0,"%smemcore_auto_burst", pre);
+        case MEMCORE_SETUP_BURST:
+            slog_info(0,"%smemcore_setup_burst", pre);
 			break;
         case MEMCORE_WRITE_BURST:
             slog_info(0,"%smemcore_write_burst", pre);
 			break;
         case MEMCORE_READ_BURST:
             slog_info(0,"%smemcore_read_burst", pre);
-			break;
-        case MEMCORE_CLEANUP:
-            slog_info(0,"%smemcore_cleanup", pre);
 			break;
         default:
             break;
