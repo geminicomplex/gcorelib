@@ -65,6 +65,10 @@ void helper_agent_load(enum artix_selects artix_select,
     struct gcore_registers *regs = NULL;
     bool agent_did_startup = false;
 
+    packet.rank_select = 0;
+    packet.addr = 0;
+    packet.data = 0;
+
     // Need to check for error
     regs = subcore_get_regs();
     if(regs != NULL){
@@ -152,16 +156,16 @@ void helper_agent_load(enum artix_selects artix_select,
  * agent, which will then auto-config gvpu/memcore.
  *
  */
-void helper_memcore_setup(enum artix_selects artix_select,
-    uint32_t start_addr, uint32_t num_bursts){
+void helper_burst_setup(enum artix_selects artix_select,
+    uint64_t start_addr, uint32_t num_bursts){
     struct gcore_ctrl_packet packet;
 
     // load packet
-    packet.rank_select = 0;
-    packet.addr = start_addr;
+    packet.rank_select = GET_START_RANK(start_addr);
+    packet.addr = GET_START_ADDR(start_addr);
     packet.data = num_bursts;
-    slog_info(0,"agent burst: %d @ %d = %d bytes", BURST_BYTES, 
-        num_bursts, (num_bursts*BURST_BYTES));
+    slog_info(0,"agent burst: %d @ %d = %d bytes @ addr 0x%X%08X", BURST_BYTES, 
+        num_bursts, (num_bursts*BURST_BYTES), packet.rank_select, packet.addr);
 
     helper_memcore_load(artix_select, MEMCORE_SETUP_BURST);
 
@@ -177,7 +181,7 @@ void helper_memcore_setup(enum artix_selects artix_select,
     // load num_bursts into agent, which will auto-load num_bursts
     // into gvpu and memcore
     subcore_write_packet(&packet);
-    
+
     // check if subcore is back to idle
     subcore_idle();
     return;
@@ -408,7 +412,7 @@ void print_packet(struct gcore_ctrl_packet *packet, char *pre){
         die("error: pointer is NULL");
     }
     slog_info(0,
-        "%srank_sel: %d, addr: 0x%08X, data: 0x%08X",
+        "%srank_sel: %X, addr: 0x%08X, data: 0x%08X",
         pre,
         packet->rank_select,
         packet->addr,

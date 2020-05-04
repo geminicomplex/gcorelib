@@ -24,6 +24,9 @@ extern "C" {
 
 #define ARTIX_READ_FIFO_BYTES (2097152)
 
+#define GET_START_RANK(addr) ((uint32_t)(((uint64_t)addr & 0x0000000100000000) >> 32)) 
+#define GET_START_ADDR(addr) ((uint32_t)((uint64_t)addr & 0x00000000ffffffff))
+
 void helper_subcore_load(enum artix_selects artix_select,
     enum subcore_states subcore_state);
 void helper_agent_load(enum artix_selects artix_select,
@@ -32,8 +35,8 @@ void helper_memcore_load(enum artix_selects artix_select,
     enum memcore_states memcore_state);
 void helper_memcore_check_state(enum artix_selects artix_select, 
         enum memcore_states memcore_state, uint32_t num_bursts);
-void helper_memcore_setup(enum artix_selects artix_select,
-    uint32_t start_addr, uint32_t num_bursts);
+void helper_burst_setup(enum artix_selects artix_select,
+    uint64_t start_addr, uint32_t num_bursts);
 void helper_gvpu_load(enum artix_selects artix_select,
     enum gvpu_states gvpu_state);
 void helper_gvpu_packet_write(enum artix_selects artix_select,

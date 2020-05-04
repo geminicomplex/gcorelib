@@ -62,8 +62,8 @@ void artix_mem_write(enum artix_selects artix_select,
 
     // address can't be greater than artix memory capacity
     // and you need to send at least one burst (1024 bytes)
-    if(addr > (uint64_t)((8589934592)-BURST_BYTES)){
-        die("error: address given is greater than (8589934592-1024)");
+    if(addr > (uint64_t)(0x1ffffffff-BURST_BYTES)){
+        die("error: address given is greater than (0x1ffffffff-1024)");
     }
 
     // can't allocate more than 250MB in one write chunk
@@ -81,7 +81,7 @@ void artix_mem_write(enum artix_selects artix_select,
     }
 
     // setup memcore with start_addr and num_bursts will load
-    helper_memcore_setup(artix_select, addr, num_bursts);
+    helper_burst_setup(artix_select, addr, num_bursts);
 
 	// debug status
     helper_print_agent_status(artix_select);
@@ -231,7 +231,7 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 	}
 
     // setup memcore with start_addr and num_bursts will read
-	helper_memcore_setup(artix_select, addr, num_bursts);
+	helper_burst_setup(artix_select, addr, num_bursts);
 
 	// debug status
 	helper_print_agent_status(artix_select);
@@ -398,7 +398,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     if(run_crc){
 
         // this sets gvpu_num_bursts reg since memtest looks at this
-        helper_memcore_setup(artix_select, addr, num_bursts);
+        helper_burst_setup(artix_select, addr, num_bursts);
 
         slog_info(0, "loading crc test...");
         helper_gvpu_load(artix_select, MEM_TEST);
