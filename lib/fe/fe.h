@@ -8,6 +8,10 @@
 #ifndef FE_H
 #define FE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -58,4 +62,7 @@ fe_Object* fe_read(fe_Context *ctx, fe_ReadFn fn, void *udata);
 fe_Object* fe_readfp(fe_Context *ctx, FILE *fp);
 fe_Object* fe_eval(fe_Context *ctx, fe_Object *obj);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
