@@ -9,7 +9,7 @@ BUILD_PATH :=
 INCLUDES :=-I. -I./board -I../driver -I./lib/jsmn -I./lib/avl -I./lib/progress -I./lib/lz4 -I./lib/capnp 
 CFLAGS :=-O2 -c -fPIC -Wall -funwind-tables -g -ggdb
 CC := gcc
-LDFLAGS :=
+LDFLAGS := -fPIC
 EXEC :=
 OS := $(shell uname)
 PLAT :=
@@ -40,13 +40,14 @@ SRCS := common.c dots.c util.c board/gpio.c board/artix.c board/i2c.c \
 	   board/helper.c board/dma.c board/subcore.c board/dev.c subvec.c \
 	   serialize/stim_serdes.capnp.c config.c lib/capnp/capn.c lib/capnp/capn-malloc.c \
 	   lib/capnp/capn-stream.c lib/lz4/lz4hc.c lib/lz4/lz4frame.c lib/lz4/xxhash.c \
-	   lib/lz4/lz4.c lib/jsmn/jsmn.c lib/avl/avl.c lib/slog/slog.c profile.c stim.c
+	   lib/lz4/lz4.c lib/jsmn/jsmn.c lib/avl/avl.c lib/slog/slog.c profile.c stim.c \
+	   prgm.c
 
 HEADERS := profile.h stim.h config.h board/dma.h board/helper.h board/subcore.h board/dev.h \
 		board/gpio.h board/artix.h board/i2c.h serialize/stim_serdes.capnp.h dots.h common.h \
 		subvec.h util.h lib/capnp/capnp_priv.h lib/capnp/capnp_c.h lib/lz4/xxhash.h lib/lz4/lz4.h \
 		lib/lz4/lz4frame_static.h lib/lz4/lz4hc.h lib/lz4/lz4frame.h lib/jsmn/jsmn.h \
-		lib/avl/avl.h lib/slog/slog.h libgcore.h
+		lib/avl/avl.h lib/slog/slog.h prgm.h libgcore.h
 
 #
 # Don't run anything if all is given

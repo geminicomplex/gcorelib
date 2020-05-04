@@ -64,10 +64,10 @@ static capn_text chars_to_text(const char *chars) {
  * capn_write_fd write callback funciton.
  *
  */
-#if defined(__APPLE__)
-ssize_t write_fd(int fd, const void *p, size_t count){
+#ifdef VERILATOR
+ssize_t write_capn_fd(int fd, void *p, size_t count){
 #else
-ssize_t write_fd(int fd, void *p, size_t count){
+ssize_t write_capn_fd(int fd, const void *p, size_t count){
 #endif
     ssize_t bytes = 0;
     bytes = write(fd, p, count);
@@ -1729,7 +1729,7 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
     if(setp_ret != 0){
         die("capn setp failed");
     }
-    capn_write_fd(&c, &write_fd, fd, 0 /* packed */);
+    capn_write_fd(&c, &write_capn_fd, fd, 0 /* packed */);
     capn_free(&c);
 
     close(fd);

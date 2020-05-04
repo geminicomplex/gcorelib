@@ -25,6 +25,7 @@ extern "C" {
 #include "profile.h"
 #include "subvec.h"
 #include "stim.h"
+#include "prgm.h"
 
 #include "board/helper.h"
 #include "board/dma.h"
