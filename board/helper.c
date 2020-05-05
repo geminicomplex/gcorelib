@@ -53,6 +53,104 @@ void helper_subcore_load(enum artix_selects artix_select,
 }
 
 /*
+ * Let's the subcore gpio led module know that system boot successfully
+ * finished.
+ */
+void helper_subcore_set_boot_done(){
+    enum artix_selects artix_select = ARTIX_SELECT_NONE;
+    struct gcore_ctrl_packet packet;
+
+    helper_subcore_load(artix_select, GPIO_DNA);
+
+    packet.rank_select = 0;
+    packet.addr = SUBCORE_GPIO_DNA_CMD_BOOT_DONE;
+    packet.data = 1; // doesn't do anything
+
+    print_packet(&packet, "subcore_set_boot_done: ");
+
+    // subcore will go to ctrl_write, agent will be idle
+    subcore_write_packet(&packet);
+    
+    // wait for subcore idle state
+    subcore_idle();
+
+    return;
+}
+
+/*
+ * Set's the subcore gpio led to given value.
+ */
+void helper_subcore_set_led(enum subcore_leds subcore_led, bool on){
+    enum artix_selects artix_select = ARTIX_SELECT_NONE;
+    struct gcore_ctrl_packet packet;
+
+    if(subcore_led == SUBCORE_RED_LED){
+        packet.addr = SUBCORE_GPIO_DNA_CMD_SET_RED_LED;
+    } else if (subcore_led == SUBCORE_GREEN_LED){
+        packet.addr = SUBCORE_GPIO_DNA_CMD_SET_GREEN_LED;
+    } else {
+        die("invalid led type given.");
+    }
+
+    packet.rank_select = 0;
+    packet.data = (uint32_t)on;
+
+    helper_subcore_load(artix_select, GPIO_DNA);
+
+    print_packet(&packet, "subcore_set_led: ");
+    
+    // subcore will go to ctrl_write, agent will be idle
+    subcore_write_packet(&packet);
+    
+    // wait for subcore idle state
+    subcore_idle();
+
+    return;
+}
+
+/*
+ * Read the dna id from the dna_port..
+ */
+uint64_t helper_subcore_get_dna_id(){
+    enum artix_selects artix_select = ARTIX_SELECT_NONE;
+    struct gcore_ctrl_packet packet;
+    uint64_t dna_id;
+
+    // set packet to get dna
+    packet.rank_select = 0;
+    packet.addr = SUBCORE_GPIO_DNA_CMD_GET_DNA;
+    packet.data = 1; // doesn't do anything
+
+    helper_subcore_load(artix_select, GPIO_DNA);
+
+    print_packet(&packet, "subcore_get_dna: ");
+    
+    // subcore will go to ctrl_write, agent will be idle
+    subcore_write_packet(&packet);
+
+    sleep(1);
+
+    // clear the packet
+    packet.rank_select = 0;
+    packet.addr = 0;
+    packet.data = 0;
+
+    // read the packet with the dna value
+    subcore_read_packet(&packet);
+
+    // set upper and lower
+    dna_id = 0;
+    dna_id = dna_id | ((uint64_t)(packet.data) << 0);
+    dna_id = dna_id | ((uint64_t)(packet.addr) << 32);
+     
+    // wait for subcore idle state
+    subcore_idle();
+
+    return dna_id;
+}
+
+
+/*
  * Peforms startup subroutine in agent, followed by 
  * loading and running the given fsm state, through
  * subcore to agent.
@@ -484,6 +582,9 @@ void sprint_subcore_mode_state(char *mode_state_str) {
             strcpy(state_str, "dma_write"); break;
         case GCORE_SUBCORE_MODE_DMA_READ:
             strcpy(state_str, "dma_read"); break;
+        case GCORE_SUBCORE_MODE_GPIO_DNA:
+            strcpy(state_str, "gpio_dna"); break;
+
     };
 
     sprintf(mode_state_str, "subcore: mode=%s state=%s\n", mode_str, state_str);

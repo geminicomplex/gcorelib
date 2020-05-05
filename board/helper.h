@@ -27,8 +27,19 @@ extern "C" {
 #define GET_START_RANK(addr) ((uint32_t)(((uint64_t)addr & 0x0000000100000000) >> 32)) 
 #define GET_START_ADDR(addr) ((uint32_t)((uint64_t)addr & 0x00000000ffffffff))
 
+/*
+ * Subcore led types that can be set.
+ */
+enum subcore_leds {
+    SUBCORE_RED_LED,
+    SUBCORE_GREEN_LED
+};
+
 void helper_subcore_load(enum artix_selects artix_select,
     enum subcore_states subcore_state);
+void helper_subcore_set_boot_done();
+void helper_subcore_set_led(enum subcore_leds subcore_led, bool on);
+uint64_t helper_subcore_get_dna_id();
 void helper_agent_load(enum artix_selects artix_select,
     enum agent_states agent_state);
 void helper_memcore_load(enum artix_selects artix_select,
