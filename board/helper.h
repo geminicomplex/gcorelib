@@ -35,6 +35,23 @@ enum subcore_leds {
     SUBCORE_GREEN_LED
 };
 
+/*
+ * Gvpu status commands
+ */
+
+enum gvpu_status_selects {
+    GVPU_STATUS_SELECT_NONE = 0x0,
+    GVPU_STATUS_SELECT_MEM_TEST = 0x1,
+    GVPU_STATUS_SELECT_DUT_TEST = 0x2,
+    GVPU_STATUS_SELECT_MEM_RW = 0x3
+};
+
+enum gvpu_status_cmds {
+    GVPU_STATUS_CMD_NONE = 0x0,
+    GVPU_STATUS_CMD_GET_CYCLE = 0x1
+};
+
+
 void helper_subcore_load(enum artix_selects artix_select,
     enum subcore_states subcore_state);
 void helper_subcore_set_boot_done();
@@ -52,7 +69,8 @@ void helper_gvpu_load(enum artix_selects artix_select,
     enum gvpu_states gvpu_state);
 void helper_gvpu_packet_write(enum artix_selects artix_select,
     struct gcore_ctrl_packet *packet);
-uint64_t helper_get_agent_status_cycle(enum artix_selects artix_select);
+uint64_t helper_get_agent_gvpu_status(enum artix_selects artix_select, 
+        enum gvpu_status_selects select, enum gvpu_status_cmds cmd);
 void helper_get_agent_status(enum artix_selects artix_select, struct gcore_ctrl_packet *packet);
 void helper_print_agent_status(enum artix_selects artix_select);
 void helper_fopen(char *file_path, int *fd, FILE **fp, off_t *file_size);

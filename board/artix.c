@@ -325,7 +325,8 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     uint64_t *read_data = NULL;
 	struct gcore_ctrl_packet packet;
 	bool crc_failed = false;
-	uint32_t crc_cycle = 0;
+	uint64_t last_crc_cycle = 0;
+	uint64_t crc_cycle = 0;
 
 #ifdef VERILATOR
     //uint32_t test_data_size = 8384512/4; 
@@ -413,7 +414,9 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
                 break;
             }else{
                 if(counter >= 0x000000ff){
-                    crc_cycle = helper_get_agent_status_cycle(artix_select);
+                    crc_cycle = helper_get_agent_gvpu_status(artix_select,
+                            GVPU_STATUS_SELECT_MEM_TEST,
+                            GVPU_STATUS_CMD_GET_CYCLE);
                     helper_print_agent_status(artix_select);
                     counter = 0;
                     break;
@@ -424,7 +427,9 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         }
 
         // grab number of test cycles and if it failed
-        crc_cycle = helper_get_agent_status_cycle(artix_select);
+        crc_cycle = helper_get_agent_gvpu_status(artix_select,
+                GVPU_STATUS_SELECT_MEM_TEST,
+                GVPU_STATUS_CMD_GET_CYCLE);
         helper_get_agent_status(artix_select, &packet);
         if((packet.data & 0x000f0000) == 0x00010000){
             crc_failed = true;
@@ -454,9 +459,9 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 
     if(run_crc){
         if(crc_failed){
-            slog_info(0, "mem test failed at word %llu :(", ((crc_cycle*1024)/8));
+            slog_info(0, "mem test failed at word %" PRId64 " :(", ((crc_cycle*1024)/8));
         }else{
-            slog_info(0, "mem test PASS (ran %llu cycles)!", crc_cycle);
+            slog_info(0, "mem test PASS (ran %" PRId64 " cycles)!", crc_cycle);
         }
     }
 
@@ -480,6 +485,9 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         slog_debug(0, "dma_buf %02i: 0x%016" PRIX64 "", i, read_data[i]);
     }
 #endif
+
+    // free old write data
+    free(write_data);
         
     // re-generate write data with results not cleared out so 
     // it will match read_data
@@ -820,7 +828,9 @@ bool artix_dut_test(struct stim *stim, uint64_t *test_cycle){
             break;
         }else{
             if(counter >= 0x000fffff){
-                master_test_cycle = helper_get_agent_status_cycle(artix_select);
+                master_test_cycle = helper_get_agent_gvpu_status(artix_select,
+                        GVPU_STATUS_SELECT_DUT_TEST,
+                        GVPU_STATUS_CMD_GET_CYCLE);
                 if(dual_mode){
                     helper_print_agent_status(ARTIX_SELECT_A1);
                     helper_print_agent_status(ARTIX_SELECT_A2);
@@ -841,7 +851,9 @@ bool artix_dut_test(struct stim *stim, uint64_t *test_cycle){
         master_test_failed = true;
     }
 
-    master_test_cycle = helper_get_agent_status_cycle(artix_select);
+    master_test_cycle = helper_get_agent_gvpu_status(artix_select,
+            GVPU_STATUS_SELECT_DUT_TEST,
+            GVPU_STATUS_CMD_GET_CYCLE);
 
     if(dual_mode){
         helper_get_agent_status(ARTIX_SELECT_A2, &slave_packet);
@@ -849,7 +861,9 @@ bool artix_dut_test(struct stim *stim, uint64_t *test_cycle){
             slave_test_failed = true;
         }
 
-        slave_test_cycle = helper_get_agent_status_cycle(ARTIX_SELECT_A2);
+        slave_test_cycle = helper_get_agent_gvpu_status(ARTIX_SELECT_A2,
+            GVPU_STATUS_SELECT_DUT_TEST,
+            GVPU_STATUS_CMD_GET_CYCLE);
 
         if((master_packet.addr & 0xf0000000) >> 30){
             slog_warn(0, "warning: a1 read fifo stalled during test");
@@ -909,7 +923,10 @@ bool artix_dut_test(struct stim *stim, uint64_t *test_cycle){
         }
     }else{
 
-        master_test_cycle = helper_get_agent_status_cycle(artix_select);
+        master_test_cycle = helper_get_agent_gvpu_status(artix_select,
+            GVPU_STATUS_SELECT_DUT_TEST,
+            GVPU_STATUS_CMD_GET_CYCLE);
+
 
         // msb byte is 0:did_stall:status_switch
         if((master_packet.addr & 0xf0000000) >> 30){

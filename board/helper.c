@@ -262,7 +262,7 @@ void helper_burst_setup(enum artix_selects artix_select,
     packet.rank_select = GET_START_RANK(start_addr);
     packet.addr = GET_START_ADDR(start_addr);
     packet.data = num_bursts;
-    slog_info(0,"agent burst: %d @ %d = %d bytes @ addr 0x%X%08X", BURST_BYTES, 
+    slog_info(0,"burst setup: %d @ %d = %d bytes @ addr 0x%X%08X", BURST_BYTES, 
         num_bursts, (num_bursts*BURST_BYTES), packet.rank_select, packet.addr);
 
     helper_memcore_load(artix_select, MEMCORE_SETUP_BURST);
@@ -403,16 +403,22 @@ void helper_gvpu_packet_write(enum artix_selects artix_select,
     return;
 }
 
-uint64_t helper_get_agent_status_cycle(enum artix_selects artix_select){
+uint64_t helper_get_agent_gvpu_status(enum artix_selects artix_select, 
+        enum gvpu_status_selects select, enum gvpu_status_cmds cmd){
     struct gcore_ctrl_packet packet;
-	uint64_t status_cycle = 0;
+	uint64_t status = 0;
 
-    // clean packet
+    
+    helper_agent_load(artix_select, GVPU_STATUS);
+    helper_subcore_load(artix_select, CTRL_WRITE);
+
     packet.rank_select = 0;
-    packet.addr = 0;
-    packet.data = 0;
+    packet.addr = (uint32_t) select;
+    packet.data = (uint32_t) cmd;
 
-    helper_agent_load(artix_select, GVPU_CYCLE);
+    subcore_write_packet(&packet);
+
+    sleep(1);
 
     // agent is in gvpu_cycle, do ctrl_read to grab data
     helper_subcore_load(artix_select, CTRL_READ);
@@ -423,10 +429,11 @@ uint64_t helper_get_agent_status_cycle(enum artix_selects artix_select){
     // wait for subcore idle state
     subcore_idle();
 
-    status_cycle = (((uint64_t)(packet.addr)) << 32);
-    status_cycle = status_cycle | ((uint64_t)(packet.data));
+    status = 0;
+    status = status | (((uint64_t)(packet.addr)) << 32);
+    status = status | (((uint64_t)(packet.data)) << 0);
 
-    return status_cycle;
+    return status;
 }
 
 /*
@@ -628,8 +635,8 @@ void print_agent_state(enum agent_states agent_state, char *pre){
         case GVPU_READ:
             slog_info(0,"%sgvpu_read", pre);
             break;
-        case GVPU_CYCLE:
-            slog_info(0,"%sgvpu_cycle", pre);
+        case GVPU_STATUS:
+            slog_info(0,"%sgvpu_status", pre);
             break;
         case GVPU_RESET:
             slog_info(0,"%sgvpu_reset", pre);
