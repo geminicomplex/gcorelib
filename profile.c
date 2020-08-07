@@ -788,6 +788,39 @@ struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, in
     }
     return found_pin;
 }
+
+
+/*
+ * Return the profile pin given an ARTIX1/ARTIX2 DUT IO net name.
+ * There can only be on profile pin for a dut io name. That pin
+ * of course can fanout to multiple dest_dut_pins.
+ *
+ */
+struct profile_pin *get_profile_pin_by_net_name(struct profile *profile, char *net_name){
+    struct profile_pin *found_pin = NULL;
+
+    if(profile == NULL){
+        die("pointer is NULL");
+    }
+
+    if(net_name == NULL){
+        die("pointer is NULL");
+    }
+
+    for(int i=0; i<profile->num_pins; i++){
+        if(strcmp(net_name, profile->pins[i]->net_name) == 0){
+            if(found_pin != NULL){
+                die("multiple net_name '%s' found for profile '%s'", 
+                    net_name, profile->path);
+            }else{
+                found_pin = create_profile_pin_from_pin(profile->pins[i]);
+            }
+        }
+    }
+    return found_pin;
+}
+
+
 /*
  * Get a profile pin by the net alias name. Note that the net alias is unique
  * for a given dut. The net alias name can be used across duts if you have

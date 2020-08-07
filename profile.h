@@ -125,6 +125,8 @@ struct profile_pin *get_profile_pin_by_dut_io_id(struct profile *profile,
         uint32_t dut_io_id);
 struct profile_pin *get_profile_pin_by_pin_name(struct profile *profile, 
         char *pin_name);
+struct profile_pin *get_profile_pin_by_net_name(struct profile *profile, 
+        char *net_name);
 struct profile_pin *get_profile_pin_by_dest_pin_name(struct profile *profile, 
         int32_t dut_id, char *dest_pin_name);
 struct profile_pin *get_profile_pin_by_net_alias(struct profile *profile, 

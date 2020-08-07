@@ -133,8 +133,9 @@ void artix_mem_write(enum artix_selects artix_select,
         }
 
         // get burst count from gvpu
-        helper_get_agent_status(artix_select, &packet);
-        uint32_t gvpu_burst_count = packet.addr + 1;
+        uint32_t gvpu_burst_count = helper_get_agent_gvpu_status(artix_select,
+                GVPU_STATUS_SELECT_MEM_RW,
+                GVPU_STATUS_CMD_GET_CYCLE) + 1;
         slog_info(0,"sent %zu total bytes (actual %i).", 
             (num_chunks*DMA_SIZE)+data_mod, 
             gvpu_burst_count*BURST_BYTES);
@@ -150,9 +151,9 @@ void artix_mem_write(enum artix_selects artix_select,
         gcore_dma_prep_start(GCORE_WAIT_TX, dma_buf, size, NULL, 0);
         
         // get burst count from gvpu
-        helper_get_agent_status(artix_select, &packet);
-
-        uint32_t gvpu_burst_count = packet.addr + 1;
+        uint32_t gvpu_burst_count = helper_get_agent_gvpu_status(artix_select,
+                GVPU_STATUS_SELECT_MEM_RW,
+                GVPU_STATUS_CMD_GET_CYCLE) + 1;
         slog_info(0,"sent %zu bytes (actual %i).", 
             write_size, gvpu_burst_count*BURST_BYTES);
 
@@ -276,8 +277,9 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         }
 
         // get burst count from gvpu
-        helper_get_agent_status(artix_select, &packet);
-        uint32_t gvpu_burst_count = packet.addr + 1;
+        uint32_t gvpu_burst_count = helper_get_agent_gvpu_status(artix_select,
+                GVPU_STATUS_SELECT_MEM_RW,
+                GVPU_STATUS_CMD_GET_CYCLE) + 1;
         slog_info(0,"received %zu total bytes (actual %i).", 
             (num_chunks*DMA_SIZE)+data_mod, 
             gvpu_burst_count*BURST_BYTES);
@@ -294,8 +296,9 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         memcpy(read_data, dma_buf, read_size);
 
         // get burst count from gvpu
-        helper_get_agent_status(artix_select, &packet);
-        uint32_t gvpu_burst_count = packet.addr + 1;
+        uint32_t gvpu_burst_count = helper_get_agent_gvpu_status(artix_select,
+                GVPU_STATUS_SELECT_MEM_RW,
+                GVPU_STATUS_CMD_GET_CYCLE) + 1;
         slog_info(0,"received %zu bytes (actual %i).", 
             read_size, gvpu_burst_count*BURST_BYTES);
     }
