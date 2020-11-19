@@ -17,6 +17,7 @@
 #include "lib/jsmn/jsmn.h"
 
 #include <libgen.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -229,6 +230,42 @@ const char *util_get_file_ext_by_path(const char *path) {
     return (dot + 1);
 }
 
+/*
+ * Counts number of char c in string s.
+ *
+ */
+size_t util_str_count(const char* s, char c){
+    size_t r = 0;
+    for(; *s; s++){
+        r += *s == c;
+    }
+    return r;
+}
+
+
+/*
+ * Strips space from start and end like python's strip
+ */
+char *util_str_strip(char *s){
+    size_t size;
+    char *end;
+    size = strlen(s);
+    if(!size){
+        return s;
+    }
+    end = s + size - 1;
+    while(end >= s && isspace(*end)){
+        end--;
+    }
+    *(end + 1) = '\0';
+
+    while(*s && isspace(*s)){
+        s++;
+    }
+
+    return s;
+}
+
 
 size_t util_str_split(char* a_str, const char a_delim, char*** results){
     size_t count = 0;
@@ -242,7 +279,7 @@ size_t util_str_split(char* a_str, const char a_delim, char*** results){
 
     /* Count how many elements will be extracted. */
     while (*tmp){
-        if (a_delim == *tmp){
+        if (*tmp == a_delim){
             count++;
             last_delim = tmp;
         }

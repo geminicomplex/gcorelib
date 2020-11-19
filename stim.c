@@ -1317,7 +1317,99 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             }
             break;
         case STIM_TYPE_DOTS:
-            die("error: dots not supported yet");
+            {
+                char *file_line = NULL;
+                size_t len = 0;
+                ssize_t read;
+                struct dots *dots = NULL;
+                char **pin_names = NULL;
+                struct profile_pin **profile_pins = NULL;
+                uint32_t num_pins = 0;
+                uint32_t num_vecs = 0;
+
+
+                while((read = getline(&file_line, &len, fp)) != -1){
+                    file_line[strcspn(file_line,"\n")] = '\0';
+                    char *l = util_str_strip(file_line);
+
+                    if(l[0] == '#'){
+                        continue;
+                    }else if(strlen(l) == 0){
+                        continue;
+                    }else if(strstr(l, "Pins") == l){
+                        l = l + 4;
+                        l = util_str_strip(l);
+                        num_pins = util_str_split(l, ',', &pin_names);
+                        for(int i=0; i<num_pins; i++){
+                            char *s = strdup(util_str_strip(pin_names[i]));
+                            free(pin_names[i]);
+                            pin_names[i] = s;
+                        }
+                    }else if(strstr(l, "V") == l || strstr(l, "repeat") == l){
+                        num_vecs += 1;
+                    }else{
+                        die("Invalid dots line: %s", l);
+                    }
+                }
+
+                if(num_pins == 0 || pin_names == NULL){
+                    die("Failed to find valid pins in Pins line\n");
+                } 
+
+                if(num_vecs == 0){
+                    die("Failed to find any vectors\n");
+                }
+
+                profile_pins = create_profile_pins(num_pins);
+                for(int i=0; i<num_pins; i++){
+                    char *name = pin_names[i];
+                    if((profile_pins[i] = get_profile_pin_by_dest_pin_name(stim->profile, -1, name)) == NULL){
+                        if((profile_pins[i] = get_profile_pin_by_net_alias(stim->profile, -1, name)) == NULL){
+                            if((profile_pins[i] = get_profile_pin_by_net_name(stim->profile, name)) == NULL){
+                                die("failed to get profile pin by name '%s'", name);
+                            }
+                        }
+                    }
+                }
+
+                if((dots = create_dots(num_vecs, profile_pins, num_pins)) == NULL){
+                    die("failed to create dots");
+                }
+
+                fseek(fp, 0, SEEK_SET);
+
+                while((read = getline(&file_line, &len, fp)) != -1){
+                    file_line[strcspn(file_line,"\n")] = '\0';
+                    char *l = util_str_strip(file_line);
+
+                    if(l[0] == '#'){
+                        continue;
+                    }else if(strlen(l) == 0){
+                        continue;
+                    }else if(strstr(l, "Pins") == l){
+                        continue;
+                    }else if(strstr(l, "V") == l){
+                        append_dots_vec_by_vec_str(dots, "1", l);
+                    }else if(strstr(l, "repeat") == l){
+                        uint32_t num_vec_strs = 0;
+                        char **vec_strs = NULL;
+                        if(util_str_split(l, ' ', &vec_strs) != 3){
+                            die("invalid vec repeat line '%s'", l);
+                        }
+                        append_dots_vec_by_vec_str(dots, vec_strs[1], vec_strs[2]);
+                    }else{
+                        die("Invalid dots line: %s", l);
+                    }
+                }
+
+                if(file_line){
+                    free(file_line);
+                }
+
+                //stim = free_stim(stim);
+                stim = get_stim_by_dots(profile_path, dots);
+
+            }
             break;
         case STIM_TYPE_RAW:
             if((stim = stim_deserialize(stim)) == NULL){

@@ -434,7 +434,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
                 GVPU_STATUS_SELECT_MEM_TEST,
                 GVPU_STATUS_CMD_GET_CYCLE);
         helper_get_agent_status(artix_select, &packet);
-        if((packet.data & 0x000f0000) == 0x00010000){
+        if((packet.data & 0x00010000) == 0x00010000){
             crc_failed = true;
         }
         slog_info(0, "crc test finished.");
@@ -850,7 +850,7 @@ bool artix_dut_test(struct stim *stim, uint64_t *test_cycle){
 
     // grab number of test cycles and if it failed
     helper_get_agent_status(artix_select, &master_packet);
-    if((master_packet.data & 0x000f0000) == 0x00010000){
+    if((master_packet.data & 0x00010000) == 0x00010000){
         master_test_failed = true;
     }
 
@@ -860,7 +860,7 @@ bool artix_dut_test(struct stim *stim, uint64_t *test_cycle){
 
     if(dual_mode){
         helper_get_agent_status(ARTIX_SELECT_A2, &slave_packet);
-        if((slave_packet.data & 0x000f0000) == 0x00010000){
+        if((slave_packet.data & 0x00010000) == 0x00010000){
             slave_test_failed = true;
         }
 
