@@ -515,6 +515,8 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     }
 
     slog_info(0, "done.");
+    free(read_data);
+    free(write_data);
     
     return;
 }

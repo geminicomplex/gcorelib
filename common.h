@@ -25,6 +25,8 @@ extern "C" {
 
 #ifdef VERILATOR
 #define GEM_DEBUG
+#else
+#define GEM_DEBUG
 #endif
 
 // can't include kernel headers so add defines here
