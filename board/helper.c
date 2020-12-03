@@ -505,6 +505,50 @@ void print_regs(struct gcore_registers *regs){
     return;
 }
 
+
+/*
+ * this is returned from zynq_core -> s_axi_ctrl
+ *
+ */
+void _print_artix_status(uint32_t status){
+    int fill             =  (status & 0x20000000)  >> 29;
+    int status_valid     =  (status & 0x10000000)  >> 28;
+    int mmcm_lock_error  = ~((status & 0x01000000) >> 24) & 0x1;
+    int calib_error      = ~((status & 0x00800000) >> 23) & 0x1;
+    int rst_error        =  (status & 0x00400000)  >> 22;
+    int pll_lock_error   = ~((status & 0x00200000) >> 21) & 0x1;
+    int temp_error       =  (status & 0x00100000)  >> 20;
+    int startup_done     =  (status & 0x00080000)  >> 19;
+    int done             =  (status & 0x00040000)  >> 18;
+    int agent_error      =  (status & 0x00020000)  >> 17;
+    int gvpu_fail        =  (status & 0x00010000)  >> 16;
+    int stage            =  (status & 0x0000f000)  >> 12;
+    int memcore          =  (status & 0x00000f00)  >> 8;
+    int gvpu             =  (status & 0x000000f0)  >> 4;
+    int agent            =  (status & 0x0000000f)  >> 0;
+    printf("fill svalid mlock calib rst plock temp start done error fail stage memcore gvpu agent\n");
+    printf("%-4d %-6d %-5d %-5d %-3d %-5d %-4d %-5d %-4d %-5d %-4d %-5d %-7d %-4d %-5d\n",
+        fill, status_valid, mmcm_lock_error, calib_error, rst_error, pll_lock_error, temp_error,
+        startup_done, done, agent_error, gvpu_fail, stage, memcore, gvpu, agent);
+    return;
+}
+
+void print_regs_verbose(struct gcore_registers *regs){
+    print_regs(regs);
+    
+    for(int i=0; i<80; i++){
+        printf("-");
+    }
+    printf("\n");
+    _print_artix_status(regs->a1_status);
+    _print_artix_status(regs->a2_status);
+    for(int i=0; i<80; i++){
+        printf("-");
+    }
+    printf("\n");
+    return;
+}
+
 /*
  * Prints a gcore ctrl packet to stdout.
  *

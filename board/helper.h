@@ -76,6 +76,7 @@ void helper_print_agent_status(enum artix_selects artix_select);
 void helper_fopen(char *file_path, int *fd, FILE **fp, off_t *file_size);
 void sprint_subcore_mode_state(char *mode_state_str);
 void print_regs(struct gcore_registers *regs);
+void print_regs_verbose(struct gcore_registers *regs);
 void print_packet(struct gcore_ctrl_packet *packet, char *pre);
 void print_agent_state(enum agent_states agent_state, char *pre);
 void print_gvpu_state(enum gvpu_states gvpu_state, char *pre);
