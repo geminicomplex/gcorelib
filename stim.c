@@ -1,15 +1,9 @@
 /*
  * Stim File
  *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
  */
-
-// support for files larger than 2GB limit
-#ifndef _LARGEFILE_SOURCE
-#define _LARGEFILE_SOURCE
-#endif
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
-#endif
 
 #include "common.h"
 #include "subvec.h"
@@ -20,7 +14,7 @@
 #include "serialize/stim_serdes.capnp.h"
 #include "lib/capnp/capnp_c.h"
 #include "lib/lz4/lz4.h"
-#include "../driver/gcore_common.h"
+//#include "../driver/gcore_common.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -1066,6 +1060,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
     uint64_t num_unrolled_vecs = 0;
     char buffer[BUFFER_LENGTH];
     char *real_path = NULL;
+    struct profile *profile = NULL; 
 
     if(profile_path == NULL){
         die("pointer is NULL");
@@ -1075,45 +1070,55 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
         die("pointer is NULL");
     }
 
-    if((stim = create_stim()) == NULL){
-        die("error: pointer is NULL");
-    }
+    enum stim_types stim_type = get_stim_type_by_path(path); 
 
-    if((stim->profile = get_profile_by_path(profile_path)) == NULL){
-        die("error: pointer is NULL");
-    }
-
-    if(util_fopen(path, &fd, &fp, &file_size)){
-        die("error: failed to open file '%s'", path);
-    }
-    
-    if((stim->type = get_stim_type_by_path(path)) == STIM_TYPE_NONE){
+    if(stim_type == STIM_TYPE_NONE){
         const char *file_ext = util_get_file_ext_by_path(path);
         die("error: invalid file type given '%s'", file_ext);
     }
 
-    if((real_path = realpath(path, NULL)) == NULL){
-        die("invalid stim path '%s'", path);
+    if((profile = get_profile_by_path(profile_path)) == NULL){
+        die("error: pointer is NULL");
     }
 
-    // legit path so save it
-    stim->path = strdup(real_path);
+    // only create a stim if not dots, since for dots the parser
+    // returns a dots which we use to create a stim
+    if(stim_type == STIM_TYPE_RBT || stim_type == STIM_TYPE_BIN 
+            || stim_type == STIM_TYPE_BIT || stim_type == STIM_TYPE_RAW){
+        if((stim = create_stim()) == NULL){
+            die("error: pointer is NULL");
+        }
 
-    // Save file handle data to stim so we can load chunks as needed.
-    // The cur_map_byte is where we are currently reading from. The
-    // start_map_byte is the location after some header is read where
-    // we can reset to and restart reading from without initializing.
-    stim->is_open = true;
-    stim->fd = fd;
-    stim->fp = fp;
-    stim->file_size = file_size;
-    stim->map = (uint8_t*)mmap(NULL, (size_t)file_size, PROT_READ, MAP_SHARED, fd, 0); 
-    stim->cur_map_byte = 0;
-    stim->start_map_byte = 0;
+        stim->type = stim_type;
+        stim->profile = profile;
 
-    if(stim->map == MAP_FAILED){
-        close(stim->fd);
-        die("error: failed to map file");
+        if(util_fopen(path, &fd, &fp, &file_size)){
+            die("error: failed to open file '%s'", path);
+        }
+
+        if((real_path = realpath(path, NULL)) == NULL){
+            die("invalid stim path '%s'", path);
+        }
+
+        // legit path so save it
+        stim->path = strdup(real_path);
+
+        // Save file handle data to stim so we can load chunks as needed.
+        // The cur_map_byte is where we are currently reading from. The
+        // start_map_byte is the location after some header is read where
+        // we can reset to and restart reading from without initializing.
+        stim->is_open = true;
+        stim->fd = fd;
+        stim->fp = fp;
+        stim->file_size = file_size;
+        stim->map = (uint8_t*)mmap(NULL, (size_t)file_size, PROT_READ, MAP_SHARED, fd, 0); 
+        stim->cur_map_byte = 0;
+        stim->start_map_byte = 0;
+
+        if(stim->map == MAP_FAILED){
+            close(stim->fd);
+            die("error: failed to map file");
+        }
     }
 
     // Find the endianness of the bitstream
@@ -1318,97 +1323,8 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             break;
         case STIM_TYPE_DOTS:
             {
-                char *file_line = NULL;
-                size_t len = 0;
-                ssize_t read;
-                struct dots *dots = NULL;
-                char **pin_names = NULL;
-                struct profile_pin **profile_pins = NULL;
-                uint32_t num_pins = 0;
-                uint32_t num_vecs = 0;
-
-
-                while((read = getline(&file_line, &len, fp)) != -1){
-                    file_line[strcspn(file_line,"\n")] = '\0';
-                    char *l = util_str_strip(file_line);
-
-                    if(l[0] == '#'){
-                        continue;
-                    }else if(strlen(l) == 0){
-                        continue;
-                    }else if(strstr(l, "Pins") == l){
-                        l = l + 4;
-                        l = util_str_strip(l);
-                        num_pins = util_str_split(l, ',', &pin_names);
-                        for(int i=0; i<num_pins; i++){
-                            char *s = strdup(util_str_strip(pin_names[i]));
-                            free(pin_names[i]);
-                            pin_names[i] = s;
-                        }
-                    }else if(strstr(l, "V") == l || strstr(l, "repeat") == l){
-                        num_vecs += 1;
-                    }else{
-                        die("Invalid dots line: %s", l);
-                    }
-                }
-
-                if(num_pins == 0 || pin_names == NULL){
-                    die("Failed to find valid pins in Pins line\n");
-                } 
-
-                if(num_vecs == 0){
-                    die("Failed to find any vectors\n");
-                }
-
-                profile_pins = create_profile_pins(num_pins);
-                for(int i=0; i<num_pins; i++){
-                    char *name = pin_names[i];
-                    if((profile_pins[i] = get_profile_pin_by_dest_pin_name(stim->profile, -1, name)) == NULL){
-                        if((profile_pins[i] = get_profile_pin_by_net_alias(stim->profile, -1, name)) == NULL){
-                            if((profile_pins[i] = get_profile_pin_by_net_name(stim->profile, name)) == NULL){
-                                die("failed to get profile pin by name '%s'", name);
-                            }
-                        }
-                    }
-                }
-
-                if((dots = create_dots(num_vecs, profile_pins, num_pins)) == NULL){
-                    die("failed to create dots");
-                }
-
-                fseek(fp, 0, SEEK_SET);
-
-                while((read = getline(&file_line, &len, fp)) != -1){
-                    file_line[strcspn(file_line,"\n")] = '\0';
-                    char *l = util_str_strip(file_line);
-
-                    if(l[0] == '#'){
-                        continue;
-                    }else if(strlen(l) == 0){
-                        continue;
-                    }else if(strstr(l, "Pins") == l){
-                        continue;
-                    }else if(strstr(l, "V") == l){
-                        append_dots_vec_by_vec_str(dots, "1", l);
-                    }else if(strstr(l, "repeat") == l){
-                        uint32_t num_vec_strs = 0;
-                        char **vec_strs = NULL;
-                        if(util_str_split(l, ' ', &vec_strs) != 3){
-                            die("invalid vec repeat line '%s'", l);
-                        }
-                        append_dots_vec_by_vec_str(dots, vec_strs[1], vec_strs[2]);
-                    }else{
-                        die("Invalid dots line: %s", l);
-                    }
-                }
-
-                if(file_line){
-                    free(file_line);
-                }
-
-                //stim = free_stim(stim);
-                stim = get_stim_by_dots(profile_path, dots);
-
+                struct dots *dots = parse_dots(profile, real_path);
+                stim = get_stim_by_dots(profile, dots);
             }
             break;
         case STIM_TYPE_RAW:
@@ -1428,12 +1344,11 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
  * Returns a stim from a dots object.
  *
  */
-struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots){
+struct stim *get_stim_by_dots(struct profile *profile, struct dots *dots){
     struct stim *stim = NULL;
     uint64_t num_unrolled_vecs = 0;
-    struct profile *profile = NULL;
 
-    if((profile = get_profile_by_path(profile_path)) == NULL){
+    if(profile == NULL){
         die("pointer is NULL");
     }
 

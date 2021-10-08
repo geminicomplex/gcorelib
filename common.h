@@ -1,14 +1,6 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-// support for files larger than 2GB limit
-#ifndef _LARGEFILE_SOURCE
-#define _LARGEFILE_SOURCE
-#endif
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,7 +13,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "../driver/gcore_common.h"
+//#include "../driver/gcore_common.h"
 
 #ifdef VERILATOR
 #define GEM_DEBUG
@@ -44,6 +36,13 @@ extern "C" {
 
 // declare prototype
 void print_stacktrace();
+
+#ifndef bye
+#define bye(fmt, ...) do{\
+    fprintf(stderr, fmt, ##__VA_ARGS__);\
+    exit(EXIT_FAILURE);\
+    } while(0);
+#endif
 
 #ifndef die
 #define die(fmt, ...) do{\
@@ -94,6 +93,21 @@ void print_stacktrace();
 
 // len=0x0f, size 2**6=64, incr_mode=0x1
 #define MEMCORE_BURST_CFG (0x0000f610)
+
+/*
+ * subcore artix unit select
+ *
+ * NONE: initial state 
+ * A1: select the top artix1 unit
+ * A2: select the bot artix2 unit
+ *
+ */
+enum artix_selects {
+    ARTIX_SELECT_NONE,
+    ARTIX_SELECT_A1,
+    ARTIX_SELECT_A2,
+    ARTIX_SELECT_BOTH
+};
 
 void gcore_init_log(const char *log_path);
 

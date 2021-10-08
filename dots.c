@@ -1,15 +1,9 @@
 /*
  * Dots parser
  *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
  */
-
-// support for files larger than 2GB limit
-#ifndef _LARGEFILE_SOURCE
-#define _LARGEFILE_SOURCE
-#endif
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
-#endif
 
 #include "dots.h"
 #include "util.h"
@@ -28,6 +22,112 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
+
+struct dots *parse_dots(struct profile *profile, char *dots_path){
+    int fd;
+    FILE *fp = NULL;
+    off_t file_size = 0;
+    char *file_line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    struct dots *dots = NULL;
+    char **pin_names = NULL;
+    struct profile_pin **profile_pins = NULL;
+    uint32_t num_pins = 0;
+    uint32_t num_vecs = 0;
+    char *real_path = NULL;
+
+    if((real_path = realpath(dots_path, NULL)) == NULL){
+        bye("invalid stim path '%s'\n", dots_path);
+    }
+
+    if(util_fopen(real_path, &fd, &fp, &file_size)){
+        bye("error: failed to open file '%s'\n", real_path);
+    }
+
+    while((read = getline(&file_line, &len, fp)) != -1){
+        file_line[strcspn(file_line,"\n")] = '\0';
+        char *l = util_str_strip(file_line);
+
+        if(l[0] == '#'){
+            continue;
+        }else if(strlen(l) == 0){
+            continue;
+        }else if(strstr(l, "Pins") == l){
+            l = l + 4;
+            l = util_str_strip(l);
+            num_pins = util_str_split(l, ',', &pin_names);
+            for(int i=0; i<num_pins; i++){
+                char *s = strdup(util_str_strip(pin_names[i]));
+                free(pin_names[i]);
+                pin_names[i] = s;
+            }
+        }else if(strstr(l, "V") == l || strstr(l, "repeat") == l){
+            num_vecs += 1;
+        }else{
+            bye("Invalid dots line: %s\n", l);
+        }
+    }
+
+    if(num_pins == 0 || pin_names == NULL){
+        bye("Failed to find valid pins in Pins line\n");
+    } 
+
+    if(num_vecs == 0){
+        bye("Failed to find any vectors\n");
+    }
+
+    profile_pins = create_profile_pins(num_pins);
+    for(int i=0; i<num_pins; i++){
+        char *name = pin_names[i];
+        if((profile_pins[i] = get_profile_pin_by_dest_pin_name(profile, -1, name)) == NULL){
+            if((profile_pins[i] = get_profile_pin_by_net_alias(profile, -1, name)) == NULL){
+                if((profile_pins[i] = get_profile_pin_by_net_name(profile, name)) == NULL){
+                    bye("failed to get profile pin by name '%s'\n", name);
+                }
+            }
+        }
+    }
+
+    if((dots = create_dots(num_vecs, profile_pins, num_pins)) == NULL){
+        bye("failed to create dots\n");
+    }
+
+    fseek(fp, 0, SEEK_SET);
+
+    while((read = getline(&file_line, &len, fp)) != -1){
+        file_line[strcspn(file_line,"\n")] = '\0';
+        char *l = util_str_strip(file_line);
+
+        if(l[0] == '#'){
+            continue;
+        }else if(strlen(l) == 0){
+            continue;
+        }else if(strstr(l, "Pins") == l){
+            continue;
+        }else if(strstr(l, "V") == l){
+            append_dots_vec_by_vec_str(dots, "1", l);
+        }else if(strstr(l, "repeat") == l){
+            uint32_t num_vec_strs = 0;
+            char **vec_strs = NULL;
+            if(util_str_split(l, ' ', &vec_strs) != 3){
+                bye("invalid vec repeat line '%s'\n", l);
+            }
+            append_dots_vec_by_vec_str(dots, vec_strs[1], vec_strs[2]);
+        }else{
+            bye("Invalid dots line: %s\n", l);
+        }
+    }
+
+    if(file_line){
+        free(file_line);
+    }
+
+    fclose(fp);
+    close(fd);
+
+    return dots;
+}
 
 /*
  * Creates a new dots_vec based on a vec string and appends it to the

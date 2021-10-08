@@ -27,18 +27,10 @@
 extern "C" {
 #endif
 
-// support for files larger than 2GB limit
-#ifndef _LARGEFILE_SOURCE
-#define _LARGEFILE_SOURCE
-#endif
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
-#endif
-
 #include "profile.h"
 #include "config.h"
 #include "dots.h"
-#include "../driver/gcore_common.h"
+//#include "../driver/gcore_common.h"
 
 #include <stdio.h>
 #include <inttypes.h>
@@ -163,7 +155,7 @@ struct stim {
 struct stim *get_stim_by_path(const char *profile_path, const char *path);
 
 // Load a dots object. Must be fully populated with vectors but not expanded. 
-struct stim *get_stim_by_dots(const char *profile_path, struct dots *dots);
+struct stim *get_stim_by_dots(struct profile *profile, struct dots *dots);
 
 // Load and fills the next chunk. Always unloads current chunk. 
 struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects artix_select);

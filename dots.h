@@ -70,6 +70,7 @@ struct dots {
     uint32_t cur_appended_dots_vec_id;
 };
 
+struct dots *parse_dots(struct profile *profile, char *dots_path);
 struct dots *create_dots(uint32_t num_dots_vecs, struct profile_pin **pins, 
     uint32_t num_pins);
 void append_dots_vec_by_vec_str(struct dots *dots, 
