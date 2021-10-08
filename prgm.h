@@ -1,3 +1,9 @@
+/*
+ * prgm test programs
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
+ */
 #ifndef PRGM_H
 #define PRGM_H
 

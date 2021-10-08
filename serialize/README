@@ -3,6 +3,6 @@ Libgcore uses Cap'n Proto to serialize stim files.
 
 install capnp
 install c-capnproto
-run `capnp compile -oc stim.capnp` to generate stim.capnp.h and stim.capnp.c
+run `capnp compile -oc stim_serdes.capnp` to generate stim_serdes.capnp.h and stim_serdes.capnp.c
 
 

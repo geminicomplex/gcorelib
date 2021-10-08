@@ -1,5 +1,7 @@
 /*
- * Dots parser
+ * DOTS test pattern
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
  *
  */
 
@@ -8,14 +10,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-// support for files larger than 2GB limit
-#ifndef _LARGEFILE_SOURCE
-#define _LARGEFILE_SOURCE
-#endif
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
 #endif
 
 #include "profile.h"

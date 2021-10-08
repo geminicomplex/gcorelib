@@ -1,5 +1,5 @@
 /*
- * Dots parser
+ * DOTS test pattern
  *
  * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
  *

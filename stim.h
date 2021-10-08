@@ -15,8 +15,10 @@
  * and the remaining 56 nibbles are used for the opcode and operand, which
  * will later be utilized to support more features.
  *
- * In other words, each chunk and it's vec_data is only compatible with one
+ * In other words, each chunk and its vec_data is only compatible with one
  * artix unit.
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
  *
  */
 

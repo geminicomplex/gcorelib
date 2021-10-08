@@ -1,3 +1,9 @@
+/*
+ * libgcore header
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
+ */
 #ifndef LIBGCORE_H
 #define LIBGCORE_H
 

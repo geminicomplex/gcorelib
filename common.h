@@ -1,3 +1,10 @@
+/*
+ * Common
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
+ */
+
 #ifndef COMMON_H
 #define COMMON_H
 
