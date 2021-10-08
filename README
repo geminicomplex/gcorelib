@@ -1,0 +1,34 @@
+
+   ________               .__       .__ 
+  /  _____/  ____   _____ |__| ____ |__|
+ /   \  ____/ __ \ /     \|  |/    \|  |
+ \    \_\  \  ___/|  | |  \  |   |  \  |
+  \______  /\___  >__|_|  /__|___|  /__|
+         \/     \/      \/        \/    
+        GEMINI CORE LIBRARY
+        Gcorelib v1.2.0
+
+
+===============================================================================
+OVERVIEW
+===============================================================================
+
+The Gemini Core Library or gcorelib provides a low-level application
+programming interface for working with dots/stim/prgm files and interacting
+with the Gemini gcore driver. 
+
+Gcorelib is built as a dynamic library that can be linked against at runtime.
+All the board specific APIs are located in the "board" directory and are used
+by internal software, only when actually running on the Gemini Tester. 
+
+===============================================================================
+INSTALL
+===============================================================================
+
+
+1. git clone https://github.com/geminicomplex/gcorelib
+2. make <mac or linux or arm>
+3. check the build/ directory
+
+
+

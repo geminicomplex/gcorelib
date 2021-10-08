@@ -16,7 +16,7 @@ PLAT :=
 
 ifeq ($(OS),Darwin)
 	PLAT := mac
-	BUILD_PATH := build/macosx
+	BUILD_PATH := build/mac
 	LDFLAGS += -shared -dynamiclib -Wl,-install_name,libgcore.dylib -lpthread
 	EXEC += $(BUILD_PATH)/libgcore.dylib
 else
@@ -58,15 +58,15 @@ all:
 #
 # Must give target to run
 #
-mac: build/macosx/libgcore.dylib 
+mac: build/mac/libgcore.dylib 
 linux: build/linux/libgcore.so 
 arm: build/arm/libgcore.so 
 
 #
 # Build mac, linux and arm. Must run clean before.
 #
-build/macosx/libgcore.dylib: $(SRCS) $(HEADERS)
-	$(CC) $(INCLUDES) $(LDFLAGS) $(SRCS) -o build/macosx/libgcore.dylib
+build/mac/libgcore.dylib: $(SRCS) $(HEADERS)
+	$(CC) $(INCLUDES) $(LDFLAGS) $(SRCS) -o build/mac/libgcore.dylib
 
 build/linux/libgcore.so: $(SRCS) $(HEADERS)
 	$(CC) $(INCLUDES) $(LDFLAGS) $(SRCS) -o build/linux/libgcore.so
@@ -79,7 +79,7 @@ build/arm/libgcore.so: $(SRCS) $(HEADERS)
 
 clean-mac:
 	$(shell find . -name '*_mac.o' -delete)
-	rm -f build/macosx/libgcore.dylib
+	rm -f build/mac/libgcore.dylib
 
 clean-linux:
 	$(shell find . -name '*_linux.o' -delete)
