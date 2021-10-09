@@ -20,7 +20,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "../../driver/gcore_common.h"
+#include "driver.h"
 
 #define ARTIX_READ_FIFO_BYTES (2097152)
 

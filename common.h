@@ -101,21 +101,6 @@ void print_stacktrace();
 // len=0x0f, size 2**6=64, incr_mode=0x1
 #define MEMCORE_BURST_CFG (0x0000f610)
 
-/*
- * subcore artix unit select
- *
- * NONE: initial state 
- * A1: select the top artix1 unit
- * A2: select the bot artix2 unit
- *
- */
-enum artix_selects {
-    ARTIX_SELECT_NONE,
-    ARTIX_SELECT_A1,
-    ARTIX_SELECT_A2,
-    ARTIX_SELECT_BOTH
-};
-
 void gcore_init_log(const char *log_path);
 
 #ifdef __cplusplus

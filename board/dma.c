@@ -11,7 +11,7 @@
 #include "dev.h"
 #include "dma.h"
 
-#include "../../driver/gcore_common.h"
+#include "driver.h"
 
 #include <time.h>
 #include <stdio.h>

@@ -13,7 +13,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "../../driver/gcore_common.h"
+#include "driver.h"
 
 
 uint8_t gcore_dev_get_fd();

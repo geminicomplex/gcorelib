@@ -12,7 +12,7 @@
 #include "helper.h"
 #include "subcore.h"
 
-#include "../../driver/gcore_common.h"
+#include "driver.h"
 
 #include <stdio.h>
 #include <stdlib.h>

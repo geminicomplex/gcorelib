@@ -13,7 +13,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "../../driver/gcore_common.h"
+#include "driver.h"
 
 // TODO: the ddr eeprom addr might change depending
 // on the sodimm.

@@ -7,12 +7,6 @@
 
 // TODO: support multiple DUTs in profile and api
 
-#include "profile.h"
-#include "util.h"
-
-#include "lib/jsmn/jsmn.h"
-#include "lib/avl/avl.h"
-
 #include <limits.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -25,6 +19,14 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <inttypes.h>
+
+#include "lib/jsmn/jsmn.h"
+#include "lib/avl/avl.h"
+
+#include "profile.h"
+#include "util.h"
+
+
 
 /*
  * Allocate a new profile pin object.

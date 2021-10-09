@@ -13,7 +13,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "../../driver/gcore_common.h"
+#include "driver.h"
 
 /*
  * Access the MIO/EMIO gpio through the sysfs interface.

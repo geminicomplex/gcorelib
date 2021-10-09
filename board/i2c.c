@@ -11,7 +11,7 @@
 #include "../common.h"
 #include "i2c.h"
 
-#include "../../driver/gcore_common.h"
+#include "driver.h"
 
 #include <time.h>
 #include <stdio.h>

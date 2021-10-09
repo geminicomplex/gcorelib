@@ -8,17 +8,6 @@
  *
  */
 
-#include "../common.h"
-#include "../util.h"
-#include "../stim.h"
-#include "../profile.h"
-#include "artix.h"
-#include "helper.h"
-#include "dma.h"
-#include "subcore.h"
-
-#include "../../driver/gcore_common.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +19,16 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <signal.h>
+
+#include "../common.h"
+#include "../util.h"
+#include "../stim.h"
+#include "../profile.h"
+#include "artix.h"
+#include "helper.h"
+#include "dma.h"
+#include "subcore.h"
+#include "driver.h"
 
 
 static void subcore_prep_dma_write(enum artix_selects artix_select, uint32_t num_bursts){

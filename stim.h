@@ -29,14 +29,14 @@
 extern "C" {
 #endif
 
+#include <inttypes.h>
+#include <stdbool.h>
+
 #include "profile.h"
 #include "config.h"
 #include "dots.h"
-//#include "../driver/gcore_common.h"
+#include "board/driver.h"
 
-#include <stdio.h>
-#include <inttypes.h>
-#include <stdbool.h>
 
 /*
  * Types

@@ -5,34 +5,33 @@
 # and mac on a linux system.
 #
 
-BUILD_PATH :=
-INCLUDES :=-I. -I./board -I../driver -I./lib/jsmn -I./lib/avl -I./lib/progress -I./lib/lz4 -I./lib/capnp 
+INCLUDES :=-I. -I./board -I./lib/jsmn -I./lib/avl -I./lib/progress -I./lib/lz4 -I./lib/capnp 
 CFLAGS :=-O2 -c -fPIC -Wall -funwind-tables -g -ggdb
-CC := gcc
 LDFLAGS := -fPIC
-EXEC :=
-OS := $(shell uname)
 PLAT :=
 
+OS := $(shell uname)
 ifeq ($(OS),Darwin)
 	PLAT := mac
 	BUILD_PATH := build/mac
 	LDFLAGS += -shared -dynamiclib -Wl,-install_name,libgcore.dylib -lpthread
-	EXEC += $(BUILD_PATH)/libgcore.dylib
+	EXEC := $(BUILD_PATH)/libgcore.dylib
+	CC := clang
 else
 ifeq ($(MAKECMDGOALS),arm)
 	PLAT := arm
 	BUILD_PATH := build/arm
+	LDFLAGS += -shared -Wl,-soname,libgcore.so -lpthread
+	EXEC := $(BUILD_PATH)/libgcore.so
 	ARM_CFLAGS := -march=armv7-a -mcpu=cortex-a9 -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard
 	CFLAGS := ${ARM_CFLAGS} $(CFLAGS) -D_FILE_OFFSET_BITS=64
 	CC := arm-linux-gnueabihf-gcc
-	LDFLAGS += -shared -Wl,-soname,libgcore.so -lpthread
-	EXEC += $(BUILD_PATH)/libgcore.so
 else
 	PLAT := linux
 	BUILD_PATH := build/linux
 	LDFLAGS += -shared -Wl,-soname,libgcore.so -lpthread
-	EXEC += $(BUILD_PATH)/libgcore.so
+	EXEC := $(BUILD_PATH)/libgcore.so
+	CC := gcc
 endif
 endif
 
@@ -66,12 +65,15 @@ arm: build/arm/libgcore.so
 # Build mac, linux and arm. Must run clean before.
 #
 build/mac/libgcore.dylib: $(SRCS) $(HEADERS)
+	mkdir -p build/mac
 	$(CC) $(INCLUDES) $(LDFLAGS) $(SRCS) -o build/mac/libgcore.dylib
 
 build/linux/libgcore.so: $(SRCS) $(HEADERS)
+	mkdir -p build/linux
 	$(CC) $(INCLUDES) $(LDFLAGS) $(SRCS) -o build/linux/libgcore.so
 
 build/arm/libgcore.so: $(SRCS) $(HEADERS)
+	mkdir -p build/arm
 	$(CC) $(INCLUDES) $(LDFLAGS) $(SRCS) -o build/arm/libgcore.so
 
 %.c: %.h
@@ -90,5 +92,6 @@ clean-arm:
 	rm -f build/arm/libgcore.so
 
 clean: clean-mac clean-linux clean-arm
+	rm -rf build
 
 .PHONY : all mac linux arm clean clean-mac clean-linux clean-arm

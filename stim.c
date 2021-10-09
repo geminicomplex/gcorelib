@@ -5,17 +5,6 @@
  *
  */
 
-#include "common.h"
-#include "subvec.h"
-#include "stim.h"
-#include "util.h"
-#include "profile.h"
-#include "config.h"
-#include "serialize/stim_serdes.capnp.h"
-#include "lib/capnp/capnp_c.h"
-#include "lib/lz4/lz4.h"
-//#include "../driver/gcore_common.h"
-
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +18,17 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <ctype.h>
+
+#include "common.h"
+#include "subvec.h"
+#include "stim.h"
+#include "util.h"
+#include "profile.h"
+#include "config.h"
+#include "serialize/stim_serdes.capnp.h"
+#include "lib/capnp/capnp_c.h"
+#include "lib/lz4/lz4.h"
+#include "board/driver.h"
 
 // Mac OS X / Darwin features
 #if defined(__APPLE__)

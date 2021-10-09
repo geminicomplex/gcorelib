@@ -16,6 +16,7 @@ extern "C" {
 #include <stdbool.h>
 
 #include "common.h"
+#include "board/driver.h"
 
 // number if xilinx config data pins
 #define PROFILE_NUM_DATA_PINS 32

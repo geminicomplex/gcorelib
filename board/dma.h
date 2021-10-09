@@ -14,7 +14,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "../../driver/gcore_common.h"
+#include "driver.h"
 
 #define BUS_IN_BYTES 8
 #define BUS_BURST 16
