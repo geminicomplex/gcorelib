@@ -1,9 +1,11 @@
+/*
+ * DMA through gcore
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
+ */
 #ifndef DMA_H
 #define DMA_H
-
-// support for files larger than 2GB limit
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,4 +1,11 @@
 /*
+ * Artix
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
+ */
+
+/*
  * Methods to interact with the artix units.
  *   - configure units
  *   - write raw data to artix memory

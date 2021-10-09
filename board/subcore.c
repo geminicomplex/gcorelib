@@ -1,18 +1,9 @@
 /*
- * Subcore interface through Gemini Driver ioctl calls.
+ * Subcore interface through gcore ioctl calls.
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
  *
  */
-
-// support for files larger than 2GB limit
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
-
-#include "../common.h"
-#include "../util.h"
-#include "dev.h"
-#include "subcore.h"
-
-#include "driver.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +18,12 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <inttypes.h>
+
+#include "../common.h"
+#include "../util.h"
+#include "dev.h"
+#include "subcore.h"
+#include "driver.h"
 
 #ifdef VERILATOR
 #include "../../sim/chip_top/chip.h"

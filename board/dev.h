@@ -1,9 +1,12 @@
+/*
+ * Dev provides access to /dev/gcore
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
+ */
+
 #ifndef DEV_H
 #define DEV_H
-
-// support for files larger than 2GB limit
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,4 +25,4 @@ uint8_t *gcore_dev_get_map();
 #ifdef __cplusplus
 }
 #endif
-#endif				/* DEV_H */
+#endif /* DEV_H */

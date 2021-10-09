@@ -6,7 +6,7 @@
 #
 
 INCLUDES :=-I. -I./board -I./lib/jsmn -I./lib/avl -I./lib/progress -I./lib/lz4 -I./lib/capnp 
-CFLAGS :=-O2 -c -fPIC -Wall -funwind-tables -g -ggdb
+CFLAGS :=-O2 -c -fPIC -Wall -funwind-tables -g -ggdb -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LDFLAGS := -fPIC
 PLAT :=
 

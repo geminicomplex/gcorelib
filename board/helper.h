@@ -1,5 +1,7 @@
 /*
- * Gemini helper
+ * Gemini board helper functions
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
  *
  */
 
@@ -9,10 +11,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// support for files larger than 2GB limit
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>

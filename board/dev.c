@@ -1,17 +1,9 @@
 /*
- * dev provides access to /dev/gcore 
+ * Dev provides access to /dev/gcore
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
  *
  */
-
-
-// support for files larger than 2GB limit
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
-
-#include "../common.h"
-#include "dev.h"
-
-#include "driver.h"
 
 #include <time.h>
 #include <stdio.h>
@@ -24,6 +16,9 @@
 #include <errno.h>
 #include <string.h>
 
+#include "../common.h"
+#include "dev.h"
+#include "driver.h"
 
 static int gcore_fd = -1;
 static uint8_t *gcore_map = NULL;

@@ -1,9 +1,12 @@
+/*
+ * Artix
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
+ */
+
 #ifndef ARTIX_H
 #define ARTIX_H
-
-// support for files larger than 2GB limit
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,7 +17,6 @@ extern "C" {
 #include <stdbool.h>
 
 #include "driver.h"
-
 #include "../stim.h"
 
 void artix_mem_write(enum artix_selects artix_select,

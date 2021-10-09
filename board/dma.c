@@ -1,18 +1,10 @@
 /*
- * Interfaces with the Gemini Driver to provide DMA access.
+ *
+ * DMA through gcore
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
  *
  */
-
-// support for files larger than 2GB limit
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
-
-#include "../common.h"
-#include "dev.h"
-#include "dma.h"
-
-#include "driver.h"
-
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,15 +16,17 @@
 #include <errno.h>
 #include <string.h>
 
+#include "../common.h"
+#include "dev.h"
+#include "dma.h"
+#include "driver.h"
+
 #ifdef VERILATOR
-
 #include "../../sim/chip_top/chip.h"
-
 struct sim_dma_trans {
     uint64_t *dma_buf;
     size_t dma_size;
 };
-
 struct sim_dma_trans sim_tx_trans;
 struct sim_dma_trans sim_rx_trans;
 #endif

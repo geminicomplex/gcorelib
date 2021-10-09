@@ -1,17 +1,9 @@
 /*
  * i2c helper functions
  *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
  */
-
-
-// support for files larger than 2GB limit
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
-
-#include "../common.h"
-#include "i2c.h"
-
-#include "driver.h"
 
 #include <time.h>
 #include <stdio.h>
@@ -23,6 +15,10 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <string.h>
+
+#include "../common.h"
+#include "i2c.h"
+#include "driver.h"
 
 // pulled from <linux/i2c.h>
 #define I2C_SLAVE	0x0703

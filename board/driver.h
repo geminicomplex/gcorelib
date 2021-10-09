@@ -1,3 +1,10 @@
+/*
+ * Gcore Driver
+ *
+ * copyright (c) 2015-2021 gemini complex corporation. all rights reserved.
+ *
+ */
+
 #ifndef DRIVER_H
 #define DRIVER_H
 

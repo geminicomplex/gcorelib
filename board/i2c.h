@@ -1,9 +1,12 @@
+/*
+ * i2c helper functions
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
+ *
+ */
+
 #ifndef I2C_H
 #define I2C_H
-
-// support for files larger than 2GB limit
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
 
 #ifdef __cplusplus
 extern "C" {

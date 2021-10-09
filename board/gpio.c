@@ -1,17 +1,9 @@
 /*
- * gpio helper functions
+ * GPIO helper functions
+ *
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
  *
  */
-
-
-// support for files larger than 2GB limit
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
-
-#include "../common.h"
-#include "gpio.h"
-
-#include "driver.h"
 
 #include <time.h>
 #include <stdio.h>
@@ -22,6 +14,10 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <string.h>
+
+#include "../common.h"
+#include "gpio.h"
+#include "driver.h"
 
 /* ==========================================================================
  * SYSFS GPIO API 
