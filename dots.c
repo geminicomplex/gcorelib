@@ -108,7 +108,6 @@ struct dots *parse_dots(struct profile *profile, char *dots_path){
         }else if(strstr(l, "V") == l){
             append_dots_vec_by_vec_str(dots, "1", l);
         }else if(strstr(l, "repeat") == l){
-            uint32_t num_vec_strs = 0;
             char **vec_strs = NULL;
             if(util_str_split(l, ' ', &vec_strs) != 3){
                 bye("invalid vec repeat line '%s'\n", l);
