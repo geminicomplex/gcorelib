@@ -20,8 +20,6 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-//#include "../driver/gcore_common.h"
-
 #ifdef VERILATOR
 #define GEM_DEBUG
 #else
