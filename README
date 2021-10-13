@@ -6,7 +6,7 @@
   \______  /\___  >__|_|  /__|___|  /__|
          \/     \/      \/        \/    
         GEMINI CORE LIBRARY
-        Gcorelib v1.2.1
+        libgcore v1.2.1
 
 
 ===============================================================================
@@ -26,7 +26,7 @@ INSTALL
 ===============================================================================
 
 
-1. git clone https://github.com/geminicomplex/gcorelib
+1. git clone https://github.com/geminicomplex/libgcore
 2. make <mac or linux or arm>
 3. check the build/ directory
 
