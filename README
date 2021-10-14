@@ -13,11 +13,11 @@
 OVERVIEW
 ===============================================================================
 
-The Gemini Core Library or gcorelib provides a low-level application
+The Gemini Core Library or libgcore provides a low-level application
 programming interface for working with dots/stim/prgm files and interacting
 with the Gemini gcore driver. 
 
-Gcorelib is built as a dynamic library that can be linked against at runtime.
+Libgcore is built as a dynamic library that can be linked against at runtime.
 All the board specific APIs are located in the "board" directory and are used
 by internal software, only when actually running on the Gemini Tester. 
 
