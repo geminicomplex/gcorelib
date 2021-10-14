@@ -33,4 +33,4 @@ void artix_config(enum artix_selects artix_select, const char *bit_path);
 #ifdef __cplusplus
 }
 #endif
-#endif				/* ARTIX_H */
+#endif  /* ARTIX_H */

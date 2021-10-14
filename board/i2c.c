@@ -21,7 +21,7 @@
 #include "driver.h"
 
 // pulled from <linux/i2c.h>
-#define I2C_SLAVE	0x0703
+#define I2C_SLAVE    0x0703
 
 /*
  * Perform a raw i2c read or write given an addr and reg.

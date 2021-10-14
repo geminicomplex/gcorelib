@@ -446,32 +446,32 @@ struct profile *get_profile_by_path(const char *path){
     fread(data, sizeof(uint8_t), (size_t)file_size, fp);
 
     jsmn_init(&json_parser);
-	num_tokens = jsmn_parse(&json_parser, data, strlen(data), t, sizeof(t)/sizeof(t[0]));
+    num_tokens = jsmn_parse(&json_parser, data, strlen(data), t, sizeof(t)/sizeof(t[0]));
     if(num_tokens < 0){
-		die("error: failed to parse json file: num_tokens (%d)", num_tokens);
-	}
+        die("error: failed to parse json file: num_tokens (%d)", num_tokens);
+    }
 
-	if(num_tokens < 1 || t[0].type != JSMN_OBJECT){
-		die("error: profile is not a valid json file");
-	}
+    if(num_tokens < 1 || t[0].type != JSMN_OBJECT){
+        die("error: profile is not a valid json file");
+    }
 
     for(int i=1; i<num_tokens; i++){
         if(util_jsmn_eq(data, &t[i], "board_name") == 0){
             profile->board_name = strndup(data+t[i+1].start, t[i+1].end-t[i+1].start); 
-			i++;
+            i++;
         }else if(util_jsmn_eq(data, &t[i], "description") == 0){
             profile->description = strndup(data+t[i+1].start, t[i+1].end-t[i+1].start); 
-			i++;
+            i++;
         }else if(util_jsmn_eq(data, &t[i], "revision") == 0){
             profile->revision = atoi(strndup(data+t[i+1].start, t[i+1].end-t[i+1].start)); 
-			i++;
+            i++;
         }else if(util_jsmn_eq(data, &t[i], "num_duts") == 0){
             profile->num_duts = atoi(strndup(data+t[i+1].start, t[i+1].end-t[i+1].start)); 
             i++;
         }else if(util_jsmn_eq(data, &t[i], "pins") == 0){
-			if(t[i+1].type != JSMN_ARRAY) {
-				continue;
-			}
+            if(t[i+1].type != JSMN_ARRAY) {
+                continue;
+            }
             jsmntok_t *pins = &t[i+2];
             for(int j = 0; j < t[i+1].size; j++) {
                 if (pins->type != JSMN_OBJECT) {
@@ -517,7 +517,7 @@ struct profile *get_profile_by_path(const char *path){
                 profile->pins[profile->num_pins] = pin;
                 profile->num_pins++;
                 pins = &pins[(pins->size*2)+1];
-			}
+            }
             i += t[i+1].size + 1;
         }
     }

@@ -41,49 +41,49 @@ int util_fopen(const char *file_path, int *fd, FILE **fp, off_t *file_size){
         goto error;
     }
 
-	*fd = open(file_path, O_RDONLY);
-	if (*fd == -1) {
-		perror("Error opening file for reading.");
+    *fd = open(file_path, O_RDONLY);
+    if (*fd == -1) {
+        perror("Error opening file for reading.");
         s = errno;
         goto error;
-	}
+    }
 
-	*fp = fdopen(*fd, "r");
-	if (*fp == NULL) {
-		perror("Failed to open path given.");
-	    s = errno;
+    *fp = fdopen(*fd, "r");
+    if (*fp == NULL) {
+        perror("Failed to open path given.");
+        s = errno;
         goto error;
-	}
+    }
 
-	// ensure that the file is a regular file
-	if (fstat(*fd, &st) != 0) {
-		perror("Failed to fstat");
-	    s = errno;
+    // ensure that the file is a regular file
+    if (fstat(*fd, &st) != 0) {
+        perror("Failed to fstat");
+        s = errno;
         goto error;
-	}
+    }
 
-	if (!S_ISREG(st.st_mode)) {
-		perror("File given is not a regular file");
-	    s = errno;
+    if (!S_ISREG(st.st_mode)) {
+        perror("File given is not a regular file");
+        s = errno;
         goto error;
-	}
+    }
 
     if (fseeko(*fp, 0 , SEEK_END) != 0) {
-		perror("Failed to seek to end of file.");
-	    s = errno;
-        goto error;
-	}
-
-	*file_size = ftello(*fp);
-	if (*file_size == -1) {
-	    perror("Failed to get file size.");
+        perror("Failed to seek to end of file.");
         s = errno;
         goto error;
-	}
+    }
+
+    *file_size = ftello(*fp);
+    if (*file_size == -1) {
+        perror("Failed to get file size.");
+        s = errno;
+        goto error;
+    }
 
     if(fseeko(*fp, 0 , SEEK_SET) != 0) {
         s = errno;
-	    goto error;
+        goto error;
     }
 error:
     return s;
@@ -94,19 +94,19 @@ error:
  *
  */
 uint64_t* util_get_rand_data(size_t num_bytes){
-	uint64_t num;
-	uint64_t *data;
+    uint64_t num;
+    uint64_t *data;
 
-	if((data=(uint64_t*)malloc(num_bytes)) == NULL){
-		return NULL;
-	}
+    if((data=(uint64_t*)malloc(num_bytes)) == NULL){
+        return NULL;
+    }
 
-	for(uint32_t i=0; i<(num_bytes/sizeof(uint64_t)); i++) {
+    for(uint32_t i=0; i<(num_bytes/sizeof(uint64_t)); i++) {
         num = rand();
-		num = (num << 32) | rand();
-		memcpy((uint8_t*)data+(i*sizeof(uint64_t)), &num, sizeof(uint64_t));
-	}
-	return data;
+        num = (num << 32) | rand();
+        memcpy((uint8_t*)data+(i*sizeof(uint64_t)), &num, sizeof(uint64_t));
+    }
+    return data;
 }
 
 /*
@@ -116,11 +116,11 @@ uint64_t* util_get_rand_data(size_t num_bytes){
  */
 uint64_t* util_get_static_data(size_t num_bytes, bool include_xor_data, bool clear_xor_results){
     uint64_t num;
-	uint64_t *data;
+    uint64_t *data;
 
-	if((data=(uint64_t*)calloc(num_bytes, sizeof(uint8_t))) == NULL){
-		return NULL;
-	}
+    if((data=(uint64_t*)calloc(num_bytes, sizeof(uint8_t))) == NULL){
+        return NULL;
+    }
 
     const uint64_t static_data[16] = {
         0x0101020201010202,
@@ -162,7 +162,7 @@ uint64_t* util_get_static_data(size_t num_bytes, bool include_xor_data, bool cle
 
     int xor_count = 0;
 
-	for(uint32_t i=0; i<(num_bytes/sizeof(uint64_t)); i++) {
+    for(uint32_t i=0; i<(num_bytes/sizeof(uint64_t)); i++) {
         if(include_xor_data && ((i+32) % 128 == 0 || xor_count > 0)) {
             if(xor_count < 16 || !clear_xor_results) {
                 num = xor_data[i%16];
@@ -177,8 +177,8 @@ uint64_t* util_get_static_data(size_t num_bytes, bool include_xor_data, bool cle
             num = static_data[i%16];
         }
         data[i] = num;
-	}
-	return data;
+    }
+    return data;
 }
 
 /*
@@ -187,16 +187,16 @@ uint64_t* util_get_static_data(size_t num_bytes, bool include_xor_data, bool cle
  *
  */
 uint64_t* util_get_inc_data(size_t num_bytes){
-	uint64_t *data;
+    uint64_t *data;
 
-	if((data=(uint64_t*)malloc(num_bytes)) == NULL){
-		return NULL;
-	}
+    if((data=(uint64_t*)malloc(num_bytes)) == NULL){
+        return NULL;
+    }
 
-	for(uint64_t i=0; i<(num_bytes/sizeof(uint64_t)); i++) {
+    for(uint64_t i=0; i<(num_bytes/sizeof(uint64_t)); i++) {
         data[i] = i;
-	}
-	return data;
+    }
+    return data;
 }
 
 /*
@@ -205,11 +205,11 @@ uint64_t* util_get_inc_data(size_t num_bytes){
  *
  */
 int util_jsmn_eq(const char *json, jsmntok_t *tok, const char *s) {
-	if (tok->type == JSMN_STRING && (int) strlen(s) == tok->end - tok->start &&
-			strncmp(json + tok->start, s, tok->end - tok->start) == 0) {
-		return 0;
-	}
-	return -1;
+    if (tok->type == JSMN_STRING && (int) strlen(s) == tok->end - tok->start &&
+            strncmp(json + tok->start, s, tok->end - tok->start) == 0) {
+        return 0;
+    }
+    return -1;
 }
 
 /*

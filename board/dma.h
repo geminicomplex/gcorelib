@@ -76,4 +76,4 @@ void dma_status();
 #ifdef __cplusplus
 }
 #endif
-#endif				/* DMA_H */
+#endif                /* DMA_H */

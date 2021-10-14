@@ -266,7 +266,7 @@ void helper_burst_setup(enum artix_selects artix_select,
     // load number of bursts into gvpu and memcore
     helper_gvpu_load(artix_select, MEM_BURST);
     
-	// load  number of bursts into agent
+    // load  number of bursts into agent
     helper_agent_load(artix_select, BURST_LOAD);
     
     // set subcore to proxy ctrl data
@@ -402,7 +402,7 @@ void helper_gvpu_packet_write(enum artix_selects artix_select,
 uint64_t helper_get_agent_gvpu_status(enum artix_selects artix_select, 
         enum gvpu_status_selects select, enum gvpu_status_cmds cmd){
     struct gcore_ctrl_packet packet;
-	uint64_t status = 0;
+    uint64_t status = 0;
 
     
     helper_agent_load(artix_select, GVPU_STATUS);
@@ -454,7 +454,7 @@ void helper_get_agent_status(enum artix_selects artix_select,
     enum agent_states agent_state = STATUS;
     helper_agent_load(artix_select, agent_state);
     
-	// agent is in status, do ctrl_read to grab data
+    // agent is in status, do ctrl_read to grab data
     enum subcore_states subcore_state = CTRL_READ;
     helper_subcore_load(artix_select, subcore_state);
     
@@ -611,13 +611,13 @@ void sprint_subcore_mode_state(char *mode_state_str) {
             strcpy(state_str, "config_wait"); break;
         case GCORE_SUBCORE_MODE_AGENT_STARTUP:
             strcpy(state_str, "agent_startup"); break;
-		case GCORE_SUBCORE_MODE_SETUP_BURST:
+        case GCORE_SUBCORE_MODE_SETUP_BURST:
             strcpy(state_str, "setup_burst"); break;
-		case GCORE_SUBCORE_MODE_SETUP_WRITE:
+        case GCORE_SUBCORE_MODE_SETUP_WRITE:
             strcpy(state_str, "setup_write"); break;
-		case GCORE_SUBCORE_MODE_SETUP_READ:
+        case GCORE_SUBCORE_MODE_SETUP_READ:
             strcpy(state_str, "setup_read"); break;
-		case GCORE_SUBCORE_MODE_SETUP_CLEANUP:
+        case GCORE_SUBCORE_MODE_SETUP_CLEANUP:
             strcpy(state_str, "setup_cleanup"); break;
         case GCORE_SUBCORE_MODE_CTRL_WRITE:
             strcpy(state_str, "ctrl_write"); break;
@@ -698,43 +698,43 @@ void print_gvpu_state(enum gvpu_states gvpu_state, char *pre){
     switch(gvpu_state){
         case GVPU_IDLE:
             slog_info(0,"%sgvpu_idle", pre);
-			break;
+            break;
         case GVPU_PAUSED:
             slog_info(0,"%sgvpu_paused", pre);
-			break;
+            break;
         case MEM_BURST:
             slog_info(0,"%smem_burst", pre);
-			break;
+            break;
         case MEM_LOAD:
             slog_info(0,"%smem_load", pre);
-			break;
+            break;
         case MEM_RUN:
             slog_info(0,"%smem_run", pre);
-			break;
+            break;
         case MEM_WRITE:
             slog_info(0,"%smem_write", pre);
-			break;
+            break;
         case MEM_READ:
             slog_info(0,"%smem_read", pre);
-			break;
+            break;
         case MEM_TEST:
             slog_info(0,"%smem_test", pre);
-			break;
+            break;
         case TEST_INIT:
             slog_info(0,"%stest_init", pre);
-			break;
+            break;
         case TEST_SETUP:
             slog_info(0,"%stest_setup", pre);
-			break;
+            break;
         case TEST_RUN:
             slog_info(0,"%stest_run", pre);
-			break;
+            break;
         case TEST_FAIL_PINS:
             slog_info(0,"%stest_fail_pins", pre);
-			break;
+            break;
         case TEST_CLEANUP:
             slog_info(0,"%stest_cleanup", pre);
-			break;
+            break;
         default:
             break;
     }
@@ -752,19 +752,19 @@ void print_memcore_state(enum memcore_states memcore_state, char *pre){
     switch(memcore_state){
         case MEMCORE_IDLE:
             slog_info(0,"%smemcore_idle", pre);
-			break;
+            break;
         case MEMCORE_PAUSED:
             slog_info(0,"%smemcore_paused", pre);
-			break;
+            break;
         case MEMCORE_SETUP_BURST:
             slog_info(0,"%smemcore_setup_burst", pre);
-			break;
+            break;
         case MEMCORE_WRITE_BURST:
             slog_info(0,"%smemcore_write_burst", pre);
-			break;
+            break;
         case MEMCORE_READ_BURST:
             slog_info(0,"%smemcore_read_burst", pre);
-			break;
+            break;
         default:
             break;
     }

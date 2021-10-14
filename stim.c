@@ -1621,9 +1621,9 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
     struct capn_segment *cs = cr.seg;
 
     fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-	if (fd == -1) {
+    if (fd == -1) {
         die("failed to open stim path %s for writing", path);
-	}
+    }
 
     struct SerialStim serialStim = {
         .type = SerialStim_StimTypes_stimTypeRaw,

@@ -37,4 +37,4 @@ bool gcore_gpio(uint32_t index, enum gcore_gpio_dir dir, bool value);
 #ifdef __cplusplus
 }
 #endif
-#endif				/* GPIO_H */
+#endif  /* GPIO_H */

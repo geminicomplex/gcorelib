@@ -48,4 +48,4 @@ struct gcore_registers* subcore_free_regs(struct gcore_registers *regs);
 #ifdef __cplusplus
 }
 #endif
-#endif				/* SUBCORE_H */
+#endif  /* SUBCORE_H */

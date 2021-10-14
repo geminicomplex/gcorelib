@@ -53,7 +53,7 @@ static void gcore_dma_init() {
 
     gcore_init_log(GCORE_LOG_PATH);
 
-	gcore_dma_alloc_reset();
+    gcore_dma_alloc_reset();
 #ifdef __arm__
     // mmap the axi lite register block
     mem_fd = open("/dev/mem", O_RDONLY); 
@@ -76,13 +76,13 @@ static void gcore_dma_destroy() {
     }
 
     if(munmap(mem_map, 65535) == -1){
-		die("gcorelib: error un-mmapping the file");
-	}
-	close(mem_fd);
+        die("gcorelib: error un-mmapping the file");
+    }
+    close(mem_fd);
 #endif
 
     is_dma_reg_mmap_init = false;
-	return;
+    return;
 }
 
 /* Perform DMA transaction
@@ -93,8 +93,8 @@ static void gcore_dma_destroy() {
 void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
     uint64_t *rx_ptr, size_t rx_size)
 {
-	const bool tx_used = ((tx_ptr != NULL) && (tx_size != 0));
-	const bool rx_used = ((rx_ptr != NULL) && (rx_size != 0));
+    const bool tx_used = ((tx_ptr != NULL) && (tx_size != 0));
+    const bool rx_used = ((rx_ptr != NULL) && (rx_size != 0));
     
 #ifdef VERILATOR
     if(tx_used){
@@ -102,7 +102,7 @@ void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
         sim_tx_trans.dma_size = tx_size;
     }
 
-	if(rx_used){
+    if(rx_used){
         sim_rx_trans.dma_buf = rx_ptr;
         sim_rx_trans.dma_size = rx_size;
     }
@@ -119,7 +119,7 @@ void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
     userdev.rx_cmp = (u32) 0;
 
     if(ioctl(gcore_fd, GCORE_USERDEVS_READ, &userdev) < 0){
-		die("gcorelib: error userdevs_read failed");
+        die("gcorelib: error userdevs_read failed");
     }
 
     if(tx_used){
@@ -132,7 +132,7 @@ void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
         }
     }
 
-	if(rx_used){
+    if(rx_used){
         rx_config.chan = userdev.rx_chan;
         rx_config.buf_offset = (u32) gcore_dma_calc_offset(rx_ptr);
         rx_config.buf_size = (u32) rx_size;
@@ -142,19 +142,19 @@ void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
         }
     }
 
-	if(tx_used){
-		tx_config.completion = userdev.tx_cmp;
-		if(ioctl(gcore_fd, GCORE_DMA_PREP, &tx_config)){
-			die("gcorelib: error prep dma tx buf");
-		}
-	}
+    if(tx_used){
+        tx_config.completion = userdev.tx_cmp;
+        if(ioctl(gcore_fd, GCORE_DMA_PREP, &tx_config)){
+            die("gcorelib: error prep dma tx buf");
+        }
+    }
 
-	if(rx_used){
-		rx_config.completion = userdev.rx_cmp;
-		if(ioctl(gcore_fd, GCORE_DMA_PREP, &rx_config)){
-			die("gcorelib: error prep dma rx buf");
-		}
-	}
+    if(rx_used){
+        rx_config.completion = userdev.rx_cmp;
+        if(ioctl(gcore_fd, GCORE_DMA_PREP, &rx_config)){
+            die("gcorelib: error prep dma rx buf");
+        }
+    }
 #endif
     
     if(tx_used){
@@ -163,7 +163,7 @@ void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
         is_tx_prepared = false;
     }
 
-	if(rx_used){
+    if(rx_used){
         is_rx_prepared = true;
     } else {
         is_rx_prepared = false;
@@ -179,8 +179,8 @@ void gcore_dma_prep( uint64_t *tx_ptr, size_t tx_size,
  */
 void gcore_dma_start(enum gcore_wait wait)
 {   
-	struct gcore_transfer rx_trans;
-	struct gcore_transfer tx_trans;
+    struct gcore_transfer rx_trans;
+    struct gcore_transfer tx_trans;
 
     if(!(is_tx_prepared || is_rx_prepared)){
         die("gcorelib: error starting dma, not prepared yet");
@@ -188,12 +188,12 @@ void gcore_dma_start(enum gcore_wait wait)
 
 #ifdef VERILATOR
     struct chip *chip = get_chip_instance();
-	if(is_tx_prepared){
+    if(is_tx_prepared){
         sim_ioctl_subcore_dma_write(chip, sim_tx_trans.dma_buf, sim_tx_trans.dma_size);
         is_tx_prepared = false;
     }
 
-	if(is_rx_prepared){
+    if(is_rx_prepared){
         sim_ioctl_subcore_dma_read(chip, sim_rx_trans.dma_buf, sim_rx_trans.dma_size);
         is_rx_prepared = false;
     }
@@ -205,41 +205,41 @@ void gcore_dma_start(enum gcore_wait wait)
         die("failed to get gcore fd");
     }
 
-	if(is_tx_prepared){
-		tx_trans.chan = userdev.tx_chan;
-		tx_trans.wait = (0 != (wait & GCORE_WAIT_TX));
-		tx_trans.wait_time_msecs = 3000;
+    if(is_tx_prepared){
+        tx_trans.chan = userdev.tx_chan;
+        tx_trans.wait = (0 != (wait & GCORE_WAIT_TX));
+        tx_trans.wait_time_msecs = 3000;
         tx_trans.completion = userdev.tx_cmp;
-		tx_trans.cookie = tx_config.cookie;
+        tx_trans.cookie = tx_config.cookie;
         tx_trans.buf_size = tx_config.buf_size;
-		
         
-		if(ioctl(gcore_fd, GCORE_DMA_START, &tx_trans)){
-			die("gcorelib: error starting dma tx transaction");
-		}
+        
+        if(ioctl(gcore_fd, GCORE_DMA_START, &tx_trans)){
+            die("gcorelib: error starting dma tx transaction");
+        }
 
         // reset flag
         is_tx_prepared = false;
-	}
+    }
 
-	if(is_rx_prepared){
-		rx_trans.chan = userdev.rx_chan;
-		rx_trans.wait = (0 != (wait & GCORE_WAIT_RX));
-		rx_trans.wait_time_msecs = 3000;
-		rx_trans.completion = userdev.rx_cmp;
-		rx_trans.cookie = rx_config.cookie;
+    if(is_rx_prepared){
+        rx_trans.chan = userdev.rx_chan;
+        rx_trans.wait = (0 != (wait & GCORE_WAIT_RX));
+        rx_trans.wait_time_msecs = 3000;
+        rx_trans.completion = userdev.rx_cmp;
+        rx_trans.cookie = rx_config.cookie;
         rx_trans.buf_size = rx_config.buf_size;
 
-		if(ioctl(gcore_fd, GCORE_DMA_START, &rx_trans)){
-			die("gcorelib: error starting dma rx transaction");
-		}
+        if(ioctl(gcore_fd, GCORE_DMA_START, &rx_trans)){
+            die("gcorelib: error starting dma rx transaction");
+        }
         
         // reset flag
         is_rx_prepared = false;
-	}
+    }
 #endif
 
-	return;
+    return;
 }
 
 /*
@@ -248,8 +248,8 @@ void gcore_dma_start(enum gcore_wait wait)
  */
 void gcore_dma_stop()
 {
-	struct gcore_transfer rx_trans;
-	struct gcore_transfer tx_trans;
+    struct gcore_transfer rx_trans;
+    struct gcore_transfer tx_trans;
 
     if(!(is_tx_prepared || is_rx_prepared)){
         die("gcorelib: error failed to stop dma, nothing is running");
@@ -266,25 +266,25 @@ void gcore_dma_stop()
         die("failed to get gcore fd");
     }
 
-	if(is_tx_prepared){
-		tx_trans.chan = userdev.tx_chan;
-		
-		if(ioctl(gcore_fd, GCORE_DMA_STOP, &(tx_trans.chan))){
-			die("gcorelib: error stopping dma tx trans");
-		}
+    if(is_tx_prepared){
+        tx_trans.chan = userdev.tx_chan;
+        
+        if(ioctl(gcore_fd, GCORE_DMA_STOP, &(tx_trans.chan))){
+            die("gcorelib: error stopping dma tx trans");
+        }
         is_tx_prepared = false;
-	}
+    }
 
-	if(is_rx_prepared){
-		rx_trans.chan = userdev.rx_chan;
-		
-		if(ioctl(gcore_fd, GCORE_DMA_STOP, &(rx_trans.chan))){
-			die("gcorelib: error stopping dma rx trans");
-		}
+    if(is_rx_prepared){
+        rx_trans.chan = userdev.rx_chan;
+        
+        if(ioctl(gcore_fd, GCORE_DMA_STOP, &(rx_trans.chan))){
+            die("gcorelib: error stopping dma rx trans");
+        }
         is_rx_prepared = false;
-	}
+    }
 #endif
-	return;
+    return;
 }
 
 uint32_t gcore_dma_calc_offset(void *ptr){
@@ -292,18 +292,18 @@ uint32_t gcore_dma_calc_offset(void *ptr){
     if((gcore_map = gcore_dev_get_map()) == NULL){
         die("failed to get gcore dev map");
     }
-	return (((uint8_t *) ptr) - &gcore_map[0]);
+    return (((uint8_t *) ptr) - &gcore_map[0]);
 }
 
 uint32_t gcore_dma_calc_size(int length, int byte_num){
-	const int block = (BUS_IN_BYTES * BUS_BURST);
-	length = length * byte_num;
+    const int block = (BUS_IN_BYTES * BUS_BURST);
+    length = length * byte_num;
 
-	if(0 != (length % block)){
-		length += (block - (length % block));
-	}
+    if(0 != (length % block)){
+        length += (block - (length % block));
+    }
 
-	return length;
+    return length;
 }
 
 void *gcore_dma_alloc(int length, int byte_num){
@@ -311,13 +311,13 @@ void *gcore_dma_alloc(int length, int byte_num){
     if((gcore_map = gcore_dev_get_map()) == NULL){
         die("failed to get gcore dev map");
     }
-	void *array = &gcore_map[alloc_offset];
-	alloc_offset += gcore_dma_calc_size(length, byte_num);
-	return array;
+    void *array = &gcore_map[alloc_offset];
+    alloc_offset += gcore_dma_calc_size(length, byte_num);
+    return array;
 }
 
 void gcore_dma_alloc_reset(void){
-	alloc_offset = 0;
+    alloc_offset = 0;
 }
 
 /*
@@ -326,8 +326,8 @@ void gcore_dma_alloc_reset(void){
 void gcore_dma_prep_start(enum gcore_wait wait,
     uint64_t *tx_ptr, size_t tx_size,
     uint64_t *rx_ptr, size_t rx_size){
-    gcore_dma_prep(tx_ptr, tx_size, rx_ptr, rx_size);	
-    gcore_dma_start(wait);	
+    gcore_dma_prep(tx_ptr, tx_size, rx_ptr, rx_size);
+    gcore_dma_start(wait);
     return;
 }
 

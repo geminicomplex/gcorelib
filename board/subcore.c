@@ -42,8 +42,8 @@ void subcore_load(struct gcore_cfg *gcfg){
         die("failed to get gcore fd");
     }
     if(ioctl(gcore_fd, GCORE_SUBCORE_LOAD, gcfg) < 0){
-		die("gcorelib: error subcore_load failed");
-	}
+        die("gcorelib: error subcore_load failed");
+    }
 #endif
     return;
 }
@@ -61,8 +61,8 @@ void subcore_run(){
         die("failed to get gcore fd");
     }
     if(ioctl(gcore_fd, GCORE_SUBCORE_RUN) < 0){
-		die("gcorelib: error subcore_run failed");
-	}
+        die("gcorelib: error subcore_run failed");
+    }
 #endif
     return;
 }
@@ -81,8 +81,8 @@ void subcore_idle(){
     }
     // wait for done to go high
     if(ioctl(gcore_fd, GCORE_SUBCORE_IDLE) < 0){
-		die("gcorelib: error subcore_idle failed");
-	}
+        die("gcorelib: error subcore_idle failed");
+    }
 #endif
     return;
 }
@@ -102,8 +102,8 @@ void subcore_mode_state(uint32_t *mode_state){
         die("failed to get gcore fd");
     }
     if(ioctl(gcore_fd, GCORE_SUBCORE_STATE) < 0){
-		die("gcorelib: error subcore_state failed");
-	}
+        die("gcorelib: error subcore_state failed");
+    }
 #endif
     regs = subcore_get_regs();
     (*mode_state) = (uint32_t)regs->data;
@@ -124,8 +124,8 @@ void subcore_reset(){
         die("failed to get gcore fd");
     }
     if(ioctl(gcore_fd, GCORE_SUBCORE_RESET) < 0){
-		die("gcorelib: error subcore_reset failed");
-	}
+        die("gcorelib: error subcore_reset failed");
+    }
 #endif
     return;
 }
@@ -150,8 +150,8 @@ void subcore_write_packet(struct gcore_ctrl_packet *packet){
         die("failed to get gcore fd");
     }
     if(ioctl(gcore_fd, GCORE_CTRL_WRITE, packet) < 0){
-		die("gcorelib: error ctrl_write failed");
-	}
+        die("gcorelib: error ctrl_write failed");
+    }
 #endif
     return;
 }
@@ -170,8 +170,8 @@ void subcore_read_packet(struct gcore_ctrl_packet *packet){
         die("failed to get gcore fd");
     }
     if(ioctl(gcore_fd, GCORE_CTRL_READ, packet) < 0){
-		die("gcorelib: error ctrl_read failed");
-	}
+        die("gcorelib: error ctrl_read failed");
+    }
 #endif
     return;
 }
@@ -201,8 +201,8 @@ void subcore_artix_sync(bool sync){
         die("failed to get gcore fd");
     }
     if(ioctl(gcore_fd, GCORE_ARTIX_SYNC, &packet) < 0){
-		die("gcorelib: error artix_sync failed");
-	}
+        die("gcorelib: error artix_sync failed");
+    }
 #endif
     return;
 }
@@ -216,11 +216,11 @@ struct gcore_registers* subcore_get_regs(){
         die("error: malloc failed");
     }
     regs->control = (u32) 0;
-	regs->status = (u32) 0;
-	regs->addr = (u32) 0;
-	regs->data = (u32) 0;
-	regs->a1_status = (u32) 0;
-	regs->a2_status = (u32) 0;
+    regs->status = (u32) 0;
+    regs->addr = (u32) 0;
+    regs->data = (u32) 0;
+    regs->a1_status = (u32) 0;
+    regs->a2_status = (u32) 0;
 
 #ifdef VERILATOR
     struct chip *chip = get_chip_instance();
@@ -232,8 +232,8 @@ struct gcore_registers* subcore_get_regs(){
     }
     
     if(ioctl(gcore_fd, GCORE_REGS_READ, regs) < 0){
-		die("gcorelib: error regs_read failed");
-	}
+        die("gcorelib: error regs_read failed");
+    }
 #endif
     return regs;
 }
@@ -248,11 +248,11 @@ struct gcore_registers *subcore_free_regs(struct gcore_registers *regs){
     }
 
     regs->control = (u32) 0;
-	regs->status = (u32) 0;
-	regs->addr = (u32) 0;
-	regs->data = (u32) 0;
-	regs->a1_status = (u32) 0;
-	regs->a2_status = (u32) 0;
+    regs->status = (u32) 0;
+    regs->addr = (u32) 0;
+    regs->data = (u32) 0;
+    regs->a1_status = (u32) 0;
+    regs->a2_status = (u32) 0;
     free(regs);
 
     return NULL;

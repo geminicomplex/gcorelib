@@ -71,24 +71,24 @@ extern "C" {
  * should be zero initialized.
  */
 struct capn {
-	/* user settable */
-	struct capn_segment *(*lookup)(void* /*user*/, uint32_t /*id */);
-	struct capn_segment *(*create)(void* /*user*/, uint32_t /*id */, int /*sz*/);
-	struct capn_segment *(*create_local)(void* /*user*/, int /*sz*/);
-	void *user;
-	/* zero initialized, user should not modify */
-	uint32_t segnum;
-	struct capn_tree *copy;
-	struct capn_tree *segtree;
-	struct capn_segment *seglist, *lastseg;
-	struct capn_segment *copylist;
+    /* user settable */
+    struct capn_segment *(*lookup)(void* /*user*/, uint32_t /*id */);
+    struct capn_segment *(*create)(void* /*user*/, uint32_t /*id */, int /*sz*/);
+    struct capn_segment *(*create_local)(void* /*user*/, int /*sz*/);
+    void *user;
+    /* zero initialized, user should not modify */
+    uint32_t segnum;
+    struct capn_tree *copy;
+    struct capn_tree *segtree;
+    struct capn_segment *seglist, *lastseg;
+    struct capn_segment *copylist;
 };
 
 /* struct capn_tree is a rb tree header used internally for the segment id
  * lookup and copy tree */
 struct capn_tree {
-	struct capn_tree *parent, *link[2];
-	unsigned int red : 1;
+    struct capn_tree *parent, *link[2];
+    unsigned int red : 1;
 };
 
 struct capn_tree *capn_tree_insert(struct capn_tree *root, struct capn_tree *n);
@@ -120,41 +120,41 @@ struct capn_tree *capn_tree_insert(struct capn_tree *root, struct capn_tree *n);
  */
 
 struct ALIGNED_(8) capn_segment {
-	struct capn_tree hdr;
-	struct capn_segment *next;
-	struct capn *capn;
-	uint32_t id;
-	/* user settable */
-	char *data;
-	size_t len, cap;
-	void *user;
+    struct capn_tree hdr;
+    struct capn_segment *next;
+    struct capn *capn;
+    uint32_t id;
+    /* user settable */
+    char *data;
+    size_t len, cap;
+    void *user;
 };
 
 enum CAPN_TYPE {
-	CAPN_NULL = 0,
-	CAPN_STRUCT = 1,
-	CAPN_LIST = 2,
-	CAPN_PTR_LIST = 3,
-	CAPN_BIT_LIST = 4,
-	CAPN_FAR_POINTER = 5,
+    CAPN_NULL = 0,
+    CAPN_STRUCT = 1,
+    CAPN_LIST = 2,
+    CAPN_PTR_LIST = 3,
+    CAPN_BIT_LIST = 4,
+    CAPN_FAR_POINTER = 5,
 };
 
 struct capn_ptr {
-	unsigned int type : 4;
-	unsigned int has_ptr_tag : 1;
-	unsigned int is_list_member : 1;
-	unsigned int is_composite_list : 1;
-	unsigned int datasz : 19;
-	unsigned int ptrs : 16;
-	int len;
-	char *data;
-	struct capn_segment *seg;
+    unsigned int type : 4;
+    unsigned int has_ptr_tag : 1;
+    unsigned int is_list_member : 1;
+    unsigned int is_composite_list : 1;
+    unsigned int datasz : 19;
+    unsigned int ptrs : 16;
+    int len;
+    char *data;
+    struct capn_segment *seg;
 };
 
 struct capn_text {
-	int len;
-	const char *str;
-	struct capn_segment *seg;
+    int len;
+    const char *str;
+    struct capn_segment *seg;
 };
 
 typedef struct capn_ptr capn_ptr;
@@ -167,10 +167,10 @@ typedef struct {capn_ptr p;} capn_list32;
 typedef struct {capn_ptr p;} capn_list64;
 
 struct capn_msg {
-	struct capn_segment *seg;
-	uint64_t iface;
-	uint16_t method;
-	capn_ptr args;
+    struct capn_segment *seg;
+    uint64_t iface;
+    uint16_t method;
+    capn_ptr args;
 };
 
 /* capn_append_segment appends a segment to a session */
@@ -291,147 +291,147 @@ void capn_reset_copy(struct capn *c);
 
 
 CAPN_INLINE uint8_t capn_flip8(uint8_t v) {
-	return v;
+    return v;
 }
 CAPN_INLINE uint16_t capn_flip16(uint16_t v) {
 #if defined(__BYTE_ORDER) && (__BYTE_ORDER == __LITTLE_ENDIAN)
-	return v;
+    return v;
 #elif defined(__BYTE_ORDER) && (__BYTE_ORDER == __BIG_ENDIAN) && \
       defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 8
-	return __builtin_bswap16(v);
+    return __builtin_bswap16(v);
 #else
-	union { uint16_t u; uint8_t v[2]; } s;
-	s.v[0] = (uint8_t)v;
-	s.v[1] = (uint8_t)(v>>8);
-	return s.u;
+    union { uint16_t u; uint8_t v[2]; } s;
+    s.v[0] = (uint8_t)v;
+    s.v[1] = (uint8_t)(v>>8);
+    return s.u;
 #endif
 }
 CAPN_INLINE uint32_t capn_flip32(uint32_t v) {
 #if defined(__BYTE_ORDER) && (__BYTE_ORDER == __LITTLE_ENDIAN)
-	return v;
+    return v;
 #elif defined(__BYTE_ORDER) && (__BYTE_ORDER == __BIG_ENDIAN) && \
       defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 8
-	return __builtin_bswap32(v);
+    return __builtin_bswap32(v);
 #else
-	union { uint32_t u; uint8_t v[4]; } s;
-	s.v[0] = (uint8_t)v;
-	s.v[1] = (uint8_t)(v>>8);
-	s.v[2] = (uint8_t)(v>>16);
-	s.v[3] = (uint8_t)(v>>24);
-	return s.u;
+    union { uint32_t u; uint8_t v[4]; } s;
+    s.v[0] = (uint8_t)v;
+    s.v[1] = (uint8_t)(v>>8);
+    s.v[2] = (uint8_t)(v>>16);
+    s.v[3] = (uint8_t)(v>>24);
+    return s.u;
 #endif
 }
 CAPN_INLINE uint64_t capn_flip64(uint64_t v) {
 #if defined(__BYTE_ORDER) && (__BYTE_ORDER == __LITTLE_ENDIAN)
-	return v;
+    return v;
 #elif defined(__BYTE_ORDER) && (__BYTE_ORDER == __BIG_ENDIAN) && \
       defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 8
-	return __builtin_bswap64(v);
+    return __builtin_bswap64(v);
 #else
-	union { uint64_t u; uint8_t v[8]; } s;
-	s.v[0] = (uint8_t)v;
-	s.v[1] = (uint8_t)(v>>8);
-	s.v[2] = (uint8_t)(v>>16);
-	s.v[3] = (uint8_t)(v>>24);
-	s.v[4] = (uint8_t)(v>>32);
-	s.v[5] = (uint8_t)(v>>40);
-	s.v[6] = (uint8_t)(v>>48);
-	s.v[7] = (uint8_t)(v>>56);
-	return s.u;
+    union { uint64_t u; uint8_t v[8]; } s;
+    s.v[0] = (uint8_t)v;
+    s.v[1] = (uint8_t)(v>>8);
+    s.v[2] = (uint8_t)(v>>16);
+    s.v[3] = (uint8_t)(v>>24);
+    s.v[4] = (uint8_t)(v>>32);
+    s.v[5] = (uint8_t)(v>>40);
+    s.v[6] = (uint8_t)(v>>48);
+    s.v[7] = (uint8_t)(v>>56);
+    return s.u;
 #endif
 }
 
 CAPN_INLINE int capn_write1(capn_ptr p, int off, int val) {
-	if (off >= p.datasz*8) {
-		return -1;
-	} else if (val) {
-		uint8_t tmp = (uint8_t)(1 << (off & 7));
-		((uint8_t*) p.data)[off >> 3] |= tmp;
-		return 0;
-	} else {
-		uint8_t tmp = (uint8_t)(~(1 << (off & 7)));
-		((uint8_t*) p.data)[off >> 3] &= tmp;
-		return 0;
-	}
+    if (off >= p.datasz*8) {
+        return -1;
+    } else if (val) {
+        uint8_t tmp = (uint8_t)(1 << (off & 7));
+        ((uint8_t*) p.data)[off >> 3] |= tmp;
+        return 0;
+    } else {
+        uint8_t tmp = (uint8_t)(~(1 << (off & 7)));
+        ((uint8_t*) p.data)[off >> 3] &= tmp;
+        return 0;
+    }
 }
 
 CAPN_INLINE uint8_t capn_read8(capn_ptr p, int off) {
-	return off+1 <= p.datasz ? capn_flip8(*(uint8_t*) (p.data+off)) : 0;
+    return off+1 <= p.datasz ? capn_flip8(*(uint8_t*) (p.data+off)) : 0;
 }
 CAPN_INLINE int capn_write8(capn_ptr p, int off, uint8_t val) {
-	if (off+1 <= p.datasz) {
-		*(uint8_t*) (p.data+off) = capn_flip8(val);
-		return 0;
-	} else {
-		return -1;
-	}
+    if (off+1 <= p.datasz) {
+        *(uint8_t*) (p.data+off) = capn_flip8(val);
+        return 0;
+    } else {
+        return -1;
+    }
 }
 
 CAPN_INLINE uint16_t capn_read16(capn_ptr p, int off) {
-	return off+2 <= p.datasz ? capn_flip16(*(uint16_t*) (p.data+off)) : 0;
+    return off+2 <= p.datasz ? capn_flip16(*(uint16_t*) (p.data+off)) : 0;
 }
 CAPN_INLINE int capn_write16(capn_ptr p, int off, uint16_t val) {
-	if (off+2 <= p.datasz) {
-		*(uint16_t*) (p.data+off) = capn_flip16(val);
-		return 0;
-	} else {
-		return -1;
-	}
+    if (off+2 <= p.datasz) {
+        *(uint16_t*) (p.data+off) = capn_flip16(val);
+        return 0;
+    } else {
+        return -1;
+    }
 }
 
 CAPN_INLINE uint32_t capn_read32(capn_ptr p, int off) {
-	return off+4 <= p.datasz ? capn_flip32(*(uint32_t*) (p.data+off)) : 0;
+    return off+4 <= p.datasz ? capn_flip32(*(uint32_t*) (p.data+off)) : 0;
 }
 CAPN_INLINE int capn_write32(capn_ptr p, int off, uint32_t val) {
-	if (off+4 <= p.datasz) {
-		*(uint32_t*) (p.data+off) = capn_flip32(val);
-		return 0;
-	} else {
-		return -1;
-	}
+    if (off+4 <= p.datasz) {
+        *(uint32_t*) (p.data+off) = capn_flip32(val);
+        return 0;
+    } else {
+        return -1;
+    }
 }
 
 CAPN_INLINE uint64_t capn_read64(capn_ptr p, int off) {
-	return off+8 <= p.datasz ? capn_flip64(*(uint64_t*) (p.data+off)) : 0;
+    return off+8 <= p.datasz ? capn_flip64(*(uint64_t*) (p.data+off)) : 0;
 }
 CAPN_INLINE int capn_write64(capn_ptr p, int off, uint64_t val) {
-	if (off+8 <= p.datasz) {
-		*(uint64_t*) (p.data+off) = capn_flip64(val);
-		return 0;
-	} else {
-		return -1;
-	}
+    if (off+8 <= p.datasz) {
+        *(uint64_t*) (p.data+off) = capn_flip64(val);
+        return 0;
+    } else {
+        return -1;
+    }
 }
 
 union capn_conv_f32 {
-	uint32_t u;
-	float f;
+    uint32_t u;
+    float f;
 };
 
 union capn_conv_f64 {
-	uint64_t u;
-	double f;
+    uint64_t u;
+    double f;
 };
 
 CAPN_INLINE float capn_to_f32(uint32_t v) {
-	union capn_conv_f32 u;
-	u.u = v;
-	return u.f;
+    union capn_conv_f32 u;
+    u.u = v;
+    return u.f;
 }
 CAPN_INLINE double capn_to_f64(uint64_t v) {
-	union capn_conv_f64 u;
-	u.u = v;
-	return u.f;
+    union capn_conv_f64 u;
+    u.u = v;
+    return u.f;
 }
 CAPN_INLINE uint32_t capn_from_f32(float v) {
-	union capn_conv_f32 u;
-	u.f = v;
-	return u.u;
+    union capn_conv_f32 u;
+    u.f = v;
+    return u.u;
 }
 CAPN_INLINE uint64_t capn_from_f64(double v) {
-	union capn_conv_f64 u;
-	u.f = v;
-	return u.u;
+    union capn_conv_f64 u;
+    u.f = v;
+    return u.u;
 }
 
 #ifdef __cplusplus

@@ -33,14 +33,14 @@
  * Other fields should be zero initialized.
  */
 struct capn_stream {
-	const uint8_t *next_in;
-	size_t avail_in;
-	uint8_t *next_out;
-	size_t avail_out;
-	unsigned zeros, raw;
+    const uint8_t *next_in;
+    size_t avail_in;
+    uint8_t *next_out;
+    size_t avail_out;
+    unsigned zeros, raw;
 
-	uint8_t inflate_buf[8];
-	size_t avail_buf;
+    uint8_t inflate_buf[8];
+    size_t avail_buf;
 };
 
 #define CAPN_MISALIGNED -1

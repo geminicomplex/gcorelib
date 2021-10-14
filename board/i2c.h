@@ -52,4 +52,4 @@ void gcore_i2c_set_dev(enum gcore_i2c_devs dev);
 #ifdef __cplusplus
 }
 #endif
-#endif				/* I2C_H */
+#endif  /* I2C_H */

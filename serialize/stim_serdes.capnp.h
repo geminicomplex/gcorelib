@@ -28,71 +28,71 @@ typedef struct {capn_ptr p;} VecChunk_list;
 typedef struct {capn_ptr p;} SerialStim_list;
 
 enum ProfilePin_ProfileTags {
-	ProfilePin_ProfileTags_profileTagNone = 0,
-	ProfilePin_ProfileTags_profileTagCclk = 1,
-	ProfilePin_ProfileTags_profileTagResetB = 2,
-	ProfilePin_ProfileTags_profileTagCsiB = 3,
-	ProfilePin_ProfileTags_profileTagRdwrB = 4,
-	ProfilePin_ProfileTags_profileTagProgramB = 5,
-	ProfilePin_ProfileTags_profileTagInitB = 6,
-	ProfilePin_ProfileTags_profileTagDone = 7,
-	ProfilePin_ProfileTags_profileTagData = 8,
-	ProfilePin_ProfileTags_profileTagGpio = 9
+    ProfilePin_ProfileTags_profileTagNone = 0,
+    ProfilePin_ProfileTags_profileTagCclk = 1,
+    ProfilePin_ProfileTags_profileTagResetB = 2,
+    ProfilePin_ProfileTags_profileTagCsiB = 3,
+    ProfilePin_ProfileTags_profileTagRdwrB = 4,
+    ProfilePin_ProfileTags_profileTagProgramB = 5,
+    ProfilePin_ProfileTags_profileTagInitB = 6,
+    ProfilePin_ProfileTags_profileTagDone = 7,
+    ProfilePin_ProfileTags_profileTagData = 8,
+    ProfilePin_ProfileTags_profileTagGpio = 9
 };
 
 enum VecChunk_ArtixSelects {
-	VecChunk_ArtixSelects_artixSelectNone = 0,
-	VecChunk_ArtixSelects_artixSelectA1 = 1,
-	VecChunk_ArtixSelects_artixSelectA2 = 2
+    VecChunk_ArtixSelects_artixSelectNone = 0,
+    VecChunk_ArtixSelects_artixSelectA1 = 1,
+    VecChunk_ArtixSelects_artixSelectA2 = 2
 };
 
 enum SerialStim_StimTypes {
-	SerialStim_StimTypes_stimTypeNone = 0,
-	SerialStim_StimTypes_stimTypeRbt = 1,
-	SerialStim_StimTypes_stimTypeBin = 2,
-	SerialStim_StimTypes_stimTypeBit = 3,
-	SerialStim_StimTypes_stimTypeDots = 4,
-	SerialStim_StimTypes_stimTypeRaw = 5
+    SerialStim_StimTypes_stimTypeNone = 0,
+    SerialStim_StimTypes_stimTypeRbt = 1,
+    SerialStim_StimTypes_stimTypeBin = 2,
+    SerialStim_StimTypes_stimTypeBit = 3,
+    SerialStim_StimTypes_stimTypeDots = 4,
+    SerialStim_StimTypes_stimTypeRaw = 5
 };
 
 struct String {
-	capn_text string;
+    capn_text string;
 };
 
 struct ProfilePin {
-	int32_t dutId;
-	capn_text pinName;
-	capn_text compName;
-	capn_text netName;
-	capn_text netAlias;
-	enum ProfilePin_ProfileTags tag;
-	int32_t tagData;
-	int32_t dutIoId;
-	uint32_t numDests;
-	capn_list32 destDutIds;
-	String_list destPinNames;
+    int32_t dutId;
+    capn_text pinName;
+    capn_text compName;
+    capn_text netName;
+    capn_text netAlias;
+    enum ProfilePin_ProfileTags tag;
+    int32_t tagData;
+    int32_t dutIoId;
+    uint32_t numDests;
+    capn_list32 destDutIds;
+    String_list destPinNames;
 };
 
 struct VecChunk {
-	uint8_t id;
-	enum VecChunk_ArtixSelects artixSelect;
-	uint32_t numVecs;
-	capn_data vecData;
-	uint32_t vecDataSize;
-	uint32_t vecDataCompressedSize;
+    uint8_t id;
+    enum VecChunk_ArtixSelects artixSelect;
+    uint32_t numVecs;
+    capn_data vecData;
+    uint32_t vecDataSize;
+    uint32_t vecDataCompressedSize;
 };
 
 struct SerialStim {
-	enum SerialStim_StimTypes type;
-	uint16_t numPins;
-	ProfilePin_list pins;
-	uint32_t numVecs;
-	uint64_t numUnrolledVecs;
-	uint32_t numPaddingVecs;
-	uint32_t numA1VecChunks;
-	uint32_t numA2VecChunks;
-	VecChunk_list a1VecChunks;
-	VecChunk_list a2VecChunks;
+    enum SerialStim_StimTypes type;
+    uint16_t numPins;
+    ProfilePin_list pins;
+    uint32_t numVecs;
+    uint64_t numUnrolledVecs;
+    uint32_t numPaddingVecs;
+    uint32_t numA1VecChunks;
+    uint32_t numA2VecChunks;
+    VecChunk_list a1VecChunks;
+    VecChunk_list a2VecChunks;
 };
 
 String_ptr new_String(struct capn_segment*);
