@@ -571,7 +571,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
 
     // check if dut_io_id is within range for given artix
     //assert_dut_io_range(stim, artix_select);
-    
+
     // perform test init
     helper_gvpu_load(artix_select, TEST_INIT);
     packet.rank_select = 0;
@@ -589,7 +589,7 @@ static void prep_artix_for_test(struct stim *stim, enum artix_selects artix_sele
     // send one burst of data (1024 bytes)
     num_bursts = 1;
     subcore_prep_dma_write(artix_select, num_bursts);
- 
+
     size_t burst_size = num_bursts*BURST_BYTES;
     slog_info(0, "sending setup burst (%i bytes)...", burst_size);
 
