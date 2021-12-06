@@ -63,7 +63,7 @@ void print_stacktrace();
 // max size we can send due to memory limitations
 #define MAX_CHUNK_SIZE (536870912/2)
 
-// number of bytes per dma burst
+// number of bytes per dma burst also known as a memory page
 #define BURST_BYTES (1024)
 
 // number of pins per artix unit

@@ -580,6 +580,10 @@ uint64_t artix_load_stim(struct stim *stim, uint64_t load_addr){
         bye("failed to load stim at addr 0x%016" PRIX64 " because out of tester memory range", load_addr);
     }
 
+    if(load_addr % BURST_BYTES != 0){
+        bye("failed to load stim at addr 0x%016" PRIX64 " because it is not memory aligned to 1024 bytes", load_addr);
+    }
+
     uint64_t addr = 0x0;
     enum artix_selects artix_select = ARTIX_SELECT_NONE;
 
