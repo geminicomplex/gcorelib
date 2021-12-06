@@ -20,6 +20,7 @@
 ** IN THE SOFTWARE.
 */
 
+#include <stdio.h>
 #include <string.h>
 #include "fe.h"
 
@@ -74,7 +75,7 @@ struct fe_Context {
   int nextchr;
 };
 
-static fe_Object nil = {{ (void*) (FE_TNIL << 2 | 1) }, { NULL }};
+static fe_Object nil = {{ (fe_Object *) (FE_TNIL << 2 | 1) }, { NULL }};
 
 
 fe_Handlers* fe_handlers(fe_Context *ctx) {
@@ -313,7 +314,7 @@ fe_Object* fe_cfunc(fe_Context *ctx, fe_CFunc fn) {
 fe_Object* fe_ptr(fe_Context *ctx, void *ptr) {
   fe_Object *obj = object(ctx);
   settype(obj, FE_TPTR);
-  cdr(obj) = ptr;
+  cdr(obj) = (fe_Object *)ptr;
   return obj;
 }
 
@@ -398,7 +399,7 @@ void fe_write(fe_Context *ctx, fe_Object *obj, fe_WriteFn fn, void *udata, int q
 
 static void writefp(fe_Context *ctx, void *udata, char chr) {
   unused(ctx);
-  fputc(chr, udata);
+  fputc(chr, (FILE *)udata);
 }
 
 void fe_writefp(fe_Context *ctx, fe_Object *obj, FILE *fp) {
@@ -409,7 +410,7 @@ void fe_writefp(fe_Context *ctx, fe_Object *obj, FILE *fp) {
 typedef struct { char *p; int n; } CharPtrInt;
 
 static void writebuf(fe_Context *ctx, void *udata, char chr) {
-  CharPtrInt *x = udata;
+  CharPtrInt *x = (CharPtrInt *)udata;
   unused(ctx);
   if (x->n) { *x->p++ = chr; x->n--; }
 }
@@ -547,7 +548,7 @@ fe_Object* fe_read(fe_Context *ctx, fe_ReadFn fn, void *udata) {
 static char readfp(fe_Context *ctx, void *udata) {
   int chr;
   unused(ctx);
-  return (chr = fgetc(udata)) == EOF ? '\0' : chr;
+  return (chr = fgetc((FILE *)udata)) == EOF ? '\0' : chr;
 }
 
 fe_Object* fe_readfp(fe_Context *ctx, FILE *fp) {
@@ -786,7 +787,7 @@ fe_Context* fe_open(void *ptr, int size) {
   fe_Context *ctx;
 
   /* init context struct */
-  ctx = ptr;
+  ctx = (fe_Context *)ptr;
   memset(ctx, 0, sizeof(fe_Context));
   ptr = (char*) ptr + sizeof(fe_Context);
   size -= sizeof(fe_Context);

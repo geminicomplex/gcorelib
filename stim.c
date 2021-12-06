@@ -58,11 +58,7 @@ static capn_text chars_to_text(const char *chars) {
  * capn_write_fd write callback funciton.
  *
  */
-#ifdef VERILATOR
-ssize_t write_capn_fd(int fd, void *p, size_t count){
-#else
 ssize_t write_capn_fd(int fd, const void *p, size_t count){
-#endif
     ssize_t bytes = 0;
     bytes = write(fd, p, count);
     return bytes;
@@ -1986,6 +1982,27 @@ uint8_t *stim_get_enable_pins_data(struct stim *stim, enum artix_selects artix_s
     // Note: no need to swap the endianess of enable_pins because of the
     // way 64 bit words are packed in agent, gvpu and memcore
     return enable_pins;
+}
+
+/*
+ * Pattern is solo or dual mode depending if it has a1, a2 or both chunks.
+ * Returns the mode of the stim. Useful when loading a stim into tester memory
+ * and you need to know into which artix unit the pattern was loaded.
+ *
+ */
+enum stim_modes stim_get_mode(struct stim *stim){
+    if(stim == NULL){
+        die("pointer is null");
+    }
+    enum stim_modes stim_mode = STIM_MODE_NONE;
+    if(stim->num_a1_vec_chunks > 0 && stim->num_a2_vec_chunks > 0){
+        stim_mode = STIM_MODE_DUAL;
+    }else if(stim->num_a1_vec_chunks > 0){
+        stim_mode = STIM_MODE_A1;
+    }else if(stim->num_a2_vec_chunks > 0){
+        stim_mode = STIM_MODE_A2;
+    }
+    return stim_mode;
 }
 
 

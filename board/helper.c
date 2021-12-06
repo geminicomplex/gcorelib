@@ -163,10 +163,15 @@ void helper_agent_load(enum artix_selects artix_select,
     packet.addr = 0;
     packet.data = 0;
 
+    if (artix_select == ARTIX_SELECT_BOTH) {
+        die("error: no artix unit given; selecting both not allowed");
+    } else if(artix_select == ARTIX_SELECT_NONE) {
+        die("error: no artix unit given");
+    }
+
     // Need to check for error
     regs = subcore_get_regs();
     if(regs != NULL){
-
         if(artix_select == ARTIX_SELECT_A1){
             if((regs->a1_status & GCORE_AGENT_STARTUP_DONE_MASK) == GCORE_AGENT_STARTUP_DONE_MASK){
                 agent_did_startup = true;
@@ -175,10 +180,6 @@ void helper_agent_load(enum artix_selects artix_select,
             if((regs->a2_status & GCORE_AGENT_STARTUP_DONE_MASK) == GCORE_AGENT_STARTUP_DONE_MASK){
                 agent_did_startup = true;
             }
-        } else if (artix_select == ARTIX_SELECT_BOTH) {
-            die("error: no artix unit given; selecting both not allowed");
-        } else {
-            die("error: no artix unit given");
         }
     }
     regs = subcore_free_regs(regs);
@@ -195,6 +196,7 @@ void helper_agent_load(enum artix_selects artix_select,
             slog_info(0,"initializing agent a2...");
         }
         fflush(stdout);
+
         // wait for pll and mmcms to lock
         // init and calibrate ddr
         subcore_state = AGENT_STARTUP;
@@ -205,8 +207,7 @@ void helper_agent_load(enum artix_selects artix_select,
         // read agent status through ctrl_axi
         subcore_read_packet(&packet);
 
-        slog_info(0,"done.");
-        print_packet(&packet, "start: ");
+        print_packet(&packet, "agent startup: ");
 
         // Need to check for error
         regs = subcore_get_regs();

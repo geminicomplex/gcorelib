@@ -62,6 +62,19 @@ enum stim_types {
 
 
 /*
+ * Stim mode tells you if the pattern is solo (runs on only one artix unit) or
+ * dual mode (runs on both artix units)
+ *
+ */
+enum stim_modes {
+    STIM_MODE_NONE,
+    STIM_MODE_A1,
+    STIM_MODE_A2,
+    STIM_MODE_DUAL
+};
+
+
+/*
  * Each pin is represented by a subvec, and to conserve space
  * 4 bit subvecs are packed into a byte, thus needing half the
  * space. If odd number of pins, will add one to have enough.
@@ -170,6 +183,9 @@ struct vec_chunk *stim_decompress_vec_chunk(struct vec_chunk *chunk);
 
 // get enable_pins array for gvpu TEST_SETUP
 uint8_t *stim_get_enable_pins_data(struct stim *stim, enum artix_selects artix_select);
+
+// none is empty stim, A1 or A2 is solo mode, dual is running on both units
+enum stim_modes stim_get_mode(struct stim *stim);
 
 // private
 struct stim *init_stim(struct stim *stim, struct profile_pin **pins, 
