@@ -57,14 +57,19 @@ void print_stacktrace();
     } while(0);
 #endif
 
-#define MMAP_PATH "/dev/gcore"
-#define MMAP_SIZE (DMA_SIZE * sizeof(uint8_t))
+// total artix memory in bytes (8GiB)
+#define ARTIX_MEM_BYTES (8589934592)
 
-// max size we can send due to memory limitations
+// max size we can send due to zynq memory limitations
 #define MAX_CHUNK_SIZE (536870912/2)
 
 // number of bytes per dma burst also known as a memory page
+// a word is a 64 bit number
 #define BURST_BYTES (1024)
+#define BEAT_BYTES (128)
+#define NUM_BEATS_PER_BURST (8)
+#define WORD_BYTES (8)
+#define NUM_WORDS_PER_BEAT (16)
 
 // number of pins per artix unit
 #define DUT_NUM_PINS (200)
@@ -85,7 +90,7 @@ void print_stacktrace();
 // 8 vecs per 1024 byte burst
 #define STIM_NUM_VECS_PER_BURST (8)
 
-// maximum number of vectors we can fit in 8GB memory
+// maximum number of vectors we can fit in 8GiB memory
 #define MAX_NUM_VECS (67108864)
 
 // maximum number of unrolled vectors. 64 bit number, but 

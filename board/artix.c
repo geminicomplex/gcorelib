@@ -325,6 +325,108 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
     return;
 }
 
+// from: https://stackoverflow.com/questions/33010010/how-to-generate-random-64-bit-unsigned-integer-in-c
+#define IMAX_BITS(m) ((m)/((m)%255+1) / 255%255*8 + 7-86/((m)%255+12))
+#define RAND_MAX_WIDTH IMAX_BITS(RAND_MAX)
+_Static_assert((RAND_MAX & (RAND_MAX + 1u)) == 0, "RAND_MAX not a Mersenne number");
+uint64_t rand64(void) {
+  uint64_t r = 0;
+  for (int i = 0; i < 64; i += RAND_MAX_WIDTH) {
+    r <<= RAND_MAX_WIDTH;
+    r ^= (unsigned) rand();
+  }
+  return r;
+}
+
+/*
+ * Returns one burst with random data for beats 0 to 5. Calc custom crc for beats
+ * 6 and 7.
+ *
+ */
+static uint64_t* get_mem_test_burst(uint32_t seed) __attribute__((optimize("-O3"))){
+    uint64_t num = 0;
+    uint64_t *burst = NULL;
+
+    // 1024 bytes per burst, or 128 64-bit words
+    if((burst=(uint64_t*)calloc(128, sizeof(uint64_t))) == NULL){
+        die("pointer is null");
+    }
+
+    srand(seed);
+
+    uint64_t bxor = 0xffffffffffffffff;
+
+    for(uint32_t i=0; i<128; i++){
+        // copy crc for last two beat
+        if(i>=96){
+            memcpy((uint8_t*)burst+(i*sizeof(uint64_t)), &bxor, sizeof(uint64_t));
+            continue;
+        }
+        num = rand64();
+
+        if(i%16==0){
+            bxor = bxor ^ bxor;
+        }
+
+        for(int32_t j=0; j<sizeof(int64_t); j++){
+            bxor = bxor ^ *(((uint8_t*)&num)+j);
+        }
+
+        if((i+1)%16==0){
+            bxor = bxor << 8;
+        }
+
+        memcpy((uint8_t*)burst+(i*sizeof(uint64_t)), &num, sizeof(uint64_t));
+    }
+
+    return burst;
+}
+
+/*
+ * Return array of 64 bit values, repeating every 16 words, up to number of
+ * bytes.
+ *
+ */
+uint64_t* get_mem_test_data(uint32_t num_bursts, bool include_crc_data, bool clear_crc_results){
+    uint64_t num;
+    uint64_t *data = NULL;
+    uint64_t *burst = NULL;
+
+    if((data=(uint64_t*)calloc(num_bursts, BURST_BYTES)) == NULL){
+        die("pointer is null");
+    }
+
+    srand(1);
+
+    printf("generating mem test data for %i bursts...\n", num_bursts);
+    for(uint32_t i=0; i<num_bursts; i++){
+        burst = get_mem_test_burst(i+1);
+        uint32_t idx = 0;
+        for(uint32_t j=0; j<NUM_BEATS_PER_BURST; j++){
+            for(uint32_t k=0; k<NUM_WORDS_PER_BEAT; k++){
+                idx = (j*NUM_WORDS_PER_BEAT)+k;
+                if(include_crc_data && (j==6 || j==7)){
+                    if(j==6){
+                        num = burst[idx];
+                    }else if(j==7){
+                        if(clear_crc_results){
+                            num = 0x0000000000000000;
+                        }else{
+                            num = burst[idx];
+                        }
+                    }
+                } else {
+                    num = burst[idx];
+                }
+                data[(i*128)+idx] = num;
+            }
+        }
+        free(burst);
+    }
+    printf("mem test data generated\n");
+    return data;
+}
+
 void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 #ifdef GEM_DEBUG
     uint32_t start_beat = 0;
@@ -338,8 +440,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
     uint64_t crc_cycle = 0;
 
 #ifdef VERILATOR
-    //uint32_t test_data_size = 8384512/4; 
-    uint32_t test_data_size = 1024*32; 
+    uint32_t test_data_size = 1024*5; 
 #else
     uint32_t test_data_size = MAX_CHUNK_SIZE; 
 #endif
@@ -352,27 +453,17 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         num_bursts = num_bursts + 1;
     }
 
-    // malloc write buffer
-    //if((write_data = (uint64_t *)calloc(test_data_size, sizeof(uint8_t))) == NULL){
-    //    die("error: calloc failed");
-    //}
-
-    // malloc read buffer
-    if((read_data = (uint64_t *)calloc(test_data_size, sizeof(uint8_t))) == NULL){
-        die("error: calloc failed");
-    }
-
     if(run_crc){
-        // include xor data and clear last beat in burst
-        write_data = util_get_static_data(test_data_size, true, true);
+        // include crc data and clear last beat in burst
+        write_data = get_mem_test_data(num_bursts, true, true);
     }else if(!run_crc){
-        // include xor data and write to last beat as well
-        write_data = util_get_static_data(test_data_size, true, false);
+        // include crc data and write to last beat as well
+        write_data = get_mem_test_data(num_bursts, true, false);
     }
 
 #ifdef GEM_DEBUG
     // print only max three beats from burst
-    if((test_data_size/8) > (16*2)){
+    if(num_bursts > 1){
         if(run_crc) {
             start_beat = 16*5;
             end_beat = 16*8;
@@ -387,6 +478,9 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         end_beat = (test_data_size/8);
     }
     for(int i=start_beat; i<end_beat;i++){
+        if(i%16 == 0){
+            slog_debug(0, "--------------------------------------------------");
+        }
         slog_debug(0, "dma_buf %02i: 0x%016" PRIX64 "", i, write_data[i]);
     }
 #endif
@@ -413,7 +507,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         slog_info(0, "loading crc test...");
         helper_gvpu_load(artix_select, MEM_TEST);
         helper_print_agent_status(artix_select);
-    
+
         slog_info(0, "running crc test...");
         uint32_t counter = 0;
         while(1){
@@ -462,6 +556,11 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 
     helper_print_agent_status(artix_select);
 
+    // malloc read buffer
+    if((read_data = (uint64_t *)calloc(test_data_size, sizeof(uint8_t))) == NULL){
+        die("error: calloc failed");
+    }
+
     slog_info(0, "will read mem data...");
     artix_mem_read(artix_select, addr, read_data, test_data_size);
     slog_info(0, "did read mem data...");
@@ -476,7 +575,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 
 #ifdef GEM_DEBUG
     // print only max three beats from burst
-    if((test_data_size/8) > (16*2)){
+    if(num_bursts > 1){
         if(run_crc) {
             start_beat = 16*5;
             end_beat = 16*8;
@@ -491,6 +590,9 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
         end_beat = (test_data_size/8);
     }
     for(int i=start_beat; i<end_beat;i++){
+        if(i%16 == 0){
+            slog_debug(0, "--------------------------------------------------");
+        }
         slog_debug(0, "dma_buf %02i: 0x%016" PRIX64 "", i, read_data[i]);
     }
 #endif
@@ -500,11 +602,17 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc){
 
     // re-generate write data with results not cleared out so 
     // it will match read_data
-    write_data = util_get_static_data(test_data_size, true, false);
+    write_data = get_mem_test_data(num_bursts, true, false);
     slog_info(0, "checking write/read array difference...");
     uint32_t starting = 0;
     uint32_t found = 0;
     for(int i=0; i<(test_data_size/sizeof(uint64_t)); i++){
+#ifdef VERILATOR
+        if(i%16 == 0){
+            slog_debug(0, "--------------------------------------------------");
+        }
+        slog_debug(0, "diff %02i: 0x%016" PRIX64 " 0x%016" PRIX64 "", i, write_data[i], read_data[i]);
+#endif
         if(write_data[i] != read_data[i]){
             if(!starting){
                 starting = i;

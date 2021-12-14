@@ -20,7 +20,7 @@ extern "C" {
 #include <stdint.h>
 
 int util_fopen(const char *file_path, int *fd, FILE **fp, off_t *file_size);
-uint64_t* util_get_rand_data(size_t num_bytes);
+uint64_t* util_get_rand_data(size_t num_bytes, uint32_t seed);
 uint64_t* util_get_static_data(size_t num_bytes, bool include_xor_data, bool clear_xor_results);
 uint64_t* util_get_inc_data(size_t num_bytes);
 int util_jsmn_eq(const char *json, jsmntok_t *tok, const char *s);

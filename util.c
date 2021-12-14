@@ -93,13 +93,15 @@ error:
  * Returns a malloced array of 64 bit values with size num_bytes.
  *
  */
-uint64_t* util_get_rand_data(size_t num_bytes){
+uint64_t* util_get_rand_data(size_t num_bytes, uint32_t seed){
     uint64_t num;
     uint64_t *data;
 
     if((data=(uint64_t*)malloc(num_bytes)) == NULL){
         return NULL;
     }
+
+    srand(seed);
 
     for(uint32_t i=0; i<(num_bytes/sizeof(uint64_t)); i++) {
         num = rand();

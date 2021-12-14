@@ -31,6 +31,7 @@ void artix_get_stim_fail_pins(uint8_t **fail_pins, uint32_t *num_fail_pins);
 void artix_print_stim_fail_pins(struct stim *stim, uint8_t *fail_pins, 
     uint32_t num_fail_pins);
 void artix_config(enum artix_selects artix_select, const char *bit_path);
+uint64_t* get_mem_test_data(uint32_t num_bursts, bool include_crc_data, bool clear_crc_results);
 
 #ifdef __cplusplus
 }

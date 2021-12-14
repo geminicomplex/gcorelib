@@ -1,7 +1,7 @@
 /*
  * Gcore Driver
  *
- * copyright (c) 2015-2021 gemini complex corporation. all rights reserved.
+ * Copyright (c) 2015-2021 Gemini Complex Corporation. All rights reserved.
  *
  */
 
@@ -19,6 +19,9 @@ extern "C" {
 // by the burst size of 128 bytes and 4 byte aligned.
 // linux uses 4k pages so must be at least less than page
 #define DMA_SIZE (8384512)
+
+#define MMAP_PATH "/dev/gcore"
+#define MMAP_SIZE (DMA_SIZE * sizeof(uint8_t))
 
 // ioctl methods
 #define GCORE_IOCTL_BASE        'W'

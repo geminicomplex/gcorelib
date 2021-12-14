@@ -5,7 +5,7 @@
 # and mac on a linux system.
 #
 
-INCLUDES :=-I. -I./board -I./lib/jsmn -I./lib/avl -I./lib/progress -I./lib/lz4 -I./lib/capnp 
+INCLUDES :=-I. -I./board -I./lib/jsmn -I./lib/avl -I./lib/progress -I./lib/lz4 -I./lib/capnp
 CFLAGS :=-O2 -c -fPIC -Wall -funwind-tables -g -ggdb -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LDFLAGS := -fPIC
 PLAT :=
@@ -46,7 +46,8 @@ HEADERS := profile.h stim.h config.h board/dma.h board/helper.h board/subcore.h 
 		board/gpio.h board/artix.h board/i2c.h serialize/stim_serdes.capnp.h dots.h common.h \
 		subvec.h util.h lib/capnp/capnp_priv.h lib/capnp/capnp_c.h lib/lz4/xxhash.h lib/lz4/lz4.h \
 		lib/lz4/lz4frame_static.h lib/lz4/lz4hc.h lib/lz4/lz4frame.h lib/jsmn/jsmn.h \
-		lib/avl/avl.h lib/slog/slog.h lib/fe/fe.h prgm.h libgcore.h
+		lib/avl/avl.h lib/slog/slog.h lib/fe/fe.h \
+		prgm.h libgcore.h
 
 #
 # Don't run anything if all is given
