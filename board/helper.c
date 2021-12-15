@@ -531,6 +531,9 @@ void _print_artix_status(uint32_t status){
 }
 
 void print_regs_verbose(struct gcore_registers *regs){
+    if(regs == NULL){
+        die("pointer is null");
+    }
     print_regs(regs);
     
     for(int i=0; i<80; i++){
@@ -640,6 +643,27 @@ void sprint_subcore_mode_state(char *mode_state_str) {
     return;
 }
 
+enum agent_states get_agent_state(enum artix_selects artix_select, struct gcore_registers *regs){
+    if (artix_select == ARTIX_SELECT_BOTH) {
+        die("error: no artix unit given; selecting both not allowed");
+    } else if(artix_select == ARTIX_SELECT_NONE) {
+        die("error: no artix unit given");
+    }
+
+    if(regs == NULL){
+        die("pointer is null");
+    }
+
+    enum agent_states agent_state = 0;
+    if(artix_select == ARTIX_SELECT_A1){
+        agent_state = (enum agent_states)((regs->a1_status & GCORE_AGENT_STATE_MASK) >> 0);
+    }else if(artix_select == ARTIX_SELECT_A2){
+        agent_state = (enum agent_states)((regs->a2_status & GCORE_AGENT_STATE_MASK) >> 0);
+    }
+
+    return agent_state;
+}
+
 /*
  * Given an agent state enum, print the state name to stdout. 
  *
@@ -686,6 +710,27 @@ void print_agent_state(enum agent_states agent_state, char *pre){
             break;
     };
     return;
+}
+
+enum gvpu_states get_gvpu_state(enum artix_selects artix_select, struct gcore_registers *regs){
+    if (artix_select == ARTIX_SELECT_BOTH) {
+        die("error: no artix unit given; selecting both not allowed");
+    } else if(artix_select == ARTIX_SELECT_NONE) {
+        die("error: no artix unit given");
+    }
+
+    if(regs == NULL){
+        die("pointer is null");
+    }
+
+    enum gvpu_states gvpu_state = 0;
+    if(artix_select == ARTIX_SELECT_A1){
+        gvpu_state = (enum gvpu_states)((regs->a1_status & GCORE_AGENT_GVPU_STATE_MASK) >> 0);
+    }else if(artix_select == ARTIX_SELECT_A2){
+        gvpu_state = (enum gvpu_states)((regs->a2_status & GCORE_AGENT_GVPU_STATE_MASK) >> 0);
+    }
+
+    return gvpu_state;
 }
 
 /*
@@ -742,6 +787,27 @@ void print_gvpu_state(enum gvpu_states gvpu_state, char *pre){
     return;
 }
 
+enum memcore_states get_memcore_state(enum artix_selects artix_select, struct gcore_registers *regs){
+    if (artix_select == ARTIX_SELECT_BOTH) {
+        die("error: no artix unit given; selecting both not allowed");
+    } else if(artix_select == ARTIX_SELECT_NONE) {
+        die("error: no artix unit given");
+    }
+
+    if(regs == NULL){
+        die("pointer is null");
+    }
+
+    enum memcore_states memcore_state = 0;
+    if(artix_select == ARTIX_SELECT_A1){
+        memcore_state = (enum memcore_states)((regs->a1_status & GCORE_AGENT_MEMCORE_STATE_MASK) >> 0);
+    }else if(artix_select == ARTIX_SELECT_A2){
+        memcore_state = (enum memcore_states)((regs->a2_status & GCORE_AGENT_MEMCORE_STATE_MASK) >> 0);
+    }
+
+    return memcore_state;
+}
+
 /*
  * Given a memcore state enum, print the state name to stdout.
  *
@@ -772,3 +838,23 @@ void print_memcore_state(enum memcore_states memcore_state, char *pre){
     return;
 }
 
+
+uint32_t get_gvpu_stage(enum artix_selects artix_select, struct gcore_registers *regs){
+    if (artix_select == ARTIX_SELECT_BOTH) {
+        die("error: no artix unit given; selecting both not allowed");
+    } else if(artix_select == ARTIX_SELECT_NONE) {
+        die("error: no artix unit given");
+    }
+
+    if(regs == NULL){
+        die("pointer is null");
+    }
+
+    uint32_t stage = 0;
+    if(artix_select == ARTIX_SELECT_A1){
+        stage = ((regs->a1_status & GCORE_AGENT_GVPU_STAGE_MASK) >> 12);
+    }else if(artix_select == ARTIX_SELECT_A2){
+        stage = ((regs->a2_status & GCORE_AGENT_GVPU_STAGE_MASK) >> 12);
+    }
+    return stage;
+}

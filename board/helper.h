@@ -76,9 +76,13 @@ void sprint_subcore_mode_state(char *mode_state_str);
 void print_regs(struct gcore_registers *regs);
 void print_regs_verbose(struct gcore_registers *regs);
 void print_packet(struct gcore_ctrl_packet *packet, char *pre);
+enum agent_states get_agent_state(enum artix_selects artix_select, struct gcore_registers *regs);
 void print_agent_state(enum agent_states agent_state, char *pre);
+enum gvpu_states get_gvpu_state(enum artix_selects artix_select, struct gcore_registers *regs);
 void print_gvpu_state(enum gvpu_states gvpu_state, char *pre);
+enum memcore_states get_memcore_state(enum artix_selects artix_select, struct gcore_registers *regs);
 void print_memcore_state(enum memcore_states memcore_state, char *pre);
+uint32_t get_gvpu_stage(enum artix_selects artix_select, struct gcore_registers *regs);
 
 #ifdef __cplusplus
 }
