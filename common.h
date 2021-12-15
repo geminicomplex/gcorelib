@@ -34,7 +34,7 @@ extern "C" {
     #define dma_cookie_t int32_t
 #endif
 
-#define GCORE_LOG_PATH "/var/log/gcore.log"
+#define GCORE_LOG_PATH "/var/log/gcore"
 
 // stack levels to print when dying
 #define MAX_STACK_LEVELS (100)
@@ -61,7 +61,7 @@ void print_stacktrace();
 #define ARTIX_MEM_BYTES (8589934592)
 
 // max size we can send due to zynq memory limitations
-#define MAX_CHUNK_SIZE (536870912/2)
+#define MAX_CHUNK_SIZE (536870912)
 
 // number of bytes per dma burst also known as a memory page
 // a word is a 64 bit number
