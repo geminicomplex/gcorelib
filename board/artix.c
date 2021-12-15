@@ -350,7 +350,7 @@ __attribute__((optimize("-O2"))) static uint64_t* get_mem_test_burst(uint32_t se
 
     // 1024 bytes per burst, or 128 64-bit words
     if((burst=(uint64_t*)calloc(128, sizeof(uint64_t))) == NULL){
-        die("pointer is null");
+        die("calloc failed");
     }
 
     srand(seed);
@@ -399,12 +399,13 @@ static uint64_t* get_mem_test_data(uint64_t start_burst, uint64_t num_bursts, bo
     uint64_t *burst = NULL;
 
     if((data=(uint64_t*)calloc(num_bursts, BURST_BYTES)) == NULL){
-        die("pointer is null");
+        die("calloc failed for num bytes %" PRId64 "", num_bursts*BURST_BYTES);
     }
 
     srand(1);
 
-    printf("generating mem test data for bursts %" PRId64 " to %" PRId64  "...\n", start_burst, start_burst+num_bursts);
+    slog_info(0, "generating mem test data for bursts %" PRId64 " to %" PRId64  "...", 
+            start_burst, start_burst+num_bursts);
     for(uint64_t i=start_burst; i<start_burst+num_bursts; i++){
         burst = get_mem_test_burst(i+1);
         uint32_t idx = 0;
@@ -429,7 +430,7 @@ static uint64_t* get_mem_test_data(uint64_t start_burst, uint64_t num_bursts, bo
         }
         free(burst);
     }
-    printf("mem test data generated\n");
+    slog_info(0, "mem test data generated.");
     return data;
 }
 
@@ -513,6 +514,84 @@ void static artix_load_mem_test_data(enum artix_selects artix_select, bool run_c
     return;
 }
 
+struct mem_test_check {
+    int32_t first_fail_chunk;
+    uint64_t first_fail_word;
+    uint64_t total_fail_words;
+};
+
+struct mem_test_check static artix_check_mem_test_data(enum artix_selects artix_select, bool run_crc, uint64_t num_chunks, uint64_t chunk_size){
+    uint64_t *write_data = NULL;
+    uint64_t *read_data = NULL;
+    uint64_t addr = 0x0000000000000000;
+    uint64_t start_burst = 0;
+    uint64_t num_bursts = (chunk_size / BURST_BYTES);
+    uint64_t num_chunk_fail_words = 0;
+    bool chunk_did_fail = false;
+    struct mem_test_check test_check;
+
+    test_check.first_fail_chunk = -1;
+    test_check.first_fail_word = 0;
+    test_check.total_fail_words = 0;
+
+    // malloc read buffer
+    if((read_data = (uint64_t *)calloc(chunk_size, sizeof(uint8_t))) == NULL){
+        die("error: calloc failed");
+    }
+
+
+    for(uint32_t i=0; i<num_chunks; i++){
+        artix_mem_read(artix_select, addr, read_data, chunk_size);
+
+#ifdef GEM_DEBUG
+        debug_print_dma_burst(run_crc, read_data, chunk_size);
+#endif
+
+        // re-generate write data with results not cleared out so 
+        // it will match read_data
+        write_data = get_mem_test_data(start_burst, num_bursts, true, false);
+        start_burst += num_bursts;
+
+        slog_info(0, "checking write/read array difference for chunk %i...", i);
+        num_chunk_fail_words = 0;
+        chunk_did_fail = false;
+        for(int j=0; j<(chunk_size/sizeof(uint64_t)); j++){
+            if(write_data[j] != read_data[j]){
+                chunk_did_fail = true;
+                test_check.first_fail_chunk = i;
+                if(!test_check.first_fail_word){
+                    test_check.first_fail_word = (i*(chunk_size/sizeof(uint64_t)))+j;
+                }
+                num_chunk_fail_words = num_chunk_fail_words + 1;
+            }
+        }
+
+        // print the first failing chunk 
+        if(chunk_did_fail && test_check.total_fail_words == 0){
+            for(int j=0; j<(chunk_size/sizeof(uint64_t)); j++){
+                if(j%16 == 0){
+                    slog_debug(0, "--------------------------------------------------");
+                }
+                if(write_data[j] != read_data[j]){
+                    slog_debug(0, "diff %02i:*0x%016" PRIX64 " 0x%016" PRIX64 "", j, write_data[j], read_data[j]);
+                }else{
+                    slog_debug(0, "diff %02i: 0x%016" PRIX64 " 0x%016" PRIX64 "", j, write_data[j], read_data[j]);
+                }
+            }
+        }
+        test_check.total_fail_words += num_chunk_fail_words;
+
+        addr += chunk_size;
+
+        free(write_data);
+        slog_info(0, "check for chunk %i finished.", i);
+    }
+
+    free(read_data);
+
+    return test_check;
+}
+
 /*
  * Runs an artix memory test. If run crc is true, will calculate crc value for burst,
  * compare to beat 7 andwrite result to beat 8. If beat 7 and 8 don't match, the test
@@ -523,8 +602,6 @@ void static artix_load_mem_test_data(enum artix_selects artix_select, bool run_c
  *
  */
 void artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_test){
-    uint64_t *write_data = NULL;
-    uint64_t *read_data = NULL;
     struct gcore_ctrl_packet packet;
     bool crc_failed = false;
     uint64_t crc_cycle = 0;
@@ -534,7 +611,6 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
     uint64_t num_bursts = 0;
     struct gcore_registers *regs = NULL;
     enum gvpu_states gvpu_state = 0; 
-    enum agent_states agent_state = 0; 
     time_t test_start_time;
     time_t test_end_time;
     time_t check_start_time;
@@ -594,7 +670,6 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
                 time(&test_end_time);
                 break;
             }else{
-                agent_state = get_agent_state(artix_select, regs);
                 crc_cycle = helper_get_agent_gvpu_status(artix_select,
                         GVPU_STATUS_SELECT_MEM_TEST,
                         GVPU_STATUS_CMD_GET_CYCLE);
@@ -638,42 +713,17 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
 
     helper_print_agent_status(artix_select);
 
-    // malloc read buffer
-    if((read_data = (uint64_t *)calloc(chunk_size, sizeof(uint8_t))) == NULL){
-        die("error: calloc failed");
+    /*
+     * check_mem_test must hold both a read and write buffer in memory, which
+     * can't be done if the chunk size is MAX_CHUNK_SIZE (500MB).
+     *
+     */
+    if(chunk_size == MAX_CHUNK_SIZE){
+        chunk_size = chunk_size / 2;
+        num_chunks *= 2;
     }
 
-    slog_info(0, "will read mem data...");
-    artix_mem_read(artix_select, start_addr, read_data, chunk_size);
-    slog_info(0, "did read mem data...");
-
-#ifdef GEM_DEBUG
-    debug_print_dma_burst(run_crc, read_data, chunk_size);
-#endif
-
-    // re-generate write data with results not cleared out so 
-    // it will match read_data
-    write_data = get_mem_test_data(0, 1, true, false);
-
-    slog_info(0, "checking write/read array difference...");
-    uint32_t starting = 0;
-    uint32_t found = 0;
-    for(int i=0; i<(BURST_BYTES/sizeof(uint64_t)); i++){
-//#ifdef VERILATOR
-        if(i%16 == 0){
-            slog_debug(0, "--------------------------------------------------");
-        }
-//#endif
-        if(write_data[i] != read_data[i]){
-            slog_debug(0, "diff %02i:*0x%016" PRIX64 " 0x%016" PRIX64 "", i, write_data[i], read_data[i]);
-            if(!starting){
-                starting = i;
-            }
-            found = found + 1;
-        }else{
-            slog_debug(0, "diff %02i: 0x%016" PRIX64 " 0x%016" PRIX64 "", i, write_data[i], read_data[i]);
-        }
-    }
+    struct mem_test_check test_check = artix_check_mem_test_data(artix_select, run_crc, num_chunks, chunk_size);
 
     if(run_crc){
         if(crc_failed){
@@ -684,17 +734,15 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
         }
     }
 
-    if(found == 0){
+    if(test_check.total_fail_words == 0){
         slog_info(0, "mem data compare PASS!");
     }else{
         slog_info(0, "mem data compare FAIL :(");
-        slog_info(0, "found %llu differences starting at %i", (long long)found, starting);
-        slog_info(0, "which is in chunk %i", ((starting*8)/DMA_SIZE));
+        slog_info(0, "found %" PRId64 "failures in chunks starting at %i", test_check.total_fail_words, test_check.first_fail_word);
     }
 
     slog_info(0, "mem test done.");
-    free(read_data);
-    free(write_data);
+    
 
     return;
 }
