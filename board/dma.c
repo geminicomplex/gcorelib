@@ -51,7 +51,7 @@ static bool is_tx_prepared = false;
 __attribute__((constructor))
 static void gcore_dma_init() {
 
-    gcore_init_log(GCORE_LOG_PATH);
+    gcore_init();
 
     gcore_dma_alloc_reset();
 #ifdef __arm__
@@ -69,7 +69,7 @@ static void gcore_dma_init() {
 __attribute__((destructor))
 static void gcore_dma_destroy() {
 
-    gcore_init_log(GCORE_LOG_PATH);
+    gcore_init();
 #ifdef __arm__
     if(!is_dma_reg_mmap_init){
         die("gcorelib: failed to exit, gcore not initialized");

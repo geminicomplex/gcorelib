@@ -191,9 +191,9 @@ void helper_agent_load(enum artix_selects artix_select,
      */
     if(!agent_did_startup) {
         if(artix_select == ARTIX_SELECT_A1){
-            slog_info(0,"initializing agent a1...");
+            slog_info("initializing agent a1...");
         }else if(artix_select == ARTIX_SELECT_A2){
-            slog_info(0,"initializing agent a2...");
+            slog_info("initializing agent a2...");
         }
         fflush(stdout);
 
@@ -214,7 +214,7 @@ void helper_agent_load(enum artix_selects artix_select,
         if(regs != NULL){
             if((regs->status & GCORE_STATUS_INIT_ERROR_MASK) == GCORE_STATUS_INIT_ERROR_MASK){
                 print_regs(regs);
-                slog_error(0,"Agent startup init error.");
+                slog_error("Agent startup init error.");
                 exit(1);
             }
         }
@@ -259,7 +259,7 @@ void helper_burst_setup(enum artix_selects artix_select,
     packet.rank_select = GET_START_RANK(start_addr);
     packet.addr = GET_START_ADDR(start_addr);
     packet.data = num_bursts;
-    slog_info(0,"burst setup: %d @ %d = %d bytes @ addr 0x%X%08X", BURST_BYTES, 
+    slog_debug("burst setup: %d @ %d = %d bytes @ addr 0x%X%08X", BURST_BYTES, 
         num_bursts, (num_bursts*BURST_BYTES), packet.rank_select, packet.addr);
 
     helper_memcore_load(artix_select, MEMCORE_SETUP_BURST);
@@ -303,7 +303,7 @@ void helper_memcore_load(enum artix_selects artix_select, enum memcore_states me
     // check if gvpu is in mem_load state
     helper_get_agent_status(artix_select, &packet);
     if((packet.data & 0x000000f0) != 0x00000030){
-        slog_error(0,"error: gvpu is not in MEM_LOAD state. 0x%08X", packet.data);
+        slog_error("error: gvpu is not in MEM_LOAD state. 0x%08X", packet.data);
         exit(1);
     }
 
@@ -337,7 +337,7 @@ void helper_memcore_check_state(enum artix_selects artix_select,
         || memcore_state != MEMCORE_READ_BURST) {
         helper_get_agent_status(artix_select, &packet);
         if((packet.data & 0x00000f00) != (memcore_state << 8)){
-            slog_error(0,"error: memcore is not in desired state. desired: 0x%08X actual: 0x%08X", 
+            slog_error("error: memcore is not in desired state. desired: 0x%08X actual: 0x%08X", 
                 (memcore_state << 8), (packet.data & 0x00000f00));
             exit(1);
         }
@@ -493,12 +493,12 @@ void print_regs(struct gcore_registers *regs){
     if(regs == NULL){
         return;
     }
-    slog_info(0,"control: 0x%08X", regs->control);
-    slog_info(0,"status: 0x%08X", regs->status);
-    slog_info(0,"addr: 0x%08X", regs->addr);
-    slog_info(0,"data: 0x%08X", regs->data);
-    slog_info(0,"a1_status: 0x%08X", regs->a1_status);
-    slog_info(0,"a2_status: 0x%08X", regs->a2_status);
+    slog_info("control: 0x%08X", regs->control);
+    slog_info("status: 0x%08X", regs->status);
+    slog_info("addr: 0x%08X", regs->addr);
+    slog_info("data: 0x%08X", regs->data);
+    slog_info("a1_status: 0x%08X", regs->a1_status);
+    slog_info("a2_status: 0x%08X", regs->a2_status);
     return;
 }
 
@@ -560,7 +560,7 @@ void print_packet(struct gcore_ctrl_packet *packet, char *pre){
     if(pre == NULL){
         die("error: pointer is NULL");
     }
-    slog_info(0,
+    slog_debug(
         "%srank_sel: %X, addr: 0x%08X, data: 0x%08X",
         pre,
         packet->rank_select,
@@ -674,37 +674,37 @@ void print_agent_state(enum agent_states agent_state, char *pre){
     }
     switch(agent_state){
         case AGENT_INIT:
-            slog_info(0,"%sagent_init", pre);
+            slog_debug("%sagent_init", pre);
             break;
         case AGENT_IDLE:
-            slog_info(0,"%sagent_idle", pre);
+            slog_debug("%sagent_idle", pre);
             break;
         case AGENT_PAUSED:
-            slog_info(0,"%sagent_paused", pre);
+            slog_debug("%sagent_paused", pre);
             break;
         case STATUS:
-            slog_info(0,"%sstatus", pre);
+            slog_debug("%sstatus", pre);
             break;
         case BURST_LOAD:
-            slog_info(0,"%sburst_load", pre);
+            slog_debug("%sburst_load", pre);
             break;
         case GVPU_LOAD:
-            slog_info(0,"%sgvpu_load", pre);
+            slog_debug("%sgvpu_load", pre);
             break;
         case GVPU_RUN:
-            slog_info(0,"%sgvpu_run", pre);
+            slog_debug("%sgvpu_run", pre);
             break;
         case GVPU_WRITE:
-            slog_info(0,"%sgvpu_write", pre);
+            slog_debug("%sgvpu_write", pre);
             break;
         case GVPU_READ:
-            slog_info(0,"%sgvpu_read", pre);
+            slog_debug("%sgvpu_read", pre);
             break;
         case GVPU_STATUS:
-            slog_info(0,"%sgvpu_status", pre);
+            slog_debug("%sgvpu_status", pre);
             break;
         case GVPU_RESET:
-            slog_info(0,"%sgvpu_reset", pre);
+            slog_debug("%sgvpu_reset", pre);
             break;
         default:
             break;
@@ -743,43 +743,43 @@ void print_gvpu_state(enum gvpu_states gvpu_state, char *pre){
     }
     switch(gvpu_state){
         case GVPU_IDLE:
-            slog_info(0,"%sgvpu_idle", pre);
+            slog_debug("%sgvpu_idle", pre);
             break;
         case GVPU_PAUSED:
-            slog_info(0,"%sgvpu_paused", pre);
+            slog_debug("%sgvpu_paused", pre);
             break;
         case MEM_BURST:
-            slog_info(0,"%smem_burst", pre);
+            slog_debug("%smem_burst", pre);
             break;
         case MEM_LOAD:
-            slog_info(0,"%smem_load", pre);
+            slog_debug("%smem_load", pre);
             break;
         case MEM_RUN:
-            slog_info(0,"%smem_run", pre);
+            slog_debug("%smem_run", pre);
             break;
         case MEM_WRITE:
-            slog_info(0,"%smem_write", pre);
+            slog_debug("%smem_write", pre);
             break;
         case MEM_READ:
-            slog_info(0,"%smem_read", pre);
+            slog_debug("%smem_read", pre);
             break;
         case MEM_TEST:
-            slog_info(0,"%smem_test", pre);
+            slog_debug("%smem_test", pre);
             break;
         case TEST_INIT:
-            slog_info(0,"%stest_init", pre);
+            slog_debug("%stest_init", pre);
             break;
         case TEST_SETUP:
-            slog_info(0,"%stest_setup", pre);
+            slog_debug("%stest_setup", pre);
             break;
         case TEST_RUN:
-            slog_info(0,"%stest_run", pre);
+            slog_debug("%stest_run", pre);
             break;
         case TEST_FAIL_PINS:
-            slog_info(0,"%stest_fail_pins", pre);
+            slog_debug("%stest_fail_pins", pre);
             break;
         case TEST_CLEANUP:
-            slog_info(0,"%stest_cleanup", pre);
+            slog_debug("%stest_cleanup", pre);
             break;
         default:
             break;
@@ -818,19 +818,19 @@ void print_memcore_state(enum memcore_states memcore_state, char *pre){
     }
     switch(memcore_state){
         case MEMCORE_IDLE:
-            slog_info(0,"%smemcore_idle", pre);
+            slog_debug("%smemcore_idle", pre);
             break;
         case MEMCORE_PAUSED:
-            slog_info(0,"%smemcore_paused", pre);
+            slog_debug("%smemcore_paused", pre);
             break;
         case MEMCORE_SETUP_BURST:
-            slog_info(0,"%smemcore_setup_burst", pre);
+            slog_debug("%smemcore_setup_burst", pre);
             break;
         case MEMCORE_WRITE_BURST:
-            slog_info(0,"%smemcore_write_burst", pre);
+            slog_debug("%smemcore_write_burst", pre);
             break;
         case MEMCORE_READ_BURST:
-            slog_info(0,"%smemcore_read_burst", pre);
+            slog_debug("%smemcore_read_burst", pre);
             break;
         default:
             break;

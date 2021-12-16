@@ -432,7 +432,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     }
 
     if(stim->num_unrolled_vecs > MAX_NUM_UNROLLED_VECS_WARNING){
-        slog_warn(0, "number of unrolled vectors is over %" PRIu64", "
+        slog_warn("number of unrolled vectors is over %" PRIu64", "
             "which will run for over 10 mins. Are you sure?", MAX_NUM_UNROLLED_VECS_WARNING);
     }
 
@@ -965,7 +965,7 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             }
         }
 
-        //slog_debug(0, "dots vec %i %s has_clk: %i", dots_vec->repeat, dots_vec->vec_str, dots_vec->has_clk);
+        //slog_debug("dots vec %i %s has_clk: %i", dots_vec->repeat, dots_vec->vec_str, dots_vec->has_clk);
 
         unexpand_dots_vec_subvecs(dots_vec);
 
@@ -1975,7 +1975,7 @@ uint8_t *stim_get_enable_pins_data(struct stim *stim, enum artix_selects artix_s
         enable_pins[dut_io_id] = 0x00;
 
 #ifdef GEM_DEBUG
-        slog_debug(0, "%s : %i", pin->net_alias, dut_io_id);
+        slog_debug("%s : %i", pin->net_alias, dut_io_id);
 #endif
     }
 

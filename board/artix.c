@@ -45,7 +45,7 @@ static void subcore_prep_dma_write(enum artix_selects artix_select, uint32_t num
     subcore_idle();
 
     // pass number of bursts to subcore
-    slog_debug(0, "subcore bursts: %d @ %d = %d bytes", BURST_BYTES, 
+    slog_debug("subcore bursts: %d @ %d = %d bytes", BURST_BYTES, 
         num_bursts, (num_bursts*BURST_BYTES));
     helper_subcore_load(artix_select, SETUP_BURST);
     
@@ -56,7 +56,7 @@ static void subcore_prep_dma_write(enum artix_selects artix_select, uint32_t num
     
     subcore_idle();
 
-    slog_debug(0, "subcore: dma_write");
+    slog_debug("subcore: dma_write");
     helper_subcore_load(artix_select, DMA_WRITE);
 
     return;
@@ -114,6 +114,12 @@ void artix_mem_write(enum artix_selects artix_select,
     // config num bursts and config subcore to proxy data
     subcore_prep_dma_write(artix_select, num_bursts);
 
+    if(artix_select == ARTIX_SELECT_A1){
+        slog_info("writing %" PRId64 " bytes to a1", (uint64_t)num_bursts*BURST_BYTES);
+    }else if(artix_select == ARTIX_SELECT_A2){
+        slog_info("writing %" PRId64 " bytes to a2", (uint64_t)num_bursts*BURST_BYTES);
+    }
+
     if(write_size > DMA_SIZE){
         dma_buf = (uint64_t *)gcore_dma_alloc(DMA_SIZE, sizeof(uint8_t));
         memset(dma_buf, 0, DMA_SIZE);
@@ -122,7 +128,7 @@ void artix_mem_write(enum artix_selects artix_select,
 
         // send chunks of max buffer size
         for(int i=0; i<num_chunks; i++){
-            slog_info(0,"writing %i bytes...", DMA_SIZE);
+            slog_debug("writing %i bytes...", DMA_SIZE);
             memset(dma_buf, 0, DMA_SIZE);
             memcpy(dma_buf, ((uint8_t*)write_data)+(i*DMA_SIZE), DMA_SIZE);
             gcore_dma_prep(dma_buf, DMA_SIZE, NULL, 0);
@@ -132,7 +138,7 @@ void artix_mem_write(enum artix_selects artix_select,
         // send rest of data
         size_t data_mod = write_size % DMA_SIZE;
         if(data_mod != 0){
-            slog_info(0,"writing %zu bytes...", data_mod);
+            slog_debug("writing %zu bytes...", data_mod);
             memcpy(dma_buf, ((uint8_t*)write_data)+(write_size-data_mod), data_mod);
             gcore_dma_prep(dma_buf, data_mod, NULL, 0);
             gcore_dma_start(GCORE_WAIT_TX);
@@ -142,15 +148,21 @@ void artix_mem_write(enum artix_selects artix_select,
         uint32_t gvpu_burst_count = helper_get_agent_gvpu_status(artix_select,
                 GVPU_STATUS_SELECT_MEM_RW,
                 GVPU_STATUS_CMD_GET_CYCLE) + 1;
-        slog_info(0,"sent %zu total bytes (actual %i).", 
-            (num_chunks*DMA_SIZE)+data_mod, 
-            gvpu_burst_count*BURST_BYTES);
+        if(artix_select == ARTIX_SELECT_A1){
+            slog_info("sent %zu total bytes (actual %i) to a1.", 
+                (num_chunks*DMA_SIZE)+data_mod, 
+                gvpu_burst_count*BURST_BYTES);
+        }else if(artix_select == ARTIX_SELECT_A2){
+            slog_info("sent %zu total bytes (actual %i) to a2.", 
+                (num_chunks*DMA_SIZE)+data_mod, 
+                gvpu_burst_count*BURST_BYTES);
+        }
 
     }else{
         // this always ensures that what we read is a multiple of a burst
         // since num_bursts is calculated based on write_size
         size_t size = num_bursts*BURST_BYTES; 
-        slog_info(0,"writing %zu bytes (actual %zu)...", write_size, size);
+        slog_debug("writing %zu bytes (actual %zu)...", write_size, size);
         dma_buf = (uint64_t *)gcore_dma_alloc(size, sizeof(uint8_t));
         memset(dma_buf, 0, size);
         memcpy(dma_buf, write_data, write_size);
@@ -160,14 +172,18 @@ void artix_mem_write(enum artix_selects artix_select,
         uint32_t gvpu_burst_count = helper_get_agent_gvpu_status(artix_select,
                 GVPU_STATUS_SELECT_MEM_RW,
                 GVPU_STATUS_CMD_GET_CYCLE) + 1;
-        slog_info(0,"sent %zu bytes (actual %i).", 
-            write_size, gvpu_burst_count*BURST_BYTES);
-
+        if(artix_select == ARTIX_SELECT_A1){
+            slog_debug("sent %zu bytes (actual %i) to a1.", 
+                write_size, gvpu_burst_count*BURST_BYTES);
+        }else if(artix_select == ARTIX_SELECT_A2){
+            slog_debug("sent %zu bytes (actual %i).", 
+                write_size, gvpu_burst_count*BURST_BYTES);
+        }
     }
 
 //#ifdef GEM_DEBUG
 //    for(int i=0; i<32;i++){
-//        slog_debug(0,"dma_buf %02i: 0x%016" PRIX64 "", i, write_data[i]);
+//        slog_debug("dma_buf %02i: 0x%016" PRIX64 "", i, write_data[i]);
 //    }
 //#endif
 
@@ -196,7 +212,7 @@ static void subcore_prep_dma_read(enum artix_selects artix_select, uint32_t num_
         die("gcore: subcore_prep_dma_read error, can't set num bursts: %i > 65535", num_bursts);
     }
 
-    slog_debug(0, "subcore bursts: %d @ %d = %d bytes", BURST_BYTES, 
+    slog_debug("subcore bursts: %d @ %d = %d bytes", BURST_BYTES, 
         num_bursts, (num_bursts*BURST_BYTES));
 
     subcore_idle();
@@ -213,7 +229,7 @@ static void subcore_prep_dma_read(enum artix_selects artix_select, uint32_t num_
 
     subcore_idle();
 
-    slog_debug(0, "subcore: dma_read");
+    slog_debug("subcore: dma_read");
     helper_subcore_load(artix_select, DMA_READ);
     return;
 }
@@ -263,7 +279,7 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 
         // receive chunks of DMA_SIZE
         for(int i=0; i<num_chunks;i++){
-            slog_info(0,"reading %i bytes...", DMA_SIZE);
+            slog_debug("reading %i bytes...", DMA_SIZE);
             memset(dma_buf, 0, DMA_SIZE);
             gcore_dma_prep(NULL, 0, dma_buf, DMA_SIZE);
             subcore_prep_dma_read(artix_select, DMA_SIZE/BURST_BYTES);
@@ -274,7 +290,7 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         // send the rest
         size_t data_mod = read_size % DMA_SIZE;
         if(data_mod != 0){
-            slog_info(0,"reading %zu bytes...", data_mod);
+            slog_debug("reading %zu bytes...", data_mod);
             gcore_dma_prep(NULL, 0, dma_buf, data_mod);
             subcore_prep_dma_read(artix_select, data_mod/BURST_BYTES);
             gcore_dma_start(GCORE_WAIT_RX);
@@ -285,14 +301,22 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         uint32_t gvpu_burst_count = helper_get_agent_gvpu_status(artix_select,
                 GVPU_STATUS_SELECT_MEM_RW,
                 GVPU_STATUS_CMD_GET_CYCLE) + 1;
-        slog_info(0,"received %zu total bytes (actual %i).", 
-            (num_chunks*DMA_SIZE)+data_mod, 
-            gvpu_burst_count*BURST_BYTES);
+
+        if(artix_select == ARTIX_SELECT_A1){
+            slog_debug("received %zu total bytes (actual %i) to a1.", 
+                (num_chunks*DMA_SIZE)+data_mod, 
+                gvpu_burst_count*BURST_BYTES);
+        }else if(artix_select == ARTIX_SELECT_A2){
+            slog_debug("received %zu total bytes (actual %i) to a2.", 
+                (num_chunks*DMA_SIZE)+data_mod, 
+                gvpu_burst_count*BURST_BYTES);
+        }
+        
     }else{
         // this always ensures that what we read is a multiple of a burst
         // since num_bursts is calculated based on read_size
         size_t size = num_bursts*BURST_BYTES; 
-        slog_info(0,"reading %zu bytes (actual %zu)...", read_size, size);
+        slog_debug("reading %zu bytes (actual %zu)...", read_size, size);
         dma_buf = (uint64_t *)gcore_dma_alloc(size, sizeof(uint8_t));
         memset(dma_buf, 0, size);
         gcore_dma_prep(NULL, 0, dma_buf, size);
@@ -304,13 +328,20 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
         uint32_t gvpu_burst_count = helper_get_agent_gvpu_status(artix_select,
                 GVPU_STATUS_SELECT_MEM_RW,
                 GVPU_STATUS_CMD_GET_CYCLE) + 1;
-        slog_info(0,"received %zu bytes (actual %i).", 
-            read_size, gvpu_burst_count*BURST_BYTES);
+
+        if(artix_select == ARTIX_SELECT_A1){
+            slog_debug("received %zu bytes (actual %i) to a1.", 
+                read_size, gvpu_burst_count*BURST_BYTES);
+        }else if(artix_select == ARTIX_SELECT_A2){
+            slog_debug("received %zu bytes (actual %i) to a2.", 
+                read_size, gvpu_burst_count*BURST_BYTES);
+        }
+        
     }
 
 //#ifdef GEM_DEBUG
 //    for(int i=0; i<32;i++){
-//        slog_debug(0,"dma_buf %02i: 0x%016" PRIX64 "", i, read_data[i]);
+//        slog_debug("dma_buf %02i: 0x%016" PRIX64 "", i, read_data[i]);
 //    }
 //#endif
 
@@ -404,7 +435,7 @@ static uint64_t* get_mem_test_data(uint64_t start_burst, uint64_t num_bursts, bo
 
     srand(1);
 
-    slog_info(0, "generating mem test data for bursts %" PRId64 " to %" PRId64  "...", 
+    slog_info("generating mem test data for bursts %" PRId64 " to %" PRId64  "...", 
             start_burst, start_burst+num_bursts);
     for(uint64_t i=start_burst; i<start_burst+num_bursts; i++){
         burst = get_mem_test_burst(i+1);
@@ -430,7 +461,7 @@ static uint64_t* get_mem_test_data(uint64_t start_burst, uint64_t num_bursts, bo
         }
         free(burst);
     }
-    slog_info(0, "mem test data generated.");
+    slog_info("mem test data generated.");
     return data;
 }
 
@@ -450,9 +481,9 @@ void static debug_print_dma_burst(bool print_end, uint64_t *data, size_t data_si
         if(print_end) {
             start_beat = 16*5;
             end_beat = 16*8;
-            slog_debug(0, "printing write beats 5:7");
+            slog_debug("printing write beats 5:7");
         } else {
-            slog_debug(0, "printing write beats 0:2");
+            slog_debug("printing write beats 0:2");
             start_beat = 16*0;
             end_beat = 16*2;
         }
@@ -462,9 +493,9 @@ void static debug_print_dma_burst(bool print_end, uint64_t *data, size_t data_si
     }
     for(int i=start_beat; i<end_beat;i++){
         if(i%16 == 0){
-            slog_debug(0, "--------------------------------------------------");
+            slog_debug("--------------------------------------------------");
         }
-        slog_debug(0, "dma_buf %02i: 0x%016" PRIX64 "", i, data[i]);
+        slog_debug("dma_buf %02i: 0x%016" PRIX64 "", i, data[i]);
     }
 }
 
@@ -483,7 +514,7 @@ void static artix_load_mem_test_data(enum artix_selects artix_select, bool run_c
     uint64_t num_bursts = (chunk_size / BURST_BYTES);
     uint64_t *chunk = NULL;
 
-    for(uint32_t i=0; i<num_chunks; i++){
+    for(uint64_t i=0; i<num_chunks; i++){
         if(run_crc){
             // include crc data and clear last beat in burst
             chunk = get_mem_test_data(start_burst, num_bursts, true, true);
@@ -499,7 +530,7 @@ void static artix_load_mem_test_data(enum artix_selects artix_select, bool run_c
         }
 #endif
 
-        slog_info(0, "writing mem data chunk %" PRId64 " of %" PRId64 " to rank:0x%X addr:0x%08X...", 
+        slog_info("writing mem data chunk %" PRId64 " of %" PRId64 " to rank:0x%X addr:0x%08X...", 
             i+1, num_chunks, GET_START_RANK(addr), GET_START_ADDR(addr));
         artix_mem_write(artix_select, addr, chunk, chunk_size);
 
@@ -552,7 +583,7 @@ struct mem_test_check static artix_check_mem_test_data(enum artix_selects artix_
         write_data = get_mem_test_data(start_burst, num_bursts, true, false);
         start_burst += num_bursts;
 
-        slog_info(0, "checking write/read array difference for chunk %i...", i);
+        slog_info("checking write/read array difference for chunk %i...", i);
         num_chunk_fail_words = 0;
         chunk_did_fail = false;
         for(int j=0; j<(chunk_size/sizeof(uint64_t)); j++){
@@ -570,12 +601,12 @@ struct mem_test_check static artix_check_mem_test_data(enum artix_selects artix_
         if(chunk_did_fail && test_check.total_fail_words == 0){
             for(int j=0; j<(chunk_size/sizeof(uint64_t)); j++){
                 if(j%16 == 0){
-                    slog_debug(0, "--------------------------------------------------");
+                    slog_debug("--------------------------------------------------");
                 }
                 if(write_data[j] != read_data[j]){
-                    slog_debug(0, "diff %02i:*0x%016" PRIX64 " 0x%016" PRIX64 "", j, write_data[j], read_data[j]);
+                    slog_debug("diff %02i:*0x%016" PRIX64 " 0x%016" PRIX64 "", j, write_data[j], read_data[j]);
                 }else{
-                    slog_debug(0, "diff %02i: 0x%016" PRIX64 " 0x%016" PRIX64 "", j, write_data[j], read_data[j]);
+                    slog_debug("diff %02i: 0x%016" PRIX64 " 0x%016" PRIX64 "", j, write_data[j], read_data[j]);
                 }
             }
         }
@@ -584,7 +615,7 @@ struct mem_test_check static artix_check_mem_test_data(enum artix_selects artix_
         addr += chunk_size;
 
         free(write_data);
-        slog_info(0, "check for chunk %i finished.", i);
+        slog_info("check for chunk %i finished.", i);
     }
 
     free(read_data);
@@ -617,6 +648,8 @@ bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
     time_t check_cur_time;
     double diff_time_secs = 0;
     bool did_test_pass = false;
+
+    slog_info("mem test starting...");
 
 #ifdef VERILATOR
     chunk_size = 1024*5; 
@@ -651,16 +684,16 @@ bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
         // number of bursts in the test
         num_bursts = ((num_chunks*chunk_size) / BURST_BYTES);
 
-        slog_info(0, "setup crc test with %" PRId64  " bursts starting at addr:0x%X%08X...",
+        slog_info("setup crc test with %" PRId64  " bursts starting at addr:0x%X%08X...",
             num_bursts, GET_START_RANK(start_addr), GET_START_ADDR(start_addr));
         // this sets gvpu_num_bursts reg since memtest looks at this
         helper_burst_setup(artix_select, start_addr, num_bursts);
 
-        slog_info(0, "loading crc test...");
+        slog_info("loading crc test...");
         helper_gvpu_load(artix_select, MEM_TEST);
         helper_print_agent_status(artix_select);
 
-        slog_info(0, "running crc test...");
+        slog_info("running crc test...");
         uint64_t counter = 0;
         time(&test_start_time);
         time(&check_start_time);
@@ -674,7 +707,7 @@ bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
                 crc_cycle = helper_get_agent_gvpu_status(artix_select,
                         GVPU_STATUS_SELECT_MEM_TEST,
                         GVPU_STATUS_CMD_GET_CYCLE);
-                slog_info(0, "cycle %" PRId64 " of %" PRId64 "(%02f%%)", 
+                slog_info("cycle %" PRId64 " of %" PRId64 "(%02f%%)", 
                         crc_cycle, num_bursts, ((double)crc_cycle/(double)num_bursts)*100.00);
                 if(crc_cycle > counter){
                     time(&check_start_time);
@@ -697,13 +730,13 @@ bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
         crc_cycle = helper_get_agent_gvpu_status(artix_select,
                 GVPU_STATUS_SELECT_MEM_TEST,
                 GVPU_STATUS_CMD_GET_CYCLE);
-        slog_info(0, "cycle %" PRId64 " of %" PRId64 "(%" PRId64 "%%)", 
+        slog_info("cycle %" PRId64 " of %" PRId64 "(%" PRId64 "%%)", 
                 crc_cycle, num_bursts, (crc_cycle/num_bursts)*100);
         helper_get_agent_status(artix_select, &packet);
         if((packet.data & 0x00010000) == 0x00010000){
             crc_failed = true;
         }
-        slog_info(0, "crc test finished in %02f seconds.", 
+        slog_info("crc test finished in %02f seconds.", 
             difftime(test_end_time, test_start_time));
     }
 
@@ -728,18 +761,18 @@ bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
 
     if(run_crc){
         if(crc_failed){
-            slog_info(0, "mem test failed at word %" PRId64 " (ran %" PRId64 " cycles)", 
+            slog_info("mem test failed at word %" PRId64 " (ran %" PRId64 " cycles)", 
                     ((crc_cycle*1024)/8), crc_cycle);
         }else{
-            slog_info(0, "mem test PASS (ran %" PRId64 " cycles)!", crc_cycle);
+            slog_info("mem test PASS (ran %" PRId64 " cycles)!", crc_cycle);
         }
     }
 
     if(test_check.total_fail_words == 0){
-        slog_info(0, "mem data compare PASS!");
+        slog_info("mem data compare PASS!");
     }else{
-        slog_info(0, "mem data compare FAIL :(");
-        slog_info(0, "found %" PRId64 "failures in chunks starting at %i", test_check.total_fail_words, test_check.first_fail_word);
+        slog_info("mem data compare FAIL :(");
+        slog_info("found %" PRId64 "failures in chunks starting at %i", test_check.total_fail_words, test_check.first_fail_word);
     }
 
     if(run_crc){
@@ -756,7 +789,7 @@ bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
         }
     }
 
-    slog_info(0, "mem test done.");
+    slog_info("mem test done.");
     
 
     return did_test_pass;
@@ -767,7 +800,7 @@ bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
  * pin's dut_io_ids are within range for given artix unit.
  *
  */
-static void assert_dut_io_range(struct stim *stim, enum artix_selects artix_select) {
+/*static void assert_dut_io_range(struct stim *stim, enum artix_selects artix_select) {
     struct profile_pin *pin = NULL;
     uint32_t range_low = 0;
     uint32_t range_high = 0;
@@ -792,7 +825,7 @@ static void assert_dut_io_range(struct stim *stim, enum artix_selects artix_sele
         }
     }
     return;
-}
+}*/
 
 /*
  * Load a stim into tester memory at an arbitrary address. Be careful not to
@@ -848,12 +881,12 @@ uint64_t artix_load_stim(struct stim *stim, uint64_t load_addr){
         }
         addr = load_addr;
 
-        slog_info(0, "writing vectors to memory...");
+        slog_info("writing vectors to memory...");
         // load one chunk at a time and dma the vecs to artix memory
         while((chunk = stim_load_next_chunk(stim, artix_select)) != NULL){
 
             // copy over the vec data buffer
-            slog_info(0, "writing %i vecs (%zu bytes) to artix memory at address 0x%016" PRIX64 "...", 
+            slog_info("writing %i vecs (%zu bytes) to artix memory at address 0x%016" PRIX64 "...", 
                 chunk->num_vecs, chunk->vec_data_size, addr);
             artix_mem_write(artix_select, load_addr, (uint64_t*)(chunk->vec_data), chunk->vec_data_size);
 
@@ -909,7 +942,7 @@ static void artix_setup_stim(struct stim *stim, enum artix_selects artix_select,
     subcore_prep_dma_write(artix_select, num_bursts);
 
     size_t burst_size = num_bursts*BURST_BYTES;
-    slog_info(0, "sending setup burst (%i bytes)...", burst_size);
+    slog_debug("sending setup burst (%i bytes)...", burst_size);
 
     uint8_t *enable_pins = NULL;
     if((enable_pins = stim_get_enable_pins_data(stim, artix_select)) == NULL){
@@ -926,7 +959,7 @@ static void artix_setup_stim(struct stim *stim, enum artix_selects artix_select,
 
 #ifdef GEM_DEBUG
     for(int i=0; i<32;i++){
-        slog_debug(0, "pin_enable %02i: 0x%016" PRIX64 "", i, dma_buf[i]);
+        slog_debug("pin_enable %02i: 0x%016" PRIX64 "", i, dma_buf[i]);
     }
 #endif
 
@@ -978,7 +1011,7 @@ void artix_get_stim_fail_pins(uint8_t **fail_pins, uint32_t *num_fail_pins){
         // send one burst of data (1024 bytes)
         subcore_prep_dma_read(artix_select, num_bursts);
 
-        slog_info(0, "sending setup burst (%i bytes)...", burst_size);
+        slog_debug("sending setup burst (%i bytes)...", burst_size);
 
         // write the enable pins to TEST_SETUP
         dma_buf = (uint64_t *)gcore_dma_alloc(burst_size, sizeof(uint8_t));
@@ -1007,7 +1040,7 @@ void artix_get_stim_fail_pins(uint8_t **fail_pins, uint32_t *num_fail_pins){
 
 #ifdef GEM_DEBUG
         for(int i=0; i<32;i++){
-            slog_debug(0, "fail_pin %02i: 0x%016" PRIX64 "", i, dma_buf[i]);
+            slog_debug("fail_pin %02i: 0x%016" PRIX64 "", i, dma_buf[i]);
         }
 #endif
     }
@@ -1113,11 +1146,11 @@ bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr
 
     // run the test
     if(dual_mode){
-        slog_info(0, "running test (dual mode)...");
+        slog_info("running test (dual mode)...");
         helper_gvpu_load(ARTIX_SELECT_A1, TEST_RUN);
         helper_gvpu_load(ARTIX_SELECT_A2, TEST_RUN);
     }else{
-        slog_info(0, "running test...");
+        slog_info("running test...");
         helper_gvpu_load(artix_select, TEST_RUN);
         helper_print_agent_status(artix_select);
     }
@@ -1173,12 +1206,12 @@ bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr
             GVPU_STATUS_CMD_GET_CYCLE);
 
         if((master_packet.addr & 0xf0000000) >> 30){
-            slog_warn(0, "warning: a1 read fifo stalled during test");
+            slog_warn("warning: a1 read fifo stalled during test");
         }
 
         // msb byte is 0:did_stall:status_switch
         if((slave_packet.addr & 0xf0000000) >> 30){
-            slog_warn(0, "warning: a2 read fifo stalled during test");
+            slog_warn("warning: a2 read fifo stalled during test");
         }
 
         if(test_cycle != NULL){
@@ -1193,31 +1226,31 @@ bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr
 
         if(master_test_failed || slave_test_failed){
             if(master_test_cycle != slave_test_cycle){
-                slog_fatal(0, "fail test cycle is not the same. a1:%llu a2:%llu", master_test_cycle, slave_test_cycle);
+                slog_fatal("fail test cycle is not the same. a1:%llu a2:%llu", master_test_cycle, slave_test_cycle);
             }
 
             if(master_test_failed && slave_test_failed){
-                slog_error(0, "test failed in a1 and a2 at vector %llu out of %llu :(", master_test_cycle, total_unrolled_vecs);
+                slog_error("test failed in a1 and a2 at vector %llu out of %llu :(", master_test_cycle, total_unrolled_vecs);
             }else if(master_test_failed){
-                slog_error(0, "test failed in a1 at vector %llu out of %llu :(", master_test_cycle, total_unrolled_vecs);
+                slog_error("test failed in a1 at vector %llu out of %llu :(", master_test_cycle, total_unrolled_vecs);
             }else if(slave_test_failed){
-                slog_error(0, "test failed in a2 at vector %llu out of %llu :(", slave_test_cycle, total_unrolled_vecs);
+                slog_error("test failed in a2 at vector %llu out of %llu :(", slave_test_cycle, total_unrolled_vecs);
             }
         }else{
             if(master_test_cycle < total_unrolled_vecs || master_test_cycle > total_unrolled_vecs){
-                slog_error(0, "a1 test failed (executed %llu of %llu vectors) (fail flag didn't assert)!", master_test_cycle, total_unrolled_vecs);
+                slog_error("a1 test failed (executed %llu of %llu vectors) (fail flag didn't assert)!", master_test_cycle, total_unrolled_vecs);
                 master_test_failed = true;
             }
             if(slave_test_cycle < total_unrolled_vecs || slave_test_cycle > total_unrolled_vecs){
-                slog_error(0, "a2 test failed (executed %llu of %llu vectors) (fail flag didn't assert)!", slave_test_cycle, total_unrolled_vecs);
+                slog_error("a2 test failed (executed %llu of %llu vectors) (fail flag didn't assert)!", slave_test_cycle, total_unrolled_vecs);
                 slave_test_failed = true;
             }
 
             if((master_test_failed && slave_test_failed) == false){
                 if(master_test_cycle != slave_test_cycle){
-                    slog_fatal(0, "test passed in a1 and a2 but the test cycle is not the same");
+                    slog_fatal("test passed in a1 and a2 but the test cycle is not the same");
                 }
-                slog_info(0, "test PASS (executed %llu of %llu vectors)!", master_test_cycle, total_unrolled_vecs);
+                slog_info("test PASS (executed %llu of %llu vectors)!", master_test_cycle, total_unrolled_vecs);
             }
         }
 
@@ -1237,7 +1270,7 @@ bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr
 
         // msb byte is 0:did_stall:status_switch
         if((master_packet.addr & 0xf0000000) >> 30){
-            slog_warn(0, "warning: read fifo stalled during test");
+            slog_warn("warning: read fifo stalled during test");
         }
 
         if(test_cycle != NULL){
@@ -1245,13 +1278,13 @@ bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr
         }
 
         if(master_test_failed){
-            slog_error(0, "test failed at vector %llu out of %llu :(", master_test_cycle, total_unrolled_vecs);
+            slog_error("test failed at vector %llu out of %llu :(", master_test_cycle, total_unrolled_vecs);
         }else{
             if(master_test_cycle < total_unrolled_vecs || master_test_cycle > total_unrolled_vecs){
-                slog_error(0, "test failed (executed %llu of %llu vectors) (fail flag didn't assert)!", master_test_cycle, total_unrolled_vecs);
+                slog_error("test failed (executed %llu of %llu vectors) (fail flag didn't assert)!", master_test_cycle, total_unrolled_vecs);
                 master_test_failed = true;
             }else{
-                slog_info(0, "test PASS (executed %llu of %llu vectors)!", master_test_cycle, total_unrolled_vecs);
+                slog_info("test PASS (executed %llu of %llu vectors)!", master_test_cycle, total_unrolled_vecs);
             }
         }
 
@@ -1316,9 +1349,9 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
     // dma over the data from start of dma buffer sending file_size bytes
     
     if(artix_select == ARTIX_SELECT_A1){
-        slog_info(0,"configuring a1 with %zu bytes...", (size_t)file_size);
+        slog_info("configuring a1 with %zu bytes...", (size_t)file_size);
     }else if (artix_select == ARTIX_SELECT_A2){
-        slog_info(0,"configuring a2 with %zu bytes...", (size_t)file_size);
+        slog_info("configuring a2 with %zu bytes...", (size_t)file_size);
     }else{
         die("invalid artix select given");
     }
@@ -1331,7 +1364,7 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
     regs = subcore_get_regs();
 
     //if(regs->addr != file_size){
-    //    slog_error(0,"config: only %d bytes of %ld bytes sent.", regs->addr, file_size);
+    //    slog_error("config: only %d bytes of %ld bytes sent.", regs->addr, file_size);
     //}
 
     subcore_idle();
@@ -1339,19 +1372,19 @@ void artix_config(enum artix_selects artix_select, const char *bit_path){
     // check done
     if(regs != NULL){
         if((regs->status & GCORE_STATUS_DONE_ERROR_MASK) == GCORE_STATUS_DONE_ERROR_MASK){
-            slog_error(0,"error: failed to configure, done error is high.");
+            slog_error("error: failed to configure, done error is high.");
         }else{
             if(artix_select == ARTIX_SELECT_A1){
                 if((regs->a1_status & GCORE_AGENT_DONE_MASK) != GCORE_AGENT_DONE_MASK){
-                    slog_error(0,"no done error, but a1 done pin did NOT go high.");
+                    slog_error("no done error, but a1 done pin did NOT go high.");
                 }else{
-                    slog_info(0,"done!");
+                    slog_info("a1 configuration done!");
                 }
             }else if (artix_select == ARTIX_SELECT_A2){
                 if((regs->a2_status & GCORE_AGENT_DONE_MASK) != GCORE_AGENT_DONE_MASK){
-                    slog_error(0,"no done error, but a2 done pin did NOT go high.");
+                    slog_error("no done error, but a2 done pin did NOT go high.");
                 }else{
-                    slog_info(0,"done!");
+                    slog_info("a2 configuration done!");
                 }
             }
         }
