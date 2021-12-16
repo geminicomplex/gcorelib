@@ -23,8 +23,8 @@ void artix_mem_write(enum artix_selects artix_select,
     uint64_t addr, uint64_t *write_data, size_t write_size);
 void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
     uint64_t *read_data, size_t read_size);
-// if full test true, will run full 8GiB test
-void artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_test);
+// if full test true, will run full 8GiB test. Returns true if pass.
+bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_test);
 // note: if stim is dual pattern, this will load both A1 and A2 at same addr
 uint64_t artix_load_stim(struct stim *stim, uint64_t load_addr);
 bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr);

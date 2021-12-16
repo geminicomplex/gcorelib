@@ -601,7 +601,7 @@ struct mem_test_check static artix_check_mem_test_data(enum artix_selects artix_
  * test of MAX_CHUNK_SIZE.
  *
  */
-void artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_test){
+bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_test){
     struct gcore_ctrl_packet packet;
     bool crc_failed = false;
     uint64_t crc_cycle = 0;
@@ -616,6 +616,7 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
     time_t check_start_time;
     time_t check_cur_time;
     double diff_time_secs = 0;
+    bool did_test_pass = false;
 
 #ifdef VERILATOR
     chunk_size = 1024*5; 
@@ -741,10 +742,24 @@ void artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
         slog_info(0, "found %" PRId64 "failures in chunks starting at %i", test_check.total_fail_words, test_check.first_fail_word);
     }
 
+    if(run_crc){
+        if(crc_failed || test_check.total_fail_words > 0){
+            did_test_pass = false;
+        }else{
+            did_test_pass = true;
+        }
+    }else{
+        if(test_check.total_fail_words > 0){
+            did_test_pass = false;
+        }else{
+            did_test_pass = true;
+        }
+    }
+
     slog_info(0, "mem test done.");
     
 
-    return;
+    return did_test_pass;
 }
 
 /*
