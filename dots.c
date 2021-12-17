@@ -37,12 +37,12 @@ struct dots *parse_dots(struct profile *profile, char *dots_path){
     uint32_t num_vecs = 0;
     char *real_path = NULL;
 
-    if((real_path = realpath(dots_path, NULL)) == NULL){
-        bye("invalid stim path '%s'\n", dots_path);
+    if(util_fopen(dots_path, &fd, &fp, &file_size)){
+        bye("error: failed to open file '%s'\n", dots_path);
     }
 
-    if(util_fopen(real_path, &fd, &fp, &file_size)){
-        bye("error: failed to open file '%s'\n", real_path);
+    if((real_path = realpath(dots_path, NULL)) == NULL){
+        bye("invalid stim path '%s'\n", dots_path);
     }
 
     while((read = getline(&file_line, &len, fp)) != -1){

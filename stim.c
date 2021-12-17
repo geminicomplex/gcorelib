@@ -432,7 +432,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
     }
 
     if(stim->num_unrolled_vecs > MAX_NUM_UNROLLED_VECS_WARNING){
-        slog_warn("number of unrolled vectors is over %" PRIu64", "
+        slog_warn( "number of unrolled vectors is over %" PRIu64", "
             "which will run for over 10 mins. Are you sure?", MAX_NUM_UNROLLED_VECS_WARNING);
     }
 
@@ -536,7 +536,7 @@ struct stim *init_stim(struct stim *stim, struct profile_pin **pins, uint32_t nu
         }
     }
 
-    slog_info(0,"num_vecs: %i num_unrolled_vecs: %llu", 
+    slog_info("num_vecs: %i num_unrolled_vecs: %llu", 
             (stim->num_vecs+stim->num_padding_vecs), 
             (stim->num_unrolled_vecs+(uint64_t)(stim->num_padding_vecs)));
 
@@ -596,7 +596,7 @@ struct vec_chunk *stim_load_next_chunk(struct stim *stim, enum artix_selects art
 
     if(cur_vec_chunk_id != -1){
         if(!vec_chunks[cur_vec_chunk_id]->is_loaded){
-            slog_warn(0,"warning: current chunk %i has never been loaded;"
+            slog_warn("warning: current chunk %i has never been loaded;"
                     " failed to unload. Don't unload manually.", cur_vec_chunk_id);
         }else{
             stim_unload_chunk(vec_chunks[cur_vec_chunk_id]);
@@ -741,10 +741,10 @@ struct vec_chunk *stim_fill_chunk(struct stim *stim, struct vec_chunk *chunk){
     
 
     if(is_last_chunk){
-        slog_info(0,"filling %s chunk %i with %i vecs (%i padding vecs) (%zu bytes)...", 
+        slog_info("filling %s chunk %i with %i vecs (%i padding vecs) (%zu bytes)...", 
             a1_or_a2_str, chunk->id, chunk->num_vecs, stim->num_padding_vecs, chunk->vec_data_size);
     }else{
-        slog_info(0,"filling %s chunk %i with %i vecs (%zu bytes)...", 
+        slog_info("filling %s chunk %i with %i vecs (%zu bytes)...", 
             a1_or_a2_str, chunk->id, chunk->num_vecs, chunk->vec_data_size);
     }
 
@@ -965,7 +965,7 @@ struct vec_chunk *stim_fill_chunk_by_dots(struct stim *stim,
             }
         }
 
-        //slog_debug("dots vec %i %s has_clk: %i", dots_vec->repeat, dots_vec->vec_str, dots_vec->has_clk);
+        //slog_debug( "dots vec %i %s has_clk: %i", dots_vec->repeat, dots_vec->vec_str, dots_vec->has_clk);
 
         unexpand_dots_vec_subvecs(dots_vec);
 
@@ -1057,6 +1057,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
     char buffer[BUFFER_LENGTH];
     char *real_path = NULL;
     struct profile *profile = NULL; 
+    struct dots *dots = NULL;
 
     if(profile_path == NULL){
         die("pointer is NULL");
@@ -1115,6 +1116,13 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             close(stim->fd);
             die("error: failed to map file");
         }
+    }else if(stim_type == STIM_TYPE_DOTS){
+        dots = parse_dots(profile, path);
+        stim = get_stim_by_dots(profile, dots);
+    }
+
+    if(stim == NULL){
+        die("pointer is null");
     }
 
     // Find the endianness of the bitstream
@@ -1163,7 +1171,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
                     while(c < BUFFER_LENGTH){
                         if(isdigit(buffer[c++])){
                             bitstream_size = atoi(&buffer[c-1]);
-                            slog_info(0,"bitstream size: %i", (int)bitstream_size);
+                            slog_info("bitstream size: %i", (int)bitstream_size);
                             break;
                         }
                     }
@@ -1218,7 +1226,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
         memset(buffer, '\0', BUFFER_LENGTH);
         memcpy(buffer, (stim->map+stim->cur_map_byte), halfword);
         stim->cur_map_byte += halfword;
-        slog_info(0,"Design name: %s", buffer);
+        slog_info("Design name: %s", buffer);
 
         // read the header and break when body is reached
         while(1){
@@ -1226,7 +1234,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             // e is bitstream data
             if(((char)byte) == 'e'){
                 bitstream_size = read_map_32(stim, true);
-                slog_info(0,"bitstream has %i bytes...", (int)bitstream_size);
+                slog_info("bitstream has %i bytes...", (int)bitstream_size);
                 // Header has been read. Ready to read bitstream.
                 break;
             // b is partname, c is date, d is time
@@ -1238,7 +1246,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
                 memset(buffer, '\0', BUFFER_LENGTH);
                 memcpy(buffer, (stim->map+stim->cur_map_byte), halfword);
                 stim->cur_map_byte += halfword;
-                slog_info(0,"%s", buffer);
+                slog_info("%s", buffer);
             } else {
                 die("failed reading bit file; unexpected key");
             }
@@ -1317,16 +1325,12 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
                 die("error: pointer is NULL");
             }
             break;
-        case STIM_TYPE_DOTS:
-            {
-                struct dots *dots = parse_dots(profile, real_path);
-                stim = get_stim_by_dots(profile, dots);
-            }
-            break;
         case STIM_TYPE_RAW:
             if((stim = stim_deserialize(stim)) == NULL){
                 die("failed to deserialize stim");
             }
+            break;
+        case STIM_TYPE_DOTS:
             break;
         default:
             die("error: failed to handle stim type");
@@ -1567,10 +1571,10 @@ static size_t stim_serialize_chunk(struct stim *stim, enum artix_selects artix_s
         }
 
         if(artix_select == ARTIX_SELECT_A1){
-            slog_info(0,"compressed a1 chunk %i by %zu bytes", chunk->id, 
+            slog_info("compressed a1 chunk %i by %zu bytes", chunk->id, 
                 (chunk->vec_data_size-compressed_data_size));
         }else if(artix_select == ARTIX_SELECT_A2){
-            slog_info(0,"compressed a2 chunk %i by %zu bytes", chunk->id, 
+            slog_info("compressed a2 chunk %i by %zu bytes", chunk->id, 
                 (chunk->vec_data_size-compressed_data_size));
         }
         
@@ -1722,9 +1726,9 @@ void stim_serialize_to_path(struct stim *stim, const char *path){
         total_uncompressed_bytes += (uint64_t)(stim->a2_vec_chunks[i]->vec_data_size);
     }
 
-    slog_info(0,"total uncompressed size: %" PRIu64" bytes", total_uncompressed_bytes);
-    slog_info(0,"total compressed size: %" PRIu64" bytes", total_uncompressed_bytes-total_saved_size);
-    slog_info(0,"compression saved %" PRIu64" bytes", total_saved_size);
+    slog_info("total uncompressed size: %" PRIu64" bytes", total_uncompressed_bytes);
+    slog_info("total compressed size: %" PRIu64" bytes", total_uncompressed_bytes-total_saved_size);
+    slog_info("compression saved %" PRIu64" bytes", total_saved_size);
 
     SerialStim_ptr serialStimPtr = new_SerialStim(cs);
     write_SerialStim(&serialStim, serialStimPtr);
@@ -1908,7 +1912,7 @@ struct vec_chunk *stim_decompress_vec_chunk(struct vec_chunk *chunk){
     int decompressed_size = LZ4_decompress_safe((char*)chunk->vec_data_compressed,
             (char*)chunk->vec_data, chunk->vec_data_compressed_size, chunk->vec_data_size);
 
-    slog_info(0,"decompressed chunk %i (%zu bytes -> %zu bytes)", chunk->id, 
+    slog_info("decompressed chunk %i (%zu bytes -> %zu bytes)", chunk->id, 
             chunk->vec_data_compressed_size, chunk->vec_data_size);
     if(decompressed_size <= 0){
         die("chunk decompression failed");
@@ -1975,7 +1979,7 @@ uint8_t *stim_get_enable_pins_data(struct stim *stim, enum artix_selects artix_s
         enable_pins[dut_io_id] = 0x00;
 
 #ifdef GEM_DEBUG
-        slog_debug("%s : %i", pin->net_alias, dut_io_id);
+        slog_debug( "%s : %i", pin->net_alias, dut_io_id);
 #endif
     }
 
