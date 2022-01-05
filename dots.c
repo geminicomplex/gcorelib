@@ -171,17 +171,24 @@ void append_dots_vec_by_nop_vecs(struct dots *dots, uint32_t num_nop_vecs){
         die("pointer is NULL");
     }
 
-    vec_len = dots->num_pins;
+    // +1 for V
+    vec_len = (dots->num_pins+1);
 
     if(vec_len == 0){
         die("failed to get vec_str len");
     }
 
+    // +1 for NULL
     if((nop_vec_str = (char*)calloc(vec_len+1, sizeof(char))) == NULL){
         die("failed to malloc string");
     }
+
     for(int i=0; i<vec_len; i++){
-        nop_vec_str[i] = 'X';
+        if(i == 0){
+            nop_vec_str[i] = 'V';
+        }else{
+            nop_vec_str[i] = 'X';
+        }
     }
     nop_vec_str[vec_len] = '\0';
 
@@ -241,6 +248,11 @@ void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, enum 
             "num_pins %i", dots_vec->num_subvecs, dots->num_pins);
     }
 
+    if(dots_vec->num_subvecs != (vec_str_len-1)){
+        die("error: num_subvecs: %i != (vec_str_len-1): %i for vec_str: %s", 
+            dots_vec->num_subvecs, (vec_str_len-1), dots_vec->vec_str);
+    }
+
     if(dots_vec->subvecs != NULL){
         die("failed to expand dots_vec; subvecs is already allocated");
     }
@@ -253,8 +265,9 @@ void expand_dots_vec_subvecs(struct dots *dots, struct dots_vec *dots_vec, enum 
         dots_vec->subvecs[i] = DUT_SUBVEC_X;
     }
 
-    for(int i=0; i<vec_str_len; i++){
-        switch(dots_vec->vec_str[i]){
+    // skip the V in vector string
+    for(int i=0; i<(vec_str_len-1); i++){
+        switch(dots_vec->vec_str[i+1]){
             case '0':
                 dots_vec->subvecs[i] = DUT_SUBVEC_0; 
                 break;

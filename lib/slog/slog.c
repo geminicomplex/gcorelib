@@ -167,7 +167,10 @@ void slog_get_date(slog_date_t *pDate)
 
 static uint32_t slog_get_tid()
 {
-#if defined(__APPLE__) || defined(DARWIN) || defined(WIN32)
+// TODO: fix this garbage for apple. Doesn't compile otherwise.
+#if defined(__APPLE__) || defined(DARWIN)
+    return (uint32_t)(((struct _opaque_pthread_t *)pthread_self())->__sig);
+#elif defined(WIN32)
     return (uint32_t)pthread_self();
 #else
     return syscall(__NR_gettid);

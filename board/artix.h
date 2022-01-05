@@ -25,9 +25,11 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
     uint64_t *read_data, size_t read_size);
 // if full test true, will run full 8GiB test. Returns true if pass.
 bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_test);
-// note: if stim is dual pattern, this will load both A1 and A2 at same addr
-uint64_t artix_load_stim(struct stim *stim, uint64_t load_addr);
-bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr);
+// note: if stim is solo pattern, will use the appropriate artix addr. Just
+// give the same addr for both if unsure.
+uint64_t artix_load_stim(struct stim *stim, uint64_t a1_load_addr, uint64_t a2_load_addr);
+bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, 
+    uint64_t a1_start_addr, uint64_t a2_start_addr);
 void artix_get_stim_fail_pins(uint8_t **fail_pins, uint32_t *num_fail_pins);
 void artix_print_stim_fail_pins(struct stim *stim, uint8_t *fail_pins, 
     uint32_t num_fail_pins);

@@ -11,11 +11,27 @@
 extern "C" {
 #endif
 
+#include "lib/uthash/uthash.h"
 #include "lib/fe/fe.h"
 
 // 32 MB fe data scratch pad
 #define FE_DATA_SIZE (1024*1024*3)
 
+
+/*
+ * Represents a loaded stim in tester memory.
+ */
+struct prgm_stim {
+    uint64_t a1_addr;
+    uint64_t a2_addr;
+    struct stim *stim;
+    UT_hash_handle hh;
+};
+
+
+/*
+ * A test program object.
+ */
 struct prgm {
     
     /*
@@ -37,6 +53,16 @@ struct prgm {
     uint32_t _fe_data_size;
     void *_fe_data;
     fe_Context *_fe_ctx;
+
+    // stim
+    struct profile *_profile;
+    uint64_t _num_a1_loaded_stims;
+    uint64_t _num_a2_loaded_stims;
+    uint64_t _cur_a1_stim_addr;
+    uint64_t _cur_a2_stim_addr;
+    struct prgm_stim *_a1_loaded_stims;
+    struct prgm_stim *_a2_loaded_stims;
+    struct prgm_stim *_last_prgm_stim;
 };
 
 

@@ -289,7 +289,7 @@ void helper_burst_setup(enum artix_selects artix_select,
  *
  */
 void helper_memcore_load(enum artix_selects artix_select, enum memcore_states memcore_state){
-    enum gvpu_states gvpu_state;
+    enum gvpu_states gvpu_state = GVPU_IDLE;
     struct gcore_ctrl_packet packet;
 
     uint32_t data = 0x00000000;
@@ -354,7 +354,7 @@ void helper_memcore_check_state(enum artix_selects artix_select,
 void helper_gvpu_load(enum artix_selects artix_select,
         enum gvpu_states gvpu_state){
     struct gcore_ctrl_packet packet;
-    enum agent_states agent_state;
+    enum agent_states agent_state = AGENT_INIT;
 
     // fill packet
     packet.rank_select = 0;
@@ -380,8 +380,8 @@ void helper_gvpu_load(enum artix_selects artix_select,
  */
 void helper_gvpu_packet_write(enum artix_selects artix_select,
         struct gcore_ctrl_packet *packet){
-    enum agent_states agent_state;
-    enum subcore_states subcore_state;
+    enum agent_states agent_state = AGENT_INIT;
+    enum subcore_states subcore_state = SUBCORE_IDLE;
 
     // set agent to proxy data
     agent_state = GVPU_LOAD;
@@ -654,7 +654,7 @@ enum agent_states get_agent_state(enum artix_selects artix_select, struct gcore_
         die("pointer is null");
     }
 
-    enum agent_states agent_state = 0;
+    enum agent_states agent_state = AGENT_INIT;
     if(artix_select == ARTIX_SELECT_A1){
         agent_state = (enum agent_states)((regs->a1_status & GCORE_AGENT_STATE_MASK) >> 0);
     }else if(artix_select == ARTIX_SELECT_A2){
@@ -723,7 +723,7 @@ enum gvpu_states get_gvpu_state(enum artix_selects artix_select, struct gcore_re
         die("pointer is null");
     }
 
-    enum gvpu_states gvpu_state = 0;
+    enum gvpu_states gvpu_state = GVPU_IDLE;
     if(artix_select == ARTIX_SELECT_A1){
         gvpu_state = (enum gvpu_states)((regs->a1_status & GCORE_AGENT_GVPU_STATE_MASK) >> 0);
     }else if(artix_select == ARTIX_SELECT_A2){
@@ -798,7 +798,7 @@ enum memcore_states get_memcore_state(enum artix_selects artix_select, struct gc
         die("pointer is null");
     }
 
-    enum memcore_states memcore_state = 0;
+    enum memcore_states memcore_state = MEMCORE_IDLE;
     if(artix_select == ARTIX_SELECT_A1){
         memcore_state = (enum memcore_states)((regs->a1_status & GCORE_AGENT_MEMCORE_STATE_MASK) >> 0);
     }else if(artix_select == ARTIX_SELECT_A2){

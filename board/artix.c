@@ -270,6 +270,12 @@ void artix_mem_read(enum artix_selects artix_select, uint64_t addr,
 
     gcore_dma_alloc_reset();
 
+    if(artix_select == ARTIX_SELECT_A1){
+        slog_info("reading %" PRId64 " bytes from a1", (uint64_t)num_bursts*BURST_BYTES);
+    }else if(artix_select == ARTIX_SELECT_A2){
+        slog_info("reading %" PRId64 " bytes from a2", (uint64_t)num_bursts*BURST_BYTES);
+    }
+
     if(read_size > DMA_SIZE){
         // allocate largest possible dma buffer
         dma_buf = (uint64_t *)gcore_dma_alloc(DMA_SIZE, sizeof(uint8_t));
@@ -375,7 +381,7 @@ uint64_t rand64(void) {
  * 6 and 7.
  *
  */
-__attribute__((optimize("-O2"))) static uint64_t* get_mem_test_burst(uint32_t seed){
+__attribute__((optimize("-O3"))) static uint64_t* get_mem_test_burst(uint32_t seed){
     uint64_t num = 0;
     uint64_t *burst = NULL;
 
@@ -641,7 +647,7 @@ bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
     uint64_t start_addr = 0x0000000000000000;
     uint64_t num_bursts = 0;
     struct gcore_registers *regs = NULL;
-    enum gvpu_states gvpu_state = 0; 
+    enum gvpu_states gvpu_state = GVPU_IDLE;
     time_t test_start_time;
     time_t test_end_time;
     time_t check_start_time;
@@ -831,55 +837,69 @@ bool artix_mem_test(enum artix_selects artix_select, bool run_crc, bool full_tes
  * Load a stim into tester memory at an arbitrary address. Be careful not to
  * clobber other patterns.
  *
- * Technically if it's a dual pattern, you can load it at different addrs, but
- * for simplicity, always load a1 and a2 at the same address.
+ * Returns number of bytes loaded per artix unit. For dual it's the same per
+ * unit. Does not return total number of bytes loaded for both units.
  *
- * Returns the next available address.
  */
-uint64_t artix_load_stim(struct stim *stim, uint64_t load_addr){
+uint64_t artix_load_stim(struct stim *stim, uint64_t a1_load_addr, uint64_t a2_load_addr){
     struct vec_chunk *chunk;
+    uint64_t load_addr = 0;
+    uint64_t num_loaded_bytes = 0;
+    enum artix_selects artix_select = ARTIX_SELECT_NONE;
+
     if(stim == NULL){
         die("pointer is null");
     }
     // 2**33 = 8589934592 or 8GB of mem
     // 8GB / 8 = 0x40000000
     // 0x40000000-1 because addr starts at zero
-    if(load_addr > (0x40000000-1)){
-        bye("failed to load stim at addr 0x%016" PRIX64 " because out of tester memory range", load_addr);
+    if(a1_load_addr > (0x40000000-1)){
+        bye("failed to load stim at addr 0x%016" PRIX64 " because out of tester memory range", a1_load_addr);
     }
 
-    if(load_addr % BURST_BYTES != 0){
-        bye("failed to load stim at addr 0x%016" PRIX64 " because it is not memory aligned to 1024 bytes", load_addr);
+    if(a1_load_addr % BURST_BYTES != 0){
+        bye("failed to load stim at addr 0x%016" PRIX64 " because it is not memory aligned to 1024 bytes", a1_load_addr);
     }
 
-    uint64_t addr = 0x0;
-    enum artix_selects artix_select = ARTIX_SELECT_NONE;
+    if(a2_load_addr > (0x40000000-1)){
+        bye("failed to load stim at addr 0x%016" PRIX64 " because out of tester memory range", a2_load_addr);
+    }
+
+    if(a2_load_addr % BURST_BYTES != 0){
+        bye("failed to load stim at addr 0x%016" PRIX64 " because it is not memory aligned to 1024 bytes", a2_load_addr);
+    }
+
 
     for(int i=0; i<2; i++){
         if(stim_get_mode(stim) == STIM_MODE_DUAL){
             if(i == 0){
                 artix_select = ARTIX_SELECT_A1;
+                load_addr = a1_load_addr;
             }else if(i == 1){
                 artix_select = ARTIX_SELECT_A2;
+                load_addr = a2_load_addr;
             }else{
                 continue;
             }
         }else if(stim_get_mode(stim) == STIM_MODE_A1){
             if(i == 0){
                 artix_select = ARTIX_SELECT_A1;
+                load_addr = a1_load_addr;
             }else{
                 continue;
             }
         }else if(stim_get_mode(stim) == STIM_MODE_A2){
             if(i == 1){
                 artix_select = ARTIX_SELECT_A2;
+                load_addr = a2_load_addr;
             }else{
                 continue;
             }
         }else{
             continue;
         }
-        addr = load_addr;
+
+        num_loaded_bytes = 0;
 
         slog_info("writing vectors to memory...");
         // load one chunk at a time and dma the vecs to artix memory
@@ -887,20 +907,19 @@ uint64_t artix_load_stim(struct stim *stim, uint64_t load_addr){
 
             // copy over the vec data buffer
             slog_info("writing %i vecs (%zu bytes) to artix memory at address 0x%016" PRIX64 "...", 
-                chunk->num_vecs, chunk->vec_data_size, addr);
+                chunk->num_vecs, chunk->vec_data_size, load_addr);
             artix_mem_write(artix_select, load_addr, (uint64_t*)(chunk->vec_data), chunk->vec_data_size);
 
             // update the address pointer based on how much we copied in bytes
-            addr += (uint64_t)chunk->vec_data_size;
+            num_loaded_bytes += (uint64_t)chunk->vec_data_size;
         }
 
         // reset test_cycle counter and test_failed flag
         helper_gvpu_load(artix_select, TEST_CLEANUP);
     }
 
-    // return next available address both are loaded into same address so return
-    // will be same for both a1 and a2 if dual mode
-    return addr;
+    // number of loaded bytes is same if loading dual so just return last
+    return num_loaded_bytes;
 }
 
 /*
@@ -1088,7 +1107,8 @@ void artix_print_stim_fail_pins(struct stim *stim, uint8_t *fail_pins, uint32_t 
 // returns -1 if pass or failing cycle number (zero indexed)
 //
 //
-bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr){
+bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, 
+        uint64_t a1_start_addr, uint64_t a2_start_addr){
     struct gcore_ctrl_packet master_packet;
     struct gcore_ctrl_packet slave_packet;
     bool master_test_failed = false;
@@ -1116,20 +1136,21 @@ bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr
 
     total_unrolled_vecs = (stim->num_unrolled_vecs+(uint64_t)(stim->num_padding_vecs));
 
+    slog_info("setup test...");
     bool dual_mode = false;
     enum stim_modes stim_mode = stim_get_mode(stim);
     if(stim_mode == STIM_MODE_DUAL){
         dual_mode = true;
-        artix_setup_stim(stim, ARTIX_SELECT_A1, start_addr);
-        artix_setup_stim(stim, ARTIX_SELECT_A2, start_addr);
+        artix_setup_stim(stim, ARTIX_SELECT_A1, a1_start_addr);
+        artix_setup_stim(stim, ARTIX_SELECT_A2, a2_start_addr);
 
         // a1 is always the master in dual_mode
         artix_select = ARTIX_SELECT_A1;
     }else if(stim_mode == STIM_MODE_A1){
-        artix_setup_stim(stim, ARTIX_SELECT_A1, start_addr);
+        artix_setup_stim(stim, ARTIX_SELECT_A1, a1_start_addr);
         artix_select = ARTIX_SELECT_A1;
     }else if(stim_mode == STIM_MODE_A2){
-        artix_setup_stim(stim, ARTIX_SELECT_A2, start_addr);
+        artix_setup_stim(stim, ARTIX_SELECT_A2, a2_start_addr);
         artix_select = ARTIX_SELECT_A2;
     }else{
         bye("failed to execute stim with no vectors");
@@ -1253,14 +1274,6 @@ bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr
                 slog_info("test PASS (executed %llu of %llu vectors)!", master_test_cycle, total_unrolled_vecs);
             }
         }
-
-        if(master_test_failed || slave_test_failed){
-            uint32_t num_fail_pins = 0;
-            uint8_t *fail_pins = NULL;
-            artix_get_stim_fail_pins(&fail_pins, &num_fail_pins);
-            artix_print_stim_fail_pins(stim, fail_pins, num_fail_pins);
-            free(fail_pins);
-        }
     }else{
 
         master_test_cycle = helper_get_agent_gvpu_status(artix_select,
@@ -1287,19 +1300,7 @@ bool artix_run_stim(struct stim *stim, uint64_t *test_cycle, uint64_t start_addr
                 slog_info("test PASS (executed %llu of %llu vectors)!", master_test_cycle, total_unrolled_vecs);
             }
         }
-
-        if(master_test_failed){
-            uint32_t num_fail_pins = 0;
-            uint8_t *fail_pins = NULL;
-            artix_get_stim_fail_pins(&fail_pins, &num_fail_pins);
-            artix_print_stim_fail_pins(stim, fail_pins, num_fail_pins);
-            free(fail_pins);
-        }
     }
-
-    struct gcore_registers *regs = NULL;
-    regs = subcore_get_regs();
-    print_regs(regs);
 
     return (master_test_failed || slave_test_failed);
 }

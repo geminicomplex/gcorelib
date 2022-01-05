@@ -23,6 +23,7 @@
 #include "subvec.h"
 #include "stim.h"
 #include "util.h"
+#include "dots.h"
 #include "profile.h"
 #include "config.h"
 #include "serialize/stim_serdes.capnp.h"
@@ -1044,7 +1045,7 @@ enum stim_types get_stim_type_by_path(const char *path){
  *
  *
  */
-struct stim *get_stim_by_path(const char *profile_path, const char *path){
+struct stim *get_stim_by_path(struct profile *profile, const char *path){
     struct stim * stim = NULL;
     int fd;
     FILE *fp = NULL;
@@ -1056,10 +1057,9 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
     uint64_t num_unrolled_vecs = 0;
     char buffer[BUFFER_LENGTH];
     char *real_path = NULL;
-    struct profile *profile = NULL; 
     struct dots *dots = NULL;
 
-    if(profile_path == NULL){
+    if(profile == NULL){
         die("pointer is NULL");
     }
 
@@ -1072,10 +1072,6 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
     if(stim_type == STIM_TYPE_NONE){
         const char *file_ext = util_get_file_ext_by_path(path);
         die("error: invalid file type given '%s'", file_ext);
-    }
-
-    if((profile = get_profile_by_path(profile_path)) == NULL){
-        die("error: pointer is NULL");
     }
 
     // only create a stim if not dots, since for dots the parser
@@ -1117,7 +1113,7 @@ struct stim *get_stim_by_path(const char *profile_path, const char *path){
             die("error: failed to map file");
         }
     }else if(stim_type == STIM_TYPE_DOTS){
-        dots = parse_dots(profile, path);
+        dots = parse_dots(profile, (char *)path);
         stim = get_stim_by_dots(profile, dots);
     }
 
