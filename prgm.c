@@ -652,7 +652,7 @@ static fe_Object* f_set_profile(fe_Context *_fe_ctx, fe_Object *arg){
 }
 
 /*
- * (get-pins) -> (<p0:str>, <p1:str>, ...)
+ * (get-pin-names) -> (<p0:str>, <p1:str>, ...)
  *
  * Returns a list of pin string net names for the last stim
  * that ran.
@@ -660,7 +660,7 @@ static fe_Object* f_set_profile(fe_Context *_fe_ctx, fe_Object *arg){
  * If no stim ran, returns nil;
  *
  */
-static fe_Object* f_get_pins(fe_Context *_fe_ctx, fe_Object *arg){
+static fe_Object* f_get_pin_names(fe_Context *_fe_ctx, fe_Object *arg){
     uint32_t num_fail_pins = 0;
     uint8_t *fail_pins = NULL;
     struct prgm *prgm = NULL;
@@ -701,16 +701,16 @@ static fe_Object* f_get_pins(fe_Context *_fe_ctx, fe_Object *arg){
 
 
 /*
- * (fail-pins) -> (<p0:bool>, <p1:bool>, ...)
+ * (get-fail-pins) -> (<p0:bool>, <p1:bool>, ...)
  *
  * Returns the failing pins for the last stim that ran. The failing pins is a
  * list that corresponds to the Pin line in the dots. If the bool is true, that
- * pin failed. Call (get-pins) to return a list of the pin names.
+ * pin failed. Call (pin-names) to return a list of the pin names.
  *
  * If no stim ran, returns nil;
  *
  */
-static fe_Object* f_fail_pins(fe_Context *_fe_ctx, fe_Object *arg){
+static fe_Object* f_get_fail_pins(fe_Context *_fe_ctx, fe_Object *arg){
     uint32_t num_fail_pins = 0;
     uint8_t *fail_pins = NULL;
     struct prgm *prgm = NULL;
@@ -772,8 +772,8 @@ void _add_fe_gemini_funcs(fe_Context *_fe_ctx){
     fe_set(_fe_ctx, fe_symbol(_fe_ctx, "run"), fe_cfunc(_fe_ctx, f_run)); 
     fe_set(_fe_ctx, fe_symbol(_fe_ctx, "runc"), fe_cfunc(_fe_ctx, f_runc)); 
     fe_set(_fe_ctx, fe_symbol(_fe_ctx, "set-profile"), fe_cfunc(_fe_ctx, f_set_profile)); 
-    fe_set(_fe_ctx, fe_symbol(_fe_ctx, "get-pins"), fe_cfunc(_fe_ctx, f_get_pins)); 
-    fe_set(_fe_ctx, fe_symbol(_fe_ctx, "fail-pins"), fe_cfunc(_fe_ctx, f_fail_pins)); 
+    fe_set(_fe_ctx, fe_symbol(_fe_ctx, "get-pin-names"), fe_cfunc(_fe_ctx, f_get_pin_names)); 
+    fe_set(_fe_ctx, fe_symbol(_fe_ctx, "get-fail-pins"), fe_cfunc(_fe_ctx, f_get_fail_pins)); 
 }
 
 
