@@ -203,9 +203,7 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
 }
 
 static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_continue){
-    struct stim *stim = NULL;
     struct prgm *prgm = NULL;
-    fe_Object *fe_stim = NULL;
     fe_Object *fe_addrs = NULL;
     fe_Object *fe_a1_addr = NULL;
     fe_Object *fe_a2_addr = NULL;
@@ -248,7 +246,7 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
             a1_addr = (uint32_t)fe_tonumber(_fe_ctx, fe_a1_addr);
             HASH_FIND_INT(prgm->_a1_loaded_stims, &a1_addr, a1_prgm_stim);
             if (a1_prgm_stim == NULL) {
-                snprintf(buffer, 2048, "no stim loaded at a1 address 0x%08X", a1_addr);
+                snprintf(buffer, 2048, "no stim loaded at a1 address 0x%08" PRIX64 "", a1_addr);
                 fe_error(_fe_ctx, buffer);
             }
         }
@@ -257,7 +255,7 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
             a2_addr = (uint32_t)fe_tonumber(_fe_ctx, fe_a2_addr);
             HASH_FIND_INT(prgm->_a2_loaded_stims, &a2_addr, a2_prgm_stim);
             if (a2_prgm_stim == NULL) {
-                snprintf(buffer, 2048, "no stim loaded at a2 address 0x%08X", a2_addr);
+                snprintf(buffer, 2048, "no stim loaded at a2 address 0x%08" PRIX64 "", a2_addr);
                 fe_error(_fe_ctx, buffer);
             }
         }
@@ -446,9 +444,7 @@ static fe_Object* f_loada(fe_Context *_fe_ctx, fe_Object *arg){
  *
  */
 static fe_Object* f_unload(fe_Context *_fe_ctx, fe_Object *arg){
-    struct stim *stim = NULL;
     struct prgm *prgm = NULL;
-    fe_Object *fe_stim = NULL;
     fe_Object *fe_addrs = NULL;
     fe_Object *fe_a1_addr = NULL;
     fe_Object *fe_a2_addr = NULL;
@@ -458,7 +454,6 @@ static fe_Object* f_unload(fe_Context *_fe_ctx, fe_Object *arg){
     struct prgm_stim *a1_prgm_stim = NULL;
     struct prgm_stim *a2_prgm_stim = NULL;
     char buffer[2048];
-    enum stim_modes stim_mode = STIM_MODE_NONE;
 
     fe_prgm = fe_eval(_fe_ctx, fe_symbol(_fe_ctx, "prgm"));
     if((prgm = (struct prgm*)fe_toptr(_fe_ctx, fe_prgm)) == NULL){
@@ -539,7 +534,6 @@ static fe_Object* f_unload_all(fe_Context *_fe_ctx, fe_Object *arg){
     struct prgm_stim *prgm_stim_tmp = NULL;
     uint64_t num_a1_unloaded_stims = 0;
     uint64_t num_a2_unloaded_stims = 0;
-    enum stim_modes stim_mode = STIM_MODE_NONE;
 
     struct del_prgm_stims {
         struct prgm_stim *prgm_stim;
@@ -628,13 +622,10 @@ static fe_Object* f_runc(fe_Context *_fe_ctx, fe_Object *arg){
  *
  */
 static fe_Object* f_set_profile(fe_Context *_fe_ctx, fe_Object *arg){
-    uint32_t num_fail_pins = 0;
-    uint8_t *fail_pins = NULL;
     fe_Object *fe_prgm = NULL;
     fe_Object *fe_profile_path = NULL;
     char profile_path[4096];
     struct prgm *prgm = NULL;
-    char buffer[2048];
 
     fe_prgm = fe_eval(_fe_ctx, fe_symbol(_fe_ctx, "prgm"));
     if((prgm = (struct prgm*)fe_toptr(_fe_ctx, fe_prgm)) == NULL){
@@ -667,7 +658,6 @@ static fe_Object* f_get_pin_names(fe_Context *_fe_ctx, fe_Object *arg){
     struct stim *stim = NULL;
     fe_Object *fe_prgm = NULL;
     struct profile_pin *pin = NULL;
-    char buffer[2048];
 
     fe_prgm = fe_eval(_fe_ctx, fe_symbol(_fe_ctx, "prgm"));
     if((prgm = (struct prgm*)fe_toptr(_fe_ctx, fe_prgm)) == NULL){
@@ -717,7 +707,6 @@ static fe_Object* f_get_fail_pins(fe_Context *_fe_ctx, fe_Object *arg){
     struct stim *stim = NULL;
     fe_Object *fe_prgm = NULL;
     struct profile_pin *pin = NULL;
-    char buffer[2048];
 
     fe_prgm = fe_eval(_fe_ctx, fe_symbol(_fe_ctx, "prgm"));
     if((prgm = (struct prgm*)fe_toptr(_fe_ctx, fe_prgm)) == NULL){

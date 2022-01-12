@@ -381,7 +381,7 @@ uint64_t rand64(void) {
  * 6 and 7.
  *
  */
-__attribute__((optimize("-O3"))) static uint64_t* get_mem_test_burst(uint32_t seed){
+static uint64_t* get_mem_test_burst(uint32_t seed){
     uint64_t num = 0;
     uint64_t *burst = NULL;
 

@@ -5,31 +5,34 @@
 # and mac on a linux system.
 #
 
-INCLUDES :=-I. -I./board -I./lib/jsmn -I./lib/avl -I./lib/progress -I./lib/lz4 -I./lib/capnp
+INCLUDES :=-I. -I./board -I./lib/jsmn -I./lib/avl -I./lib/slog -I./lib/fe -I./lib/lz4 -I./lib/capnp -I./lib/uthash
 CFLAGS :=-O2 -fPIC -Wall -funwind-tables -g -ggdb -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
-LDFLAGS := -fPIC
+LDFLAGS := -fPIC -lm -ldl 
 PLAT :=
 
 OS := $(shell uname)
 ifeq ($(OS),Darwin)
 	PLAT := mac
 	BUILD_PATH := build/mac
-	LDFLAGS += -shared -dynamiclib -Wl,-install_name,libgcore.dylib -lpthread
+	LDFLAGS += -shared -dynamiclib -Wl,-install_name,libgcore.dylib -lpthread -lsqlite3
 	EXEC := $(BUILD_PATH)/libgcore.dylib
-	CC := clang
+	CC := gcc
 else
 ifeq ($(MAKECMDGOALS),arm)
 	PLAT := arm
 	BUILD_PATH := build/arm
 	LDFLAGS += -shared -Wl,-soname,libgcore.so -lpthread
-	EXEC := $(BUILD_PATH)/libgcore.so
+	LDFLAGS += -L../../../tmp/sqlite/out/usr/lib -lsqlite3
+	LDFLAGS += -L../../../tmp/zlib-1.2.11/out/lib -lz -L../../../tmp/openssl/out/usr/lib
 	ARM_CFLAGS := -march=armv7-a -mcpu=cortex-a9 -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard
 	CFLAGS := ${ARM_CFLAGS} $(CFLAGS) -D_FILE_OFFSET_BITS=64
+	CFLAGS += -I../../../tmp/zlib-1.2.11/out/include -I../../../tmp/openssl/out/usr/include
+	EXEC := $(BUILD_PATH)/libgcore.so
 	CC := arm-linux-gnueabihf-gcc
 else
 	PLAT := linux
 	BUILD_PATH := build/linux
-	LDFLAGS += -shared -Wl,-soname,libgcore.so -lpthread
+	LDFLAGS += -shared -Wl,-soname,libgcore.so -lpthread -lsqlite3
 	EXEC := $(BUILD_PATH)/libgcore.so
 	CC := gcc
 endif
@@ -40,14 +43,14 @@ SRCS := common.c dots.c util.c board/gpio.c board/artix.c board/i2c.c \
 	   serialize/stim_serdes.capnp.c config.c lib/capnp/capn.c lib/capnp/capn-malloc.c \
 	   lib/capnp/capn-stream.c lib/lz4/lz4hc.c lib/lz4/lz4frame.c lib/lz4/xxhash.c \
 	   lib/lz4/lz4.c lib/jsmn/jsmn.c lib/avl/avl.c lib/slog/slog.c lib/fe/fe.c \
-	   profile.c stim.c prgm.c
+	   db.c profile.c stim.c prgm.c
 
 HEADERS := profile.h stim.h config.h board/dma.h board/helper.h board/subcore.h board/dev.h \
 		board/gpio.h board/artix.h board/i2c.h serialize/stim_serdes.capnp.h dots.h common.h \
 		subvec.h util.h lib/capnp/capnp_priv.h lib/capnp/capnp_c.h lib/lz4/xxhash.h lib/lz4/lz4.h \
 		lib/lz4/lz4frame_static.h lib/lz4/lz4hc.h lib/lz4/lz4frame.h lib/jsmn/jsmn.h \
 		lib/avl/avl.h lib/slog/slog.h lib/fe/fe.h \
-		prgm.h libgcore.h
+		sql.h db.h prgm.h libgcore.h
 
 #
 # Don't run anything if all is given
