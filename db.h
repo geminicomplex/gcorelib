@@ -134,6 +134,7 @@ int64_t db_insert_board(struct db *db,
 int64_t db_update_board(struct db *db, struct db_board *board);
 struct db_board* db_get_board_by_id(struct db *db, int64_t board_id);
 struct db_board* db_get_board_by_dna(struct db *db, char *dna);
+int64_t db_update_job(struct db *db, struct db_job *job);
 uint64_t db_get_num_jobs(struct db *db, 
         int64_t board_id, int64_t dut_board_id,
         int64_t user_id, int32_t states);
