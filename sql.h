@@ -13,7 +13,7 @@ extern "C" {
 
 
 const char *DB_SQL = ""
-    "    PRAGMA journal_mode=WAL"
+    "    PRAGMA journal_mode=WAL;"
     "    CREATE TABLE IF NOT EXISTS users (\n"
     "        id INTEGER PRIMARY KEY,\n"
     "        date_created DATETIME CURRENT_TIMESTAMP,\n"
