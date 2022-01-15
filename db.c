@@ -19,6 +19,7 @@
 #include "sqlite3.h"
 #include "common.h"
 #include "lib/uthash/utstring.h"
+#include "util.h"
 #include "sql.h"
 #include "db.h"
 
@@ -175,9 +176,31 @@ static struct db_prgm* db_make_prgm(sqlite3_stmt *res){
     prgm->id = sqlite3_column_int64(res, 0);
     prgm->job_id = sqlite3_column_int64(res, 1);
     prgm->path = (const char *)sqlite3_column_text(res, 4);
-    prgm->did_fail = sqlite3_column_int(res, 5);
-    prgm->state = (enum db_prgm_states)sqlite3_column_int(res, 6);
+    prgm->body = (const char *)sqlite3_column_text(res, 5);
+    prgm->date_start = util_dt_to_epoch(sqlite3_column_text(res, 6));
+    prgm->date_end = util_dt_to_epoch(sqlite3_column_text(res, 7));
+    prgm->return_code = sqlite3_column_int(res, 8);
+    prgm->error_msg = (const char *)sqlite3_column_text(res, 9);
+    prgm->last_stim_id = sqlite3_column_int(res, 10);
+    prgm->did_fail = sqlite3_column_int(res, 11);
+    prgm->failing_vec = sqlite3_column_int(res, 12);
+    prgm->state = (enum db_prgm_states)sqlite3_column_int(res, 13);
     return prgm;
+}
+
+static struct db_prgm_log* db_make_prgm_log(sqlite3_stmt *res){
+    struct db_prgm_log *prgm_log = NULL;
+    if(res == NULL){
+        die("pointer is null");
+    }
+    if((prgm_log = (struct db_prgm_log*)calloc(1, sizeof(struct db_prgm_log))) == NULL){
+        die("malloc failed");
+    }
+    prgm_log->id = sqlite3_column_int64(res, 0);
+    prgm_log->prgm_id = sqlite3_column_int64(res, 1);
+    prgm->date_created = util_dt_to_epoch(sqlite3_column_text(res, 2));
+    prgm_log->line = (const char *)sqlite3_column_text(res, 3);
+    return prgm_log;
 }
 
 static struct db_stim* db_make_stim(sqlite3_stmt *res){
@@ -229,6 +252,87 @@ static struct db_mount* db_make_mount(sqlite3_stmt *res){
     return mount;
 }
 
+void db_free_user(struct db_user *user){
+    if(user == NULL){
+        die("pointer is null");
+    }
+    free(user->username);
+    free(user->password);
+    free(user->session);
+    free(user);
+    return;
+}
+
+void db_free_board(struct db_board *board){
+    if(board == NULL){
+        die("pointer is null");
+    }
+    free(board->dna);
+    free(board->name);
+    free(board->ip_addr);
+    free(board);
+    return;
+}
+
+void db_free_dut_board(struct db_dut_board *dut_board){
+    if(dut_board == NULL){
+        die("pointer is null");
+    }
+    free(dut_board->dna);
+    free(dut_board->name);
+    free(dut_board->profile_path);
+    free(dut_board);
+    return;
+}
+
+void db_free_job(struct db_job *job){
+    if(job == NULL){
+        die("pointer is null");
+    }
+    free(job);
+    return;
+}
+
+void db_free_prgm(struct db_prgm *prgm){
+    if(prgm == NULL){
+        die("pointer is null");
+    }
+    free(prgm->path);
+    free(prgm->body);
+    free(prgm->error_msg);
+    free(prgm);
+    return;
+}
+
+void db_free_stim(struct db_stim *stim){
+    if(stim == NULL){
+        die("pointer is null");
+    }
+    free(stim->path);
+    free(stim);
+    return;
+}
+
+void db_free_fail_pin(struct db_fail_pin *fail_pin){
+    if(fail_pin == NULL){
+        die("pointer is null");
+    }
+    free(fail_pin);
+    return;
+}
+
+void db_free_mount(struct db_mount *mount){
+    if(mount == NULL){
+        die("pointer is null");
+    }
+    free(mount->name);
+    free(mount->ip_addr);
+    free(mount->path);
+    free(mount->point);
+    free(mount->message);
+    return;
+}
+
 int64_t db_insert_board(struct db *db, 
         char *dna, char *name, char *ip_addr, int32_t cur_dut_board_id, int32_t is_master){
     sqlite3_stmt *res = NULL;
@@ -249,7 +353,7 @@ int64_t db_insert_board(struct db *db,
         sqlite3_bind_text(res, 1, dna, strlen(dna), SQLITE_STATIC);
         sqlite3_bind_text(res, 2, name, strlen(name), SQLITE_STATIC);
         sqlite3_bind_text(res, 3, ip_addr, strlen(ip_addr), SQLITE_STATIC);
-        sqlite3_bind_int(res, 4, cur_dut_board_id);
+        sqlite3_bind_int64(res, 4, cur_dut_board_id);
         sqlite3_bind_int(res, 5, is_master);
     }else{
         die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
@@ -284,9 +388,9 @@ int64_t db_update_board(struct db *db, struct db_board *board){
         sqlite3_bind_text(res, 1, board->dna, strlen(board->dna), SQLITE_STATIC);
         sqlite3_bind_text(res, 2, board->name, strlen(board->name), SQLITE_STATIC);
         sqlite3_bind_text(res, 3, board->ip_addr, strlen(board->ip_addr), SQLITE_STATIC);
-        sqlite3_bind_int(res, 4, board->cur_dut_board_id);
+        sqlite3_bind_int64(res, 4, board->cur_dut_board_id);
         sqlite3_bind_int(res, 5, board->is_master);
-        sqlite3_bind_int(res, 6, board->id);
+        sqlite3_bind_int64(res, 6, board->id);
     } else {
         die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -317,7 +421,7 @@ struct db_board* db_get_board_by_id(struct db *db, int64_t board_id){
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
     if(rc == SQLITE_OK){
-        sqlite3_bind_int(res, 1, board_id);
+        sqlite3_bind_int64(res, 1, board_id);
     } else {
         fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -376,16 +480,16 @@ int64_t db_update_job(struct db *db, struct db_job *job){
         die("pointer is null");
     }
 
-    char *sql = "UPDATE jobs SET board_id=?, dub_board_id=?, user_id=?, state=? WHERE id=?";
+    char *sql = "UPDATE jobs SET board_id=?, dut_board_id=?, user_id=?, state=? WHERE id=?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
     if(rc == SQLITE_OK){
-        sqlite3_bind_int(res, 1, job->board_id);
-        sqlite3_bind_int(res, 2, job->dut_board_id);
-        sqlite3_bind_int(res, 3, job->user_id);
+        sqlite3_bind_int64(res, 1, job->board_id);
+        sqlite3_bind_int64(res, 2, job->dut_board_id);
+        sqlite3_bind_int64(res, 3, job->user_id);
         sqlite3_bind_int(res, 4, job->state);
-        sqlite3_bind_int(res, 5, job->id);
+        sqlite3_bind_int64(res, 5, job->id);
     } else {
         die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -448,10 +552,11 @@ uint64_t db_get_num_jobs(struct db *db,
         utstring_printf(sql, "AND state = %i ", JOB_DONE);
     }
 
-    rc = sqlite3_prepare_v2(db->_db, utstring_body(sql), -1, &res, 0);
+    char *sql_str = utstring_body(sql);
+    rc = sqlite3_prepare_v2(db->_db, sql_str, -1, &res, 0);
 
     if(rc == SQLITE_OK){
-        sqlite3_bind_int(res, 1, board_id);
+        sqlite3_bind_int64(res, 1, board_id);
     } else {
         fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -520,7 +625,7 @@ struct db_job** db_get_jobs(struct db *db,
     rc = sqlite3_prepare_v2(db->_db, utstring_body(sql), -1, &res, 0);
 
     if(rc == SQLITE_OK){
-        sqlite3_bind_int(res, 1, board_id);
+        sqlite3_bind_int64(res, 1, board_id);
     } else {
         fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -545,6 +650,36 @@ struct db_job** db_get_jobs(struct db *db,
     return jobs;
 }
 
+struct db_prgm* db_get_prgm_by_id(struct db *db, int64_t prgm_id){
+    struct db_prgm *prgm = NULL;
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+    int step = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    char *sql = "SELECT * FROM prgms WHERE id=? LIMIT 1";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, prgm_id);
+    } else {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    step = sqlite3_step(res);
+
+    if (step == SQLITE_ROW) {
+        prgm = db_make_prgm(res);
+    }
+
+    sqlite3_finalize(res);
+    return prgm;
+}
+
 int64_t db_update_prgm(struct db *db, struct db_prgm *prgm){
     sqlite3_stmt *res = NULL;
     int rc = 0;
@@ -557,16 +692,26 @@ int64_t db_update_prgm(struct db *db, struct db_prgm *prgm){
         die("pointer is null");
     }
 
-    char *sql = "UPDATE prgms SET job_id=?, path=?, did_fail=?, state=? WHERE id=?";
+    char *sql = "UPDATE prgms SET job_id=?, date_start=?, date_end=?, path=?, body=?, return_code=?, error_msg=?, last_stim_id=?, did_fail=?, failing_vec=?, state=? WHERE id=?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
+    char *date_start = util_epoch_to_dt(prgm->date_start);
+    char *date_end = util_epoch_to_dt(prgm->date_end);
+
     if(rc == SQLITE_OK){
         sqlite3_bind_int64(res, 1, prgm->job_id);
-        sqlite3_bind_text(res, 2, prgm->path, strlen(prgm->path), SQLITE_STATIC);
-        sqlite3_bind_int(res, 3, prgm->did_fail);
-        sqlite3_bind_int(res, 4, prgm->state);
-        sqlite3_bind_int64(res, 5, prgm->id);
+        sqlite3_bind_int64(res, 2, date_start);
+        sqlite3_bind_int64(res, 3, date_end);
+        sqlite3_bind_text(res, 4, prgm->path, strlen(prgm->path), SQLITE_STATIC);
+        sqlite3_bind_text(res, 5, prgm->body, strlen(prgm->body), SQLITE_STATIC);
+        sqlite3_bind_int(res, 6, prgm->return_code);
+        sqlite3_bind_text(res, 7, prgm->error_msg, strlen(prgm->error_msg), SQLITE_STATIC);
+        sqlite3_bind_int64(res, 8, prgm->last_stim_id);
+        sqlite3_bind_int(res, 9, prgm->did_fail);
+        sqlite3_bind_int64(res, 10, prgm->failing_vec);
+        sqlite3_bind_int(res, 11, prgm->state);
+        sqlite3_bind_int64(res, 12, prgm->id);
     } else {
         die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -583,7 +728,9 @@ int64_t db_update_prgm(struct db *db, struct db_prgm *prgm){
 }
 
 uint64_t db_get_num_prgms(struct db *db, 
-        int64_t job_id, const char *path, int32_t did_fail, int32_t states){
+        int64_t job_id, const char *path, const char *body, 
+        int32_t return_code, const char *error_msg, int32_t last_stim_id, 
+        int32_t did_fail, int32_t failing_vec, int32_t states){
     sqlite3_stmt *res = NULL;
     int rc = 0;
     int step = 0;
@@ -605,8 +752,28 @@ uint64_t db_get_num_prgms(struct db *db,
         utstring_printf(sql, "AND path = '%s' ", path);
     }
 
+    if(body != NULL){
+        utstring_printf(sql, "AND body = '%s' ", body);
+    }
+
+    if(return_code != -1){
+        utstring_printf(sql, "AND return_code = %i ", return_code);
+    }
+
+    if(error_msg != NULL){
+        utstring_printf(sql, "AND error_msg = '%s' ", error_msg);
+    }
+
+    if(last_stim_id != -1){
+        utstring_printf(sql, "AND last_stim_id = %i ", last_stim_id);
+    }
+
     if(did_fail != -1){
         utstring_printf(sql, "AND did_fail = %i ", did_fail);
+    }
+
+    if(failing_vec != -1){
+        utstring_printf(sql, "AND failing_vec = %i ", failing_vec);
     }
 
     if((states & PRGM_IDLE) == PRGM_IDLE){
@@ -631,7 +798,7 @@ uint64_t db_get_num_prgms(struct db *db,
     rc = sqlite3_prepare_v2(db->_db, utstring_body(sql), -1, &res, 0);
 
     if(rc == SQLITE_OK){
-        sqlite3_bind_int(res, 1, job_id);
+        sqlite3_bind_int64(res, 1, job_id);
     } else {
         fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -650,7 +817,9 @@ uint64_t db_get_num_prgms(struct db *db,
 }
 
 struct db_prgm** db_get_prgms(struct db *db, 
-        int64_t job_id, const char *path, int32_t did_fail, int32_t states){
+        int64_t job_id, const char *path, const char *body,
+        int32_t return_code, const char *error_msg, int32_t last_stim_id,
+        int32_t did_fail, int32_t failing_vec, int32_t states){
     struct db_prgm *prgm = NULL;
     struct db_prgm **prgms = NULL;
     sqlite3_stmt *res = NULL;
@@ -673,8 +842,28 @@ struct db_prgm** db_get_prgms(struct db *db,
         utstring_printf(sql, "AND path = '%s' ", path);
     }
 
+    if(body != NULL){
+        utstring_printf(sql, "AND body = '%s' ", body);
+    }
+
+    if(return_code != -1){
+        utstring_printf(sql, "AND return_code = %i ", return_code);
+    }
+
+    if(error_msg != NULL){
+        utstring_printf(sql, "AND error_msg = '%s' ", error_msg);
+    }
+
+    if(last_stim_id != -1){
+        utstring_printf(sql, "AND last_stim_id = %i ", last_stim_id);
+    }
+
     if(did_fail != -1){
         utstring_printf(sql, "AND did_fail = %i ", did_fail);
+    }
+
+    if(failing_vec != -1){
+        utstring_printf(sql, "AND failing_vec = %i ", failing_vec);
     }
 
     if((states & PRGM_IDLE) == PRGM_IDLE){
@@ -699,7 +888,7 @@ struct db_prgm** db_get_prgms(struct db *db,
     rc = sqlite3_prepare_v2(db->_db, utstring_body(sql), -1, &res, 0);
 
     if(rc == SQLITE_OK){
-        sqlite3_bind_int(res, 1, job_id);
+        sqlite3_bind_int64(res, 1, job_id);
     } else {
         fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -723,4 +912,144 @@ struct db_prgm** db_get_prgms(struct db *db,
     sqlite3_finalize(res);
     return prgms;
 }
+
+int64_t db_insert_prgm_log(struct db *db, 
+        int64_t prgm_id, char *line){
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+    if(line == NULL){
+        die("pointer is null");
+    }
+
+    char *sql = "INSERT INTO prgm_logs(prgm_id, date_created, line) VALUES(?, datetime('now'), ?)";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, prgm_id);
+        sqlite3_bind_text(res, 2, line, strlen(line), SQLITE_STATIC);
+    }else{
+        die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    int step = sqlite3_step(res);
+
+    if(step != SQLITE_DONE){
+        die("failed to exec sql '%s'", sql);
+    }
+
+    sqlite3_finalize(res);
+    return sqlite3_last_insert_rowid(db->_db);
+}
+
+int64_t db_insert_stim(struct db *db, 
+        int64_t prgm_id, char *path, int32_t did_fail, 
+        int64_t failing_vec, enum db_stim_states state){
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+    if(line == NULL){
+        die("pointer is null");
+    }
+
+    char *sql = "INSERT INTO stims(prgm_id, date_created, path, did_fail, failing_vec, state) VALUES(?, datetime('now'), ?, ?, ?, ?)";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, prgm_id);
+        sqlite3_bind_text(res, 2, path, strlen(path), SQLITE_STATIC);
+        sqlite3_bind_int(res, 3, did_fail);
+        sqlite3_bind_int64(res, 4, failing_vec);
+        sqlite3_bind_int(res, 5, (int32_t)state);
+    }else{
+        die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    int step = sqlite3_step(res);
+
+    if(step != SQLITE_DONE){
+        die("failed to exec sql '%s'", sql);
+    }
+
+    sqlite3_finalize(res);
+    return sqlite3_last_insert_rowid(db->_db);
+}
+
+int64_t db_update_stim(struct db *db, struct db_stim *stim){
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    if(stim == NULL){
+        die("pointer is null");
+    }
+
+    char *sql = "UPDATE stims SET prgm_id=?, path=?, did_fail=?, failing_vec=?, state=? WHERE id=?";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, stim->prgm_id);
+        sqlite3_bind_text(res, 2, stim->path, strlen(stim->path), SQLITE_STATIC);
+        sqlite3_bind_int(res, 3, stim->did_fail);
+        sqlite3_bind_int64(res, 4, stim->failing_vec);
+        sqlite3_bind_int(res, 5, stim->state);
+        sqlite3_bind_int64(res, 6, stim->id);
+    } else {
+        die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    int step = sqlite3_step(res);
+
+    if (step != SQLITE_DONE) {
+        die("failed to exec sql '%s'", sql);
+    }
+
+    sqlite3_finalize(res);
+
+    return stim->id;
+}
+
+struct db_stim* db_get_stim_by_id(struct db *db, int64_t stim_id){
+    struct db_stim *stim = NULL;
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+    int step = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    char *sql = "SELECT * FROM stims WHERE id=? LIMIT 1";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, stim_id);
+    } else {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    step = sqlite3_step(res);
+
+    if (step == SQLITE_ROW) {
+        stim = db_make_stim(res);
+    }
+
+    sqlite3_finalize(res);
+    return stim;
+}
+
+
 

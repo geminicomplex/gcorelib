@@ -28,6 +28,8 @@ const char *util_get_file_ext_by_path(const char *path);
 size_t util_str_count(const char* s, char c);
 char *util_str_strip(char *s);
 size_t util_str_split(char* a_str, const char a_delim, char*** results);
+time_t util_dt_to_epoch(char *dt);
+char *util_epoch_to_dt(time_t epoch);
 
 #ifdef __cplusplus
 }

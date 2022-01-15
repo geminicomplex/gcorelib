@@ -26,6 +26,7 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <time.h>
 
 /*
  * Helper file open function that performs checks.
@@ -305,6 +306,42 @@ size_t util_str_split(char* a_str, const char a_delim, char*** results){
     }
 
     return count;
+}
+
+/*
+ * Converts a UTC datetime to unix epoch.
+ */
+time_t util_dt_to_epoch(char *dt){
+    struct tm tm;
+    time_t epoch;
+    if(strptime(dt, "%Y-%m-%d %H:%M:%S", &tm) != NULL){
+        epoch = mktime(&tm);
+    }else{
+        die("failed to convert time '%s' to epoch", dt);
+    }
+    return epoch;
+}
+
+/*
+ * Converts unix epoch to UTC datetime.
+ *
+ * Must free string after use.
+ */
+char *util_epoch_to_dt(time_t epoch){
+    struct tm *tm;
+    char *buf;
+
+    if((buf = (char *)malloc(80)) == NULL){
+        die("malloc failed");
+    }
+
+    // convert epoch to utc
+    tm = gmtime(&epoch);
+
+    if(strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm) == 0){
+        die("failed to convert epoch %lld to datetime", epoch);
+    }
+    return buf;
 }
 
 
