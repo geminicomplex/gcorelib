@@ -49,7 +49,7 @@ void db_free(struct db *db){
     return;
 }
 
-void db_open(struct db *db, char *path){
+void db_open(struct db *db, const char *path){
     char *err_msg = NULL;
 
     if(db == NULL){
@@ -177,8 +177,8 @@ static struct db_prgm* db_make_prgm(sqlite3_stmt *res){
     prgm->job_id = sqlite3_column_int64(res, 1);
     prgm->path = (const char *)sqlite3_column_text(res, 4);
     prgm->body = (const char *)sqlite3_column_text(res, 5);
-    prgm->date_start = util_dt_to_epoch(sqlite3_column_text(res, 6));
-    prgm->date_end = util_dt_to_epoch(sqlite3_column_text(res, 7));
+    prgm->date_start = util_dt_to_epoch((char *)sqlite3_column_text(res, 6));
+    prgm->date_end = util_dt_to_epoch((char *)sqlite3_column_text(res, 7));
     prgm->return_code = sqlite3_column_int(res, 8);
     prgm->error_msg = (const char *)sqlite3_column_text(res, 9);
     prgm->last_stim_id = sqlite3_column_int(res, 10);
@@ -198,7 +198,7 @@ static struct db_prgm_log* db_make_prgm_log(sqlite3_stmt *res){
     }
     prgm_log->id = sqlite3_column_int64(res, 0);
     prgm_log->prgm_id = sqlite3_column_int64(res, 1);
-    prgm->date_created = util_dt_to_epoch(sqlite3_column_text(res, 2));
+    prgm_log->date_created = util_dt_to_epoch((char *)sqlite3_column_text(res, 2));
     prgm_log->line = (const char *)sqlite3_column_text(res, 3);
     return prgm_log;
 }
@@ -256,9 +256,9 @@ void db_free_user(struct db_user *user){
     if(user == NULL){
         die("pointer is null");
     }
-    free(user->username);
-    free(user->password);
-    free(user->session);
+    free((char *)user->username);
+    free((char *)user->password);
+    free((char *)user->session);
     free(user);
     return;
 }
@@ -267,9 +267,9 @@ void db_free_board(struct db_board *board){
     if(board == NULL){
         die("pointer is null");
     }
-    free(board->dna);
-    free(board->name);
-    free(board->ip_addr);
+    free((char *)board->dna);
+    free((char *)board->name);
+    free((char *)board->ip_addr);
     free(board);
     return;
 }
@@ -278,9 +278,9 @@ void db_free_dut_board(struct db_dut_board *dut_board){
     if(dut_board == NULL){
         die("pointer is null");
     }
-    free(dut_board->dna);
-    free(dut_board->name);
-    free(dut_board->profile_path);
+    free((char *)dut_board->dna);
+    free((char *)dut_board->name);
+    free((char *)dut_board->profile_path);
     free(dut_board);
     return;
 }
@@ -297,9 +297,9 @@ void db_free_prgm(struct db_prgm *prgm){
     if(prgm == NULL){
         die("pointer is null");
     }
-    free(prgm->path);
-    free(prgm->body);
-    free(prgm->error_msg);
+    free((char *)prgm->path);
+    free((char *)prgm->body);
+    free((char *)prgm->error_msg);
     free(prgm);
     return;
 }
@@ -308,7 +308,7 @@ void db_free_stim(struct db_stim *stim){
     if(stim == NULL){
         die("pointer is null");
     }
-    free(stim->path);
+    free((char *)stim->path);
     free(stim);
     return;
 }
@@ -325,11 +325,12 @@ void db_free_mount(struct db_mount *mount){
     if(mount == NULL){
         die("pointer is null");
     }
-    free(mount->name);
-    free(mount->ip_addr);
-    free(mount->path);
-    free(mount->point);
-    free(mount->message);
+    free((char *)mount->name);
+    free((char *)mount->ip_addr);
+    free((char *)mount->path);
+    free((char *)mount->point);
+    free((char *)mount->message);
+    free(mount);
     return;
 }
 
@@ -701,8 +702,8 @@ int64_t db_update_prgm(struct db *db, struct db_prgm *prgm){
 
     if(rc == SQLITE_OK){
         sqlite3_bind_int64(res, 1, prgm->job_id);
-        sqlite3_bind_int64(res, 2, date_start);
-        sqlite3_bind_int64(res, 3, date_end);
+        sqlite3_bind_text(res, 2, date_start, strlen(date_start), SQLITE_STATIC);
+        sqlite3_bind_text(res, 3, date_end, strlen(date_end), SQLITE_STATIC);
         sqlite3_bind_text(res, 4, prgm->path, strlen(prgm->path), SQLITE_STATIC);
         sqlite3_bind_text(res, 5, prgm->body, strlen(prgm->body), SQLITE_STATIC);
         sqlite3_bind_int(res, 6, prgm->return_code);
@@ -893,7 +894,8 @@ struct db_prgm** db_get_prgms(struct db *db,
         fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
 
-    uint64_t num = db_get_num_prgms(db, job_id, path, did_fail, states);
+    uint64_t num = db_get_num_prgms(db, job_id, path, body, return_code, error_msg,
+            last_stim_id, did_fail, failing_vec, states);
 
     if(num > 0){
         if((prgms = (struct db_prgm**)calloc(num, sizeof(struct db_prgm*))) == NULL){
@@ -955,7 +957,8 @@ int64_t db_insert_stim(struct db *db,
     if(db == NULL){
         die("pointer is null");
     }
-    if(line == NULL){
+
+    if(path == NULL){
         die("pointer is null");
     }
 

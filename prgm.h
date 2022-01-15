@@ -13,6 +13,7 @@ extern "C" {
 
 #include "lib/uthash/uthash.h"
 #include "lib/fe/fe.h"
+#include "db.h"
 
 // 32 MB fe data scratch pad
 #define FE_DATA_SIZE (1024*1024*3)
@@ -44,10 +45,15 @@ struct prgm {
      * private
      */
 
-    // prgm path
+    // prgm 
     int _path_fd;
     FILE *_path_fp;
     off_t _path_size;
+
+    // db
+    int64_t _db_prgm_id;
+    const char *_db_path;
+    struct db *_db;
 
     // fe context
     uint32_t _fe_data_size;
@@ -67,7 +73,8 @@ struct prgm {
 
 
 struct prgm *prgm_create();
-void prgm_open(struct prgm *prgm, char *path);
+// set prgm_id to save results and log lines to db, otherwise set to -1
+void prgm_open(struct prgm *prgm, const char *path, int64_t db_prgm_id, const char *db_path);
 void prgm_close(struct prgm *prgm);
 void prgm_free(struct prgm *prgm);
 int prgm_run(struct prgm *prgm);

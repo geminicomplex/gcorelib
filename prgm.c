@@ -217,10 +217,19 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
     uint64_t test_cycle = 0;
     uint32_t num_tests_ran = 0;
     char buffer[2048];
+    struct db_prgm *db_prgm = NULL;
+    int64_t db_stim_id = -1;
+    struct db_stim *db_stim = NULL;
 
     fe_prgm = fe_eval(_fe_ctx, fe_symbol(_fe_ctx, "prgm"));
     if((prgm = (struct prgm*)fe_toptr(_fe_ctx, fe_prgm)) == NULL){
         fe_error(_fe_ctx, "failed to get global prgm object");
+    }
+
+    if(prgm->_db_prgm_id >= 0 && prgm->_db != NULL){
+        if((db_prgm = db_get_prgm_by_id(prgm->_db, prgm->_db_prgm_id)) == NULL){
+            die("failed to get db_prgm by id %lli", prgm->_db_prgm_id);
+        }
     }
 
     while(!fe_isnil(_fe_ctx, arg)){
@@ -260,6 +269,16 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
             }
         }
 
+        
+        if(a1_prgm_stim == NULL && a2_prgm_stim == NULL){
+            fe_error(_fe_ctx, "failed to run stim because no stim found at a1 addr or a2 addr");
+        }
+
+        if(prgm->_db_prgm_id >= 0 && prgm->_db != NULL){
+            db_stim_id = db_insert_stim(prgm->_db, prgm->_db_prgm_id, 
+                    a1_prgm_stim->stim->path, 0, -1, STIM_IDLE);
+        }
+
         // Either stim loaded into a1, a2 or both. If both then it's a dual pattern and
         // the stim will be the same. It could be two solo patterns, but that's currently
         // not supported.
@@ -269,14 +288,35 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
                 snprintf(buffer, 2048, "Failed to run because addr pair (0x%016" PRIX64 ", 0x%016" PRIX64 ") must be a dual stim loaded in both units.", a1_addr, a2_addr);
                 fe_error(_fe_ctx, buffer);
             }
+
             failed = artix_run_stim(a1_prgm_stim->stim, &test_cycle, a1_addr, a2_addr);
             prgm->_last_prgm_stim = a1_prgm_stim;
+
         }else if(a1_prgm_stim != NULL){
             failed  = artix_run_stim(a1_prgm_stim->stim, &test_cycle, a1_prgm_stim->a1_addr, a1_prgm_stim->a2_addr);
             prgm->_last_prgm_stim = a1_prgm_stim;
         }else if(a2_prgm_stim != NULL){
             failed = artix_run_stim(a2_prgm_stim->stim, &test_cycle, a2_prgm_stim->a1_addr, a2_prgm_stim->a2_addr);
             prgm->_last_prgm_stim = a2_prgm_stim;
+        }
+
+        // save results to db
+        if(db_stim_id >= 0 && db_prgm != NULL){
+            if((db_stim = db_get_stim_by_id(prgm->_db, db_stim_id)) == NULL){
+                die("failed to get db_stim by id %lli", db_stim_id);
+            }
+            db_stim->did_fail = (int32_t)failed;
+            db_stim->failing_vec = (int64_t)test_cycle;
+            db_stim->state = STIM_DONE;
+            db_update_stim(prgm->_db, db_stim);
+
+            db_prgm->last_stim_id = db_stim_id;
+            if(db_prgm->did_fail == 0){
+                db_prgm->did_fail = (int32_t)failed;
+                db_prgm->failing_vec = (int64_t)test_cycle;
+            }
+            db_update_prgm(prgm->_db, db_prgm);
+
         }
 
         num_tests_ran += 1;
@@ -830,6 +870,13 @@ struct prgm *prgm_create(){
         die("failed to malloc prgm");
     }
 
+    prgm->_path_fd = 0;
+    prgm->_path_fp = NULL;
+    prgm->_path_size = 0;
+    prgm->_db_prgm_id = -1;
+
+    prgm->_db = NULL;
+
     prgm->_fe_data_size = 0;
     prgm->_fe_data = NULL;
     prgm->_fe_ctx = NULL;
@@ -849,7 +896,13 @@ struct prgm *prgm_create(){
     return prgm;
 }
 
-void prgm_open(struct prgm *prgm, char *path){
+/*
+ * Open a prgm at path for running. If db_prgm_id is set to id for row in db,
+ * will write results and log output to db at db_path given. Otherwise it must
+ * be set to -1 and db_path set to NULL;
+ *
+ */
+void prgm_open(struct prgm *prgm, const char *path, int64_t db_prgm_id, const char *db_path){
     char *real_path = NULL;
 
     if(prgm == NULL){
@@ -871,6 +924,26 @@ void prgm_open(struct prgm *prgm, char *path){
     prgm->path = strdup(real_path);
     free(real_path);
 
+    if(db_prgm_id < 0){
+        if(db_prgm_id != -1){
+            die("db_prgm_id given '%lli' must be -1 if less than zero", db_prgm_id);
+        }
+        prgm->_db_prgm_id = db_prgm_id;
+    }else if(db_prgm_id >= 0){
+        prgm->_db_prgm_id = db_prgm_id;
+        if(db_path == NULL){
+            die("db_prgm_id '%lli' given, but db_path is null", db_prgm_id);
+        }
+        prgm->_db_path = strdup(db_path);
+        if((prgm->_db = db_create()) == NULL){
+            die("failed to create db");
+        }
+        db_open(prgm->_db, prgm->_db_path);
+        if(db_get_prgm_by_id(prgm->_db, prgm->_db_prgm_id) == NULL){
+            die("db_prgm_id '%lli' given, but row not found in db", db_prgm_id);
+        }
+    }
+
     if(util_fopen(prgm->path, &prgm->_path_fd, &prgm->_path_fp, &prgm->_path_size)){
         die("failed to open prgm file '%s'", path);
     }
@@ -884,6 +957,9 @@ void prgm_close(struct prgm *prgm){
     if(prgm->is_path_open){
         fclose(prgm->_path_fp);
         close(prgm->_path_fd);
+        if(prgm->_db != NULL){
+            db_close(prgm->_db);
+        }
         prgm->_path_size = 0;
         prgm->is_path_open = false;
     }
@@ -899,9 +975,23 @@ void prgm_free(struct prgm *prgm){
         free(prgm->path);
     }
 
+    if(prgm->_db_path != NULL){
+        free((char *)prgm->_db_path);
+    }
+
+    if(prgm->_db != NULL){
+        db_free(prgm->_db);
+    }
+
     prgm_close(prgm);
 
     _prgm_free_fe_ctx(prgm);
+
+    if(prgm->_profile != NULL){
+        free_profile(prgm->_profile);
+    }
+
+    // TODO: free loaded stims
 
     free(prgm);
     return;

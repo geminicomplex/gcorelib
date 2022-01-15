@@ -142,7 +142,7 @@ struct db {
  * db management funcs
  */
 struct db *db_create();
-void db_open(struct db *db, char *path);
+void db_open(struct db *db, const char *path);
 void db_close(struct db *db);
 void db_free(struct db *db);
 
@@ -179,11 +179,11 @@ struct db_prgm* db_get_prgm_by_id(struct db *db, int64_t prgm_id);
 int64_t db_update_prgm(struct db *db, struct db_prgm *prgm);
 uint64_t db_get_num_prgms(struct db *db, 
         int64_t job_id, const char *path, const char *body, 
-        int32_t return_code, int32_t last_stim_id, 
+        int32_t return_code, const char *error_msg, int32_t last_stim_id, 
         int32_t did_fail, int32_t failing_vec, int32_t states);
 struct db_prgm** db_get_prgms(struct db *db, 
         int64_t job_id, const char *path, const char *body,
-        int32_t return_code, int32_t last_stim_id,
+        int32_t return_code, const char *error_msg, int32_t last_stim_id,
         int32_t did_fail, int32_t failing_vec, int32_t states);
 int64_t db_insert_prgm_log(struct db *db, 
         int64_t prgm_id, char *line);
@@ -191,6 +191,7 @@ int64_t db_insert_stim(struct db *db,
         int64_t prgm_id, char *path, int32_t did_fail, 
         int64_t failing_vec, enum db_stim_states state);
 int64_t db_update_stim(struct db *db, struct db_stim *stim);
+struct db_stim* db_get_stim_by_id(struct db *db, int64_t stim_id);
 
 #ifdef __cplusplus
 }
