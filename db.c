@@ -304,6 +304,15 @@ void db_free_prgm(struct db_prgm *prgm){
     return;
 }
 
+void db_free_prgm_log(struct db_prgm_log *prgm_log){
+    if(prgm_log == NULL){
+        die("pointer is null");
+    }
+    free((char *)prgm_log->line);
+    free(prgm_log);
+    return;
+}
+
 void db_free_stim(struct db_stim *stim){
     if(stim == NULL){
         die("pointer is null");
@@ -335,7 +344,7 @@ void db_free_mount(struct db_mount *mount){
 }
 
 int64_t db_insert_board(struct db *db, 
-        char *dna, char *name, char *ip_addr, int32_t cur_dut_board_id, int32_t is_master){
+        const char *dna, const char *name, const char *ip_addr, int32_t cur_dut_board_id, int32_t is_master){
     sqlite3_stmt *res = NULL;
     int rc = 0;
 
@@ -346,7 +355,7 @@ int64_t db_insert_board(struct db *db,
         die("pointer is null");
     }
 
-    char *sql = "INSERT INTO boards(dna, name, ip_addr, cur_dut_board_id, is_master) VALUES(?, ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO boards(dna, name, ip_addr, cur_dut_board_id, is_master) VALUES(?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -381,7 +390,7 @@ int64_t db_update_board(struct db *db, struct db_board *board){
         die("pointer is null");
     }
 
-    char *sql = "UPDATE boards SET dna=?, name=?, ip_addr=?, cur_dut_board_id=?, is_master=? WHERE id=?";
+    const char *sql = "UPDATE boards SET dna=?, name=?, ip_addr=?, cur_dut_board_id=?, is_master=? WHERE id=?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -417,7 +426,7 @@ struct db_board* db_get_board_by_id(struct db *db, int64_t board_id){
         die("pointer is null");
     }
 
-    char *sql = "SELECT * FROM boards WHERE id=? LIMIT 1";
+    const char *sql = "SELECT * FROM boards WHERE id=? LIMIT 1";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -437,7 +446,7 @@ struct db_board* db_get_board_by_id(struct db *db, int64_t board_id){
     return board;
 }
 
-struct db_board* db_get_board_by_dna(struct db *db, char *dna){
+struct db_board* db_get_board_by_dna(struct db *db, const char *dna){
     struct db_board *board = NULL;
     sqlite3_stmt *res = NULL;
     int rc = 0;
@@ -449,7 +458,7 @@ struct db_board* db_get_board_by_dna(struct db *db, char *dna){
         die("pointer is null");
     }
 
-    char *sql = "SELECT * FROM boards WHERE dna = ?";
+    const char *sql = "SELECT * FROM boards WHERE dna = ?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -481,7 +490,7 @@ int64_t db_update_job(struct db *db, struct db_job *job){
         die("pointer is null");
     }
 
-    char *sql = "UPDATE jobs SET board_id=?, dut_board_id=?, user_id=?, state=? WHERE id=?";
+    const char *sql = "UPDATE jobs SET board_id=?, dut_board_id=?, user_id=?, state=? WHERE id=?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -553,7 +562,7 @@ uint64_t db_get_num_jobs(struct db *db,
         utstring_printf(sql, "AND state = %i ", JOB_DONE);
     }
 
-    char *sql_str = utstring_body(sql);
+    const char *sql_str = utstring_body(sql);
     rc = sqlite3_prepare_v2(db->_db, sql_str, -1, &res, 0);
 
     if(rc == SQLITE_OK){
@@ -661,7 +670,7 @@ struct db_prgm* db_get_prgm_by_id(struct db *db, int64_t prgm_id){
         die("pointer is null");
     }
 
-    char *sql = "SELECT * FROM prgms WHERE id=? LIMIT 1";
+    const char *sql = "SELECT * FROM prgms WHERE id=? LIMIT 1";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -693,12 +702,12 @@ int64_t db_update_prgm(struct db *db, struct db_prgm *prgm){
         die("pointer is null");
     }
 
-    char *sql = "UPDATE prgms SET job_id=?, date_start=?, date_end=?, path=?, body=?, return_code=?, error_msg=?, last_stim_id=?, did_fail=?, failing_vec=?, state=? WHERE id=?";
+    const char *sql = "UPDATE prgms SET job_id=?, date_start=?, date_end=?, path=?, body=?, return_code=?, error_msg=?, last_stim_id=?, did_fail=?, failing_vec=?, state=? WHERE id=?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
-    char *date_start = util_epoch_to_dt(prgm->date_start);
-    char *date_end = util_epoch_to_dt(prgm->date_end);
+    const char *date_start = util_epoch_to_dt(prgm->date_start);
+    const char *date_end = util_epoch_to_dt(prgm->date_end);
 
     if(rc == SQLITE_OK){
         sqlite3_bind_int64(res, 1, prgm->job_id);
@@ -724,6 +733,9 @@ int64_t db_update_prgm(struct db *db, struct db_prgm *prgm){
     }
 
     sqlite3_finalize(res);
+
+    free((char *)date_start);
+    free((char *)date_end);
 
     return prgm->id;
 }
@@ -916,7 +928,7 @@ struct db_prgm** db_get_prgms(struct db *db,
 }
 
 int64_t db_insert_prgm_log(struct db *db, 
-        int64_t prgm_id, char *line){
+        int64_t prgm_id, const char *line){
     sqlite3_stmt *res = NULL;
     int rc = 0;
 
@@ -927,7 +939,7 @@ int64_t db_insert_prgm_log(struct db *db,
         die("pointer is null");
     }
 
-    char *sql = "INSERT INTO prgm_logs(prgm_id, date_created, line) VALUES(?, datetime('now'), ?)";
+    const char *sql = "INSERT INTO prgm_logs(prgm_id, date_created, line) VALUES(?, datetime('now'), ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -949,7 +961,7 @@ int64_t db_insert_prgm_log(struct db *db,
 }
 
 int64_t db_insert_stim(struct db *db, 
-        int64_t prgm_id, char *path, int32_t did_fail, 
+        int64_t prgm_id, const char *path, int32_t did_fail, 
         int64_t failing_vec, enum db_stim_states state){
     sqlite3_stmt *res = NULL;
     int rc = 0;
@@ -962,7 +974,7 @@ int64_t db_insert_stim(struct db *db,
         die("pointer is null");
     }
 
-    char *sql = "INSERT INTO stims(prgm_id, date_created, path, did_fail, failing_vec, state) VALUES(?, datetime('now'), ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO stims(prgm_id, date_created, path, did_fail, failing_vec, state) VALUES(?, datetime('now'), ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -998,7 +1010,7 @@ int64_t db_update_stim(struct db *db, struct db_stim *stim){
         die("pointer is null");
     }
 
-    char *sql = "UPDATE stims SET prgm_id=?, path=?, did_fail=?, failing_vec=?, state=? WHERE id=?";
+    const char *sql = "UPDATE stims SET prgm_id=?, path=?, did_fail=?, failing_vec=?, state=? WHERE id=?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -1034,7 +1046,7 @@ struct db_stim* db_get_stim_by_id(struct db *db, int64_t stim_id){
         die("pointer is null");
     }
 
-    char *sql = "SELECT * FROM stims WHERE id=? LIMIT 1";
+    const char *sql = "SELECT * FROM stims WHERE id=? LIMIT 1";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 

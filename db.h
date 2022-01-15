@@ -151,23 +151,24 @@ void db_free(struct db *db);
  * funcs below.
  *
  */
-void db_free_user();
-void db_free_board();
-void db_free_dut_board();
-void db_free_job();
-void db_free_prgm();
-void db_free_stim();
-void db_free_fail_pin();
-void db_free_mount();
+void db_free_user(struct db_user *user);
+void db_free_board(struct db_board *board);
+void db_free_dut_board(struct db_dut_board *dut_board);
+void db_free_job(struct db_job *job);
+void db_free_prgm(struct db_prgm *prgm);
+void db_free_prgm_log(struct db_prgm_log *prgm_log);
+void db_free_stim(struct db_stim *stim);
+void db_free_fail_pin(struct db_fail_pin *fail_pin);
+void db_free_mount(struct db_mount *mount);
 
 /*
  * use these to insert, update or get rows from db
  */
 int64_t db_insert_board(struct db *db, 
-        char *dna, char *name, char *ip_addr, int32_t cur_dut_board_id, int32_t is_master);
+        const char *dna, const char *name, const char *ip_addr, int32_t cur_dut_board_id, int32_t is_master);
 int64_t db_update_board(struct db *db, struct db_board *board);
 struct db_board* db_get_board_by_id(struct db *db, int64_t board_id);
-struct db_board* db_get_board_by_dna(struct db *db, char *dna);
+struct db_board* db_get_board_by_dna(struct db *db, const char *dna);
 int64_t db_update_job(struct db *db, struct db_job *job);
 uint64_t db_get_num_jobs(struct db *db, 
         int64_t board_id, int64_t dut_board_id,
@@ -186,9 +187,9 @@ struct db_prgm** db_get_prgms(struct db *db,
         int32_t return_code, const char *error_msg, int32_t last_stim_id,
         int32_t did_fail, int32_t failing_vec, int32_t states);
 int64_t db_insert_prgm_log(struct db *db, 
-        int64_t prgm_id, char *line);
+        int64_t prgm_id, const char *line);
 int64_t db_insert_stim(struct db *db, 
-        int64_t prgm_id, char *path, int32_t did_fail, 
+        int64_t prgm_id, const char *path, int32_t did_fail, 
         int64_t failing_vec, enum db_stim_states state);
 int64_t db_update_stim(struct db *db, struct db_stim *stim);
 struct db_stim* db_get_stim_by_id(struct db *db, int64_t stim_id);
