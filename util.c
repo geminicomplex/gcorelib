@@ -316,6 +316,12 @@ size_t util_str_split(char* a_str, const char a_delim, char*** results){
 time_t util_dt_to_epoch(char *dt){
     struct tm tm;
     time_t epoch;
+    if(dt == NULL){
+        return -1;
+    }
+    if(dt != NULL && strlen(dt) == 0){
+        return 0;
+    }
     if(strptime(dt, "%Y-%m-%d %H:%M:%S", &tm) != NULL){
         epoch = mktime(&tm);
     }else{
@@ -333,6 +339,10 @@ char *util_epoch_to_dt(time_t epoch){
     struct tm *tm;
     char *buf;
 
+    if(epoch <= 0){
+        return strdup("");
+    }
+
     if((buf = (char *)malloc(80)) == NULL){
         die("malloc failed");
     }
@@ -340,7 +350,7 @@ char *util_epoch_to_dt(time_t epoch){
     // convert epoch to utc
     tm = gmtime(&epoch);
 
-    if(strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm) == 0){
+    if(strftime(buf, 80, "%Y-%m-%d %H:%M:%S", tm) == 0){
         die("failed to convert epoch %lld to datetime", epoch);
     }
     return buf;

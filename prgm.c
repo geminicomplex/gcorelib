@@ -918,7 +918,7 @@ void prgm_open(struct prgm *prgm, const char *path, int64_t db_prgm_id, const ch
     }
 
     if((real_path = realpath(path, NULL)) == NULL){
-        die("invalid prgm path '%s'", path);
+        die("invalid prgm path '%s' because %s", path, strerror(errno));
     }
 
     prgm->path = strdup(real_path);
