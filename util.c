@@ -5,9 +5,6 @@
  *
  */
 
-// define because needed to get strptime
-#define __USE_XOPEN
-
 #include "common.h"
 #include "util.h"
 

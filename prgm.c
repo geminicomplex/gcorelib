@@ -29,6 +29,7 @@
 #include <ctype.h>
 #include <setjmp.h>
 
+#define BUFFER_SIZE (4096)
 
 /*
  * Creates a prgm stim object to be added to the hashtable.
@@ -69,7 +70,7 @@ enum load_types {
  */
 static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load_type, 
         uint64_t *a1_addr, uint64_t *a2_addr, enum stim_modes *mode){
-    char stim_path[2048];
+    char stim_path[BUFFER_SIZE];
     struct stim *stim = NULL;
     struct prgm *prgm = NULL;
     fe_Object *fe_stim_path = NULL;
@@ -80,7 +81,7 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
     uint32_t a2_load_addr = 0;
     struct prgm_stim *prgm_stim = NULL;
     struct prgm_stim *s;
-    char buffer[2048];
+    char buffer[BUFFER_SIZE];
     uint64_t num_loaded_bytes = 0;
     enum stim_modes stim_mode = STIM_MODE_NONE;
 
@@ -126,7 +127,7 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
 
     stim_mode = stim_get_mode(stim);
     if(stim_mode == STIM_MODE_NONE){
-        snprintf(buffer, 2048, "can't load empty stim: '%s'", stim_path);
+        snprintf(buffer, BUFFER_SIZE, "can't load empty stim: '%s'", stim_path);
         fe_error(_fe_ctx, buffer);
     }
 
@@ -145,7 +146,7 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
         if (s == NULL) {
             HASH_ADD_INT(prgm->_a1_loaded_stims, a1_addr, prgm_stim);
         }else{
-            snprintf(buffer, 2048, "stim already loaded at a1 address 0x%08X", a1_load_addr);
+            snprintf(buffer, BUFFER_SIZE, "stim already loaded at a1 address 0x%08X", a1_load_addr);
             fe_error(_fe_ctx, buffer);
         }
 
@@ -153,7 +154,7 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
         if (s == NULL) {
             HASH_ADD_INT(prgm->_a2_loaded_stims, a2_addr, prgm_stim);
         }else{
-            snprintf(buffer, 2048, "stim already loaded at a2 address 0x%08X", a2_load_addr);
+            snprintf(buffer, BUFFER_SIZE, "stim already loaded at a2 address 0x%08X", a2_load_addr);
             fe_error(_fe_ctx, buffer);
         }
 
@@ -170,7 +171,7 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
         if (s == NULL) {
             HASH_ADD_INT(prgm->_a1_loaded_stims, a1_addr, prgm_stim);
         }else{
-            snprintf(buffer, 2048, "stim already loaded at a1 address 0x%08X", a1_load_addr);
+            snprintf(buffer, BUFFER_SIZE, "stim already loaded at a1 address 0x%08X", a1_load_addr);
             fe_error(_fe_ctx, buffer);
         }
 
@@ -184,7 +185,7 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
         if (s == NULL) {
             HASH_ADD_INT(prgm->_a2_loaded_stims, a2_addr, prgm_stim);
         }else{
-            snprintf(buffer, 2048, "stim already loaded at a2 address 0x%08X", a2_load_addr);
+            snprintf(buffer, BUFFER_SIZE, "stim already loaded at a2 address 0x%08X", a2_load_addr);
             fe_error(_fe_ctx, buffer);
         }
 
@@ -216,7 +217,7 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
     bool did_test_fail = false;
     uint64_t test_cycle = 0;
     uint32_t num_tests_ran = 0;
-    char buffer[2048];
+    char buffer[BUFFER_SIZE];
     struct db_prgm *db_prgm = NULL;
     int64_t db_stim_id = -1;
     struct db_stim *db_stim = NULL;
@@ -250,7 +251,7 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
         }
 
         if(fe_isnil(_fe_ctx, fe_a1_addr) && fe_isnil(_fe_ctx, fe_a2_addr)){
-            snprintf(buffer, 2048, "failed to run stim because invalid address pair given");
+            snprintf(buffer, BUFFER_SIZE, "failed to run stim because invalid address pair given");
             fe_error(_fe_ctx, buffer);
         }
 
@@ -258,7 +259,7 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
             a1_addr = (uint32_t)fe_tonumber(_fe_ctx, fe_a1_addr);
             HASH_FIND_INT(prgm->_a1_loaded_stims, &a1_addr, a1_prgm_stim);
             if (a1_prgm_stim == NULL) {
-                snprintf(buffer, 2048, "no stim loaded at a1 address 0x%08" PRIX64 "", a1_addr);
+                snprintf(buffer, BUFFER_SIZE, "no stim loaded at a1 address 0x%08" PRIX64 "", a1_addr);
                 fe_error(_fe_ctx, buffer);
             }
         }
@@ -267,7 +268,7 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
             a2_addr = (uint32_t)fe_tonumber(_fe_ctx, fe_a2_addr);
             HASH_FIND_INT(prgm->_a2_loaded_stims, &a2_addr, a2_prgm_stim);
             if (a2_prgm_stim == NULL) {
-                snprintf(buffer, 2048, "no stim loaded at a2 address 0x%08" PRIX64 "", a2_addr);
+                snprintf(buffer, BUFFER_SIZE, "no stim loaded at a2 address 0x%08" PRIX64 "", a2_addr);
                 fe_error(_fe_ctx, buffer);
             }
         }
@@ -293,7 +294,7 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
         // TODO: support running two loaded solo patterns.
         if(a1_prgm_stim != NULL && a2_prgm_stim != NULL){
             if((a1_prgm_stim != a2_prgm_stim) || (a1_prgm_stim->stim != a2_prgm_stim->stim)){
-                snprintf(buffer, 2048, "Failed to run because addr pair (0x%016" PRIX64 ", 0x%016" PRIX64 ") must be a dual stim loaded in both units.", a1_addr, a2_addr);
+                snprintf(buffer, BUFFER_SIZE, "Failed to run because addr pair (0x%016" PRIX64 ", 0x%016" PRIX64 ") must be a dual stim loaded in both units.", a1_addr, a2_addr);
                 fe_error(_fe_ctx, buffer);
             }
 
@@ -351,7 +352,7 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
  *
  */
 static fe_Object* f_reads(fe_Context *_fe_ctx, fe_Object *arg){
-    char stim_path[2048];
+    char stim_path[BUFFER_SIZE];
     struct stim *stim = NULL;
     struct prgm *prgm = NULL;
     fe_Object *fe_prgm = NULL;
@@ -384,7 +385,7 @@ static fe_Object* f_reads(fe_Context *_fe_ctx, fe_Object *arg){
  */
 static fe_Object* f_writes(fe_Context *_fe_ctx, fe_Object *arg){
     struct stim *stim = NULL;
-    char stim_path[2048];
+    char stim_path[BUFFER_SIZE];
     fe_Object *fe_stim = NULL;
     fe_Object *fe_stim_path = NULL;
 
@@ -498,7 +499,7 @@ static fe_Object* f_unload(fe_Context *_fe_ctx, fe_Object *arg){
     uint32_t a2_addr = 0;
     struct prgm_stim *a1_prgm_stim = NULL;
     struct prgm_stim *a2_prgm_stim = NULL;
-    char buffer[2048];
+    char buffer[BUFFER_SIZE];
 
     fe_prgm = fe_eval(_fe_ctx, fe_symbol(_fe_ctx, "prgm"));
     if((prgm = (struct prgm*)fe_toptr(_fe_ctx, fe_prgm)) == NULL){
@@ -518,7 +519,7 @@ static fe_Object* f_unload(fe_Context *_fe_ctx, fe_Object *arg){
         a1_addr = (uint32_t)fe_tonumber(_fe_ctx, fe_a1_addr);
         HASH_FIND_INT(prgm->_a1_loaded_stims, &a1_addr, a1_prgm_stim);
         if (a1_prgm_stim == NULL) {
-            snprintf(buffer, 2048, "no stim loaded at a1 address 0x%08X", a1_addr);
+            snprintf(buffer, BUFFER_SIZE, "no stim loaded at a1 address 0x%08X", a1_addr);
             fe_error(_fe_ctx, buffer);
         }
         prgm->_num_a1_loaded_stims -= 1;
@@ -529,7 +530,7 @@ static fe_Object* f_unload(fe_Context *_fe_ctx, fe_Object *arg){
         a2_addr = (uint32_t)fe_tonumber(_fe_ctx, fe_a2_addr);
         HASH_FIND_INT(prgm->_a2_loaded_stims, &a2_addr, a2_prgm_stim);
         if (a2_prgm_stim == NULL) {
-            snprintf(buffer, 2048, "no stim loaded at a2 address 0x%08X", a2_addr);
+            snprintf(buffer, BUFFER_SIZE, "no stim loaded at a2 address 0x%08X", a2_addr);
             fe_error(_fe_ctx, buffer);
         }
         prgm->_num_a2_loaded_stims -= 1;
