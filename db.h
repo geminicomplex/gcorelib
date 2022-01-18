@@ -13,6 +13,8 @@ extern "C" {
 
 #include "sqlite3.h"
 
+#define PASS_SALT ("1DE4CFC74A5F9AC2CC834E029E5D95D1")
+
 enum db_job_states {
     JOB_NONE     = (1 << 0), 
     JOB_IDLE     = (1 << 1), 

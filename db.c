@@ -17,8 +17,9 @@
 #include <inttypes.h>
 
 #include "sqlite3.h"
-#include "common.h"
 #include "lib/uthash/utstring.h"
+#include "lib/sha2/sha-256.h"
+#include "common.h"
 #include "util.h"
 #include "sql.h"
 #include "db.h"
@@ -27,6 +28,25 @@
 #ifndef STRDUP
 #define STRDUP(s) ((s == NULL) ? strdup("") : strdup(s))
 #endif
+
+
+static const char *db_pass_hash(const char *password){
+    uint8_t hash_bytes[32];
+    char *hash_str = NULL;
+    if((hash_str = (char*)malloc(32)) == NULL){
+        die("malloc failed");
+    }
+    UT_string *str;
+    utstring_new(str);
+    utstring_printf(str, "%s", PASS_SALT);
+    utstring_printf(str, "%s", password);
+    calc_sha_256(hash_bytes, utstring_body(str), utstring_len(str));
+    utstring_free(str);
+    for(int i=0; i<32; i++){
+        sprintf(hash_str+i, "%02X", (unsigned char)(hash_bytes+i));
+    }
+    return (const char *)hash_str;
+}
 
 struct db *db_create(){
     struct db *db = NULL;
@@ -345,6 +365,56 @@ void db_free_mount(struct db_mount *mount){
     free((char *)mount->message);
     free(mount);
     return;
+}
+
+int64_t db_insert_user(struct db *db, 
+        const char *username, const char *password, const char *session, int32_t is_admin){
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    if(username == NULL){
+        username = strdup("");
+    }
+
+    if(password == NULL){
+        password = strdup("");
+    }
+
+    if(session == NULL){
+        session = strdup("");
+    }
+
+    const char *pass_hash = NULL;
+    if((pass_hash = db_pass_hash(password)) == NULL){
+        die("pointer is null");
+    }
+
+    const char *sql = "INSERT INTO users(date_created, username, password, session, is_admin) VALUES(datetime('now'), ?, ?, ?, ?)";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_text(res, 1, username, strlen(username), SQLITE_STATIC);
+        sqlite3_bind_text(res, 2, pass_hash, strlen(pass_hash), SQLITE_STATIC);
+        sqlite3_bind_text(res, 3, session, strlen(session), SQLITE_STATIC);
+        sqlite3_bind_int(res, 4, is_admin);
+    }else{
+        die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    int step = sqlite3_step(res);
+
+    if(step != SQLITE_DONE){
+        die("failed to exec sql '%s'", sql);
+    }
+
+    sqlite3_finalize(res);
+    free(pass_hash);
+    return sqlite3_last_insert_rowid(db->_db);
 }
 
 int64_t db_insert_board(struct db *db, 
