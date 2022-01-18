@@ -280,10 +280,10 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
         if(prgm->_db_prgm_id >= 0 && prgm->_db != NULL){
             if(a1_prgm_stim != NULL){
                 db_stim_id = db_insert_stim(prgm->_db, prgm->_db_prgm_id, 
-                        a1_prgm_stim->stim->path, 0, -1, STIM_IDLE);
+                        a1_prgm_stim->stim->path, 0, -1, STIM_PENDING);
             }else if(a2_prgm_stim != NULL){
                 db_stim_id = db_insert_stim(prgm->_db, prgm->_db_prgm_id, 
-                        a2_prgm_stim->stim->path, 0, -1, STIM_IDLE);
+                        a2_prgm_stim->stim->path, 0, -1, STIM_PENDING);
             }
         }
 
@@ -319,10 +319,8 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
             db_update_stim(prgm->_db, db_stim);
 
             db_prgm->last_stim_id = db_stim_id;
-            if(db_prgm->did_fail == 0){
-                db_prgm->did_fail = (int32_t)failed;
-                db_prgm->failing_vec = (int64_t)test_cycle;
-            }
+            db_prgm->did_fail = (int32_t)failed;
+            db_prgm->failing_vec = (int64_t)test_cycle;
             db_update_prgm(prgm->_db, db_prgm);
         }
 
