@@ -278,8 +278,13 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
         }
 
         if(prgm->_db_prgm_id >= 0 && prgm->_db != NULL){
-            db_stim_id = db_insert_stim(prgm->_db, prgm->_db_prgm_id, 
-                    a1_prgm_stim->stim->path, 0, -1, STIM_IDLE);
+            if(a1_prgm_stim != NULL){
+                db_stim_id = db_insert_stim(prgm->_db, prgm->_db_prgm_id, 
+                        a1_prgm_stim->stim->path, 0, -1, STIM_IDLE);
+            }else if(a2_prgm_stim != NULL){
+                db_stim_id = db_insert_stim(prgm->_db, prgm->_db_prgm_id, 
+                        a2_prgm_stim->stim->path, 0, -1, STIM_IDLE);
+            }
         }
 
         // Either stim loaded into a1, a2 or both. If both then it's a dual pattern and

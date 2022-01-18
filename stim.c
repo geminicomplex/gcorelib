@@ -1115,6 +1115,8 @@ struct stim *get_stim_by_path(struct profile *profile, const char *path){
     }else if(stim_type == STIM_TYPE_DOTS){
         dots = parse_dots(profile, (char *)path);
         stim = get_stim_by_dots(profile, dots);
+
+        stim->path = strdup(path);
     }
 
     if(stim == NULL){
