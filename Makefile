@@ -5,7 +5,7 @@
 # and mac on a linux system.
 #
 
-INCLUDES :=-I. -I./board -I./lib/jsmn -I./lib/avl -I./lib/slog -I./lib/fe -I./lib/lz4 -I./lib/capnp -I./lib/uthash -I./lib/sqlite
+INCLUDES :=-I. -I./board -I./lib/jsmn -I./lib/avl -I./lib/slog -I./lib/fe -I./lib/lz4 -I./lib/capnp -I./lib/uthash -I./lib/sqlite -I./lib/sha2
 CFLAGS :=-O2 -fPIC -Wall -funwind-tables -g -ggdb -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=700
 LDFLAGS := -fPIC -lm -ldl 
 PLAT :=
@@ -48,14 +48,14 @@ SRCS := common.c dots.c util.c board/gpio.c board/artix.c board/i2c.c \
 	   serialize/stim_serdes.capnp.c config.c lib/capnp/capn.c lib/capnp/capn-malloc.c \
 	   lib/capnp/capn-stream.c lib/lz4/lz4hc.c lib/lz4/lz4frame.c lib/lz4/xxhash.c \
 	   lib/lz4/lz4.c lib/jsmn/jsmn.c lib/avl/avl.c lib/slog/slog.c lib/fe/fe.c \
-	   lib/sqlite/sqlite3.c db.c profile.c stim.c prgm.c
+	   lib/sha2/sha-256.c lib/sqlite/sqlite3.c db.c profile.c stim.c prgm.c
 
 HEADERS := profile.h stim.h config.h board/dma.h board/helper.h board/subcore.h board/dev.h \
 		board/gpio.h board/artix.h board/i2c.h serialize/stim_serdes.capnp.h dots.h common.h \
 		subvec.h util.h lib/capnp/capnp_priv.h lib/capnp/capnp_c.h lib/lz4/xxhash.h lib/lz4/lz4.h \
 		lib/lz4/lz4frame_static.h lib/lz4/lz4hc.h lib/lz4/lz4frame.h lib/jsmn/jsmn.h \
 		lib/avl/avl.h lib/slog/slog.h lib/fe/fe.h lib/sqlite/sqlite3.h lib/sqlite/sqlite3ext.h \
-		sql.h db.h prgm.h libgcore.h
+		lib/sha2/sha-256.h sql.h db.h prgm.h libgcore.h
 
 #
 # Don't run anything if all is given
