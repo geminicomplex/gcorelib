@@ -230,6 +230,9 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
         if((db_prgm = db_get_prgm_by_id(prgm->_db, prgm->_db_prgm_id)) == NULL){
             die("failed to get db_prgm by id %lli", prgm->_db_prgm_id);
         }
+
+        db_prgm->did_fail = 0;
+        db_prgm->failing_vec = -1;
     }
 
     while(!fe_isnil(_fe_ctx, arg)){
@@ -316,7 +319,6 @@ static fe_Object * _run_stim(fe_Context *_fe_ctx, fe_Object *arg, bool run_conti
                 db_prgm->failing_vec = (int64_t)test_cycle;
             }
             db_update_prgm(prgm->_db, db_prgm);
-
         }
 
         num_tests_ran += 1;
@@ -783,6 +785,35 @@ static fe_Object* f_get_fail_pins(fe_Context *_fe_ctx, fe_Object *arg){
 }
 
 /*
+ * (exit <code:num>) -> nil
+ *
+ * Exits with return code.
+ *
+ */
+static fe_Object* f_exit(fe_Context *_fe_ctx, fe_Object *arg){
+    fe_Object *fe_ret = NULL;
+    uint32_t ret = 0;
+    struct prgm *prgm = NULL;
+    fe_Object *fe_prgm = NULL;
+
+    fe_prgm = fe_eval(_fe_ctx, fe_symbol(_fe_ctx, "prgm"));
+    if((prgm = (struct prgm*)fe_toptr(_fe_ctx, fe_prgm)) == NULL){
+        fe_error(_fe_ctx, "failed to get global prgm object");
+    }
+
+    fe_ret = fe_nextarg(_fe_ctx, &arg);
+    if(fe_isnil(_fe_ctx, fe_ret)){
+        fe_error(_fe_ctx, "must give an exit code number");
+    }
+    ret = (uint32_t)fe_tonumber(_fe_ctx, fe_ret);
+
+    prgm_close(prgm);
+
+    exit(ret);
+    return fe_bool(_fe_ctx, false);
+}
+
+/*
  * Adds the gemini cfuncs to fe global funcion list.
  *
  */
@@ -803,6 +834,7 @@ void _add_fe_gemini_funcs(fe_Context *_fe_ctx){
     fe_set(_fe_ctx, fe_symbol(_fe_ctx, "set-profile"), fe_cfunc(_fe_ctx, f_set_profile)); 
     fe_set(_fe_ctx, fe_symbol(_fe_ctx, "get-pin-names"), fe_cfunc(_fe_ctx, f_get_pin_names)); 
     fe_set(_fe_ctx, fe_symbol(_fe_ctx, "get-fail-pins"), fe_cfunc(_fe_ctx, f_get_fail_pins)); 
+    fe_set(_fe_ctx, fe_symbol(_fe_ctx, "exit"), fe_cfunc(_fe_ctx, f_exit)); 
 }
 
 

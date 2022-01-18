@@ -1206,15 +1206,17 @@ bool artix_run_stim(struct stim *stim, uint64_t *test_cycle,
         }
     }
 
+    sleep(2);
+
+    master_test_cycle = helper_get_agent_gvpu_status(artix_select,
+            GVPU_STATUS_SELECT_DUT_TEST,
+            GVPU_STATUS_CMD_GET_CYCLE);
+
     // grab number of test cycles and if it failed
     helper_get_agent_status(artix_select, &master_packet);
     if((master_packet.data & 0x00010000) == 0x00010000){
         master_test_failed = true;
     }
-
-    master_test_cycle = helper_get_agent_gvpu_status(artix_select,
-            GVPU_STATUS_SELECT_DUT_TEST,
-            GVPU_STATUS_CMD_GET_CYCLE);
 
     if(dual_mode){
         helper_get_agent_status(ARTIX_SELECT_A2, &slave_packet);
