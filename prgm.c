@@ -81,7 +81,8 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
     uint32_t a2_load_addr = 0;
     struct prgm_stim *prgm_stim = NULL;
     struct prgm_stim *s;
-    char buffer[BUFFER_SIZE];
+    // double buffer so it can fit max len of stim_path below
+    char buffer[BUFFER_SIZE*2];
     uint64_t num_loaded_bytes = 0;
     enum stim_modes stim_mode = STIM_MODE_NONE;
 
@@ -127,7 +128,8 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
 
     stim_mode = stim_get_mode(stim);
     if(stim_mode == STIM_MODE_NONE){
-        snprintf(buffer, BUFFER_SIZE, "can't load empty stim: '%s'", stim_path);
+        // double buffer so it can fit max len of stim_path
+        snprintf(buffer, BUFFER_SIZE*2, "can't load empty stim: '%s'", stim_path);
         fe_error(_fe_ctx, buffer);
     }
 
