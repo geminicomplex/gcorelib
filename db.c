@@ -367,6 +367,36 @@ void db_free_mount(struct db_mount *mount){
     return;
 }
 
+struct db_user* db_get_user_by_id(struct db *db, int64_t user_id){
+    struct db_user *user = NULL;
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+    int step = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    const char *sql = "SELECT * FROM users WHERE id=? LIMIT 1";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, user_id);
+    } else {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    step = sqlite3_step(res);
+
+    if (step == SQLITE_ROW) {
+        user = db_make_user(res);
+    }
+
+    sqlite3_finalize(res);
+    return user;
+}
+
 int64_t db_insert_user(struct db *db, 
         const char *username, const char *password, const char *session, int32_t is_admin){
     sqlite3_stmt *res = NULL;
@@ -415,6 +445,68 @@ int64_t db_insert_user(struct db *db,
     sqlite3_finalize(res);
     free(pass_hash);
     return sqlite3_last_insert_rowid(db->_db);
+}
+
+struct db_board* db_get_board_by_id(struct db *db, int64_t board_id){
+    struct db_board *board = NULL;
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+    int step = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    const char *sql = "SELECT * FROM boards WHERE id=? LIMIT 1";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, board_id);
+    } else {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    step = sqlite3_step(res);
+
+    if (step == SQLITE_ROW) {
+        board = db_make_board(res);
+    }
+
+    sqlite3_finalize(res);
+    return board;
+}
+
+struct db_board* db_get_board_by_dna(struct db *db, const char *dna){
+    struct db_board *board = NULL;
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+    if(dna == NULL){
+        die("pointer is null");
+    }
+
+    const char *sql = "SELECT * FROM boards WHERE dna = ?";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_text(res, 1, dna, strlen(dna), SQLITE_STATIC);
+    } else {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    int step = sqlite3_step(res);
+
+    if (step == SQLITE_ROW) {
+        board = db_make_board(res);
+    }
+
+    sqlite3_finalize(res);
+    return board;
 }
 
 int64_t db_insert_board(struct db *db, 
@@ -499,8 +591,8 @@ int64_t db_update_board(struct db *db, struct db_board *board){
     return board->id;
 }
 
-struct db_board* db_get_board_by_id(struct db *db, int64_t board_id){
-    struct db_board *board = NULL;
+struct db_dut_board* db_get_dut_board_by_id(struct db *db, int64_t dut_board_id){
+    struct db_dut_board *dut_board = NULL;
     sqlite3_stmt *res = NULL;
     int rc = 0;
     int step = 0;
@@ -509,12 +601,12 @@ struct db_board* db_get_board_by_id(struct db *db, int64_t board_id){
         die("pointer is null");
     }
 
-    const char *sql = "SELECT * FROM boards WHERE id=? LIMIT 1";
+    const char *sql = "SELECT * FROM dut_boards WHERE id=? LIMIT 1";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
     if(rc == SQLITE_OK){
-        sqlite3_bind_int64(res, 1, board_id);
+        sqlite3_bind_int64(res, 1, dut_board_id);
     } else {
         fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -522,43 +614,54 @@ struct db_board* db_get_board_by_id(struct db *db, int64_t board_id){
     step = sqlite3_step(res);
 
     if (step == SQLITE_ROW) {
-        board = db_make_board(res);
+        dut_board = db_make_dut_board(res);
     }
 
     sqlite3_finalize(res);
-    return board;
+    return dut_board;
 }
 
-struct db_board* db_get_board_by_dna(struct db *db, const char *dna){
-    struct db_board *board = NULL;
+int64_t db_insert_dut_board(struct db *db, 
+        const char *dna, const char *name, const char *profile_path){
     sqlite3_stmt *res = NULL;
     int rc = 0;
 
     if(db == NULL){
         die("pointer is null");
     }
+
     if(dna == NULL){
-        die("pointer is null");
+        dna = strdup("");
     }
 
-    const char *sql = "SELECT * FROM boards WHERE dna = ?";
+    if(name == NULL){
+        name = strdup("");
+    }
+
+    if(profile_path == NULL){
+        profile_path = strdup("");
+    }
+
+    const char *sql = "INSERT INTO dut_boards(dna, name, profile_path, cur_dut_dut_board_id, is_master) VALUES(?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
     if(rc == SQLITE_OK){
         sqlite3_bind_text(res, 1, dna, strlen(dna), SQLITE_STATIC);
-    } else {
-        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+        sqlite3_bind_text(res, 2, name, strlen(name), SQLITE_STATIC);
+        sqlite3_bind_text(res, 3, profile_path, strlen(profile_path), SQLITE_STATIC);
+    }else{
+        die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
 
     int step = sqlite3_step(res);
 
-    if (step == SQLITE_ROW) {
-        board = db_make_board(res);
+    if(step != SQLITE_DONE){
+        die("failed to exec sql '%s'", sql);
     }
 
     sqlite3_finalize(res);
-    return board;
+    return sqlite3_last_insert_rowid(db->_db);
 }
 
 struct db_job* db_get_job_by_id(struct db *db, int64_t job_id){
@@ -1127,6 +1230,36 @@ struct db_prgm** db_get_prgms(struct db *db,
     return prgms;
 }
 
+struct db_prgm_log* db_get_prgm_log_by_id(struct db *db, int64_t prgm_log_id){
+    struct db_prgm_log *prgm_log = NULL;
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+    int step = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    const char *sql = "SELECT * FROM prgm_logs WHERE id=? LIMIT 1";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, prgm_log_id);
+    } else {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    step = sqlite3_step(res);
+
+    if (step == SQLITE_ROW) {
+        prgm_log = db_make_prgm_log(res);
+    }
+
+    sqlite3_finalize(res);
+    return prgm_log;
+}
+
 int64_t db_insert_prgm_log(struct db *db, 
         int64_t prgm_id, const char *line){
     sqlite3_stmt *res = NULL;
@@ -1267,5 +1400,82 @@ int64_t db_update_stim(struct db *db, struct db_stim *stim){
     return stim->id;
 }
 
+struct db_mount* db_get_mount_by_id(struct db *db, int64_t mount_id){
+    struct db_mount *mount = NULL;
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+    int step = 0;
 
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    const char *sql = "SELECT * FROM mounts WHERE id=? LIMIT 1";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, mount_id);
+    } else {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    step = sqlite3_step(res);
+
+    if (step == SQLITE_ROW) {
+        mount = db_make_mount(res);
+    }
+
+    sqlite3_finalize(res);
+    return mount;
+}
+
+int64_t db_insert_mount(struct db *db, 
+        const char *name, const char *ip_addr, const char *path, const char *point, const char *message){
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    if(name == NULL){
+        name = strdup("");
+    }
+
+    if(path == NULL){
+        path = strdup("");
+    }
+
+    if(point == NULL){
+        point = strdup("");
+    }
+
+    if(message == NULL){
+        message = strdup("");
+    }
+
+    const char *sql = "INSERT INTO mounts(dna, name, path, point, message) VALUES(?, ?, ?, ?, ?)";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_text(res, 1, name, strlen(name), SQLITE_STATIC);
+        sqlite3_bind_text(res, 2, ip_addr, strlen(ip_addr), SQLITE_STATIC);
+        sqlite3_bind_text(res, 3, path, strlen(path), SQLITE_STATIC);
+        sqlite3_bind_text(res, 4, point, strlen(point), SQLITE_STATIC);
+        sqlite3_bind_text(res, 5, message, strlen(message), SQLITE_STATIC);
+    }else{
+        die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    int step = sqlite3_step(res);
+
+    if(step != SQLITE_DONE){
+        die("failed to exec sql '%s'", sql);
+    }
+
+    sqlite3_finalize(res);
+    return sqlite3_last_insert_rowid(db->_db);
+}
 

@@ -166,11 +166,17 @@ void db_free_mount(struct db_mount *mount);
 /*
  * use these to insert, update or get rows from db
  */
+struct db_user* db_get_user_by_id(struct db *db, int64_t user_id);
+int64_t db_insert_user(struct db *db, 
+        const char *username, const char *password, const char *session, int32_t is_admin);
+struct db_board* db_get_board_by_id(struct db *db, int64_t board_id);
+struct db_board* db_get_board_by_dna(struct db *db, const char *dna);
 int64_t db_insert_board(struct db *db, 
         const char *dna, const char *name, const char *ip_addr, int32_t cur_dut_board_id, int32_t is_master);
 int64_t db_update_board(struct db *db, struct db_board *board);
-struct db_board* db_get_board_by_id(struct db *db, int64_t board_id);
-struct db_board* db_get_board_by_dna(struct db *db, const char *dna);
+struct db_dut_board* db_get_dut_board_by_id(struct db *db, int64_t dut_board_id);
+int64_t db_insert_dut_board(struct db *db, 
+        const char *dna, const char *name, const char *profile_path);
 struct db_job* db_get_job_by_id(struct db *db, int64_t job_id);
 int64_t db_insert_job(struct db *db, 
         int64_t board_id, int64_t dut_board_id, int64_t user_id, enum db_job_states state);
@@ -195,6 +201,7 @@ struct db_prgm** db_get_prgms(struct db *db,
         int64_t job_id, const char *path, const char *body,
         int32_t return_code, const char *error_msg, int32_t last_stim_id,
         int32_t did_fail, int32_t failing_vec, int32_t states);
+struct db_prgm_log* db_get_prgm_log_by_id(struct db *db, int64_t prgm_log_id);
 int64_t db_insert_prgm_log(struct db *db, 
         int64_t prgm_id, const char *line);
 struct db_stim* db_get_stim_by_id(struct db *db, int64_t stim_id);
@@ -202,6 +209,9 @@ int64_t db_insert_stim(struct db *db,
         int64_t prgm_id, const char *path, int32_t did_fail, 
         int64_t failing_vec, enum db_stim_states state);
 int64_t db_update_stim(struct db *db, struct db_stim *stim);
+struct db_mount* db_get_mount_by_id(struct db *db, int64_t mount_id);
+int64_t db_insert_mount(struct db *db, 
+        const char *name, const char *ip_addr, const char *path, const char *point, const char *message);
 
 #ifdef __cplusplus
 }
