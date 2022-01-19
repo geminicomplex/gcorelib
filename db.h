@@ -209,6 +209,9 @@ int64_t db_insert_stim(struct db *db,
         int64_t prgm_id, const char *path, int32_t did_fail, 
         int64_t failing_vec, enum db_stim_states state);
 int64_t db_update_stim(struct db *db, struct db_stim *stim);
+struct db_fail_pin* db_get_fail_pin_by_id(struct db *db, int64_t fail_pin_id);
+int64_t db_insert_fail_pin(struct db *db, 
+    int64_t stim_id, int64_t dut_io_id, int32_t did_fail);
 struct db_mount* db_get_mount_by_id(struct db *db, int64_t mount_id);
 int64_t db_insert_mount(struct db *db, 
         const char *name, const char *ip_addr, const char *path, const char *point, const char *message);

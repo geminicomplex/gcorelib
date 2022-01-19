@@ -1400,6 +1400,68 @@ int64_t db_update_stim(struct db *db, struct db_stim *stim){
     return stim->id;
 }
 
+struct db_fail_pin* db_get_fail_pin_by_id(struct db *db, int64_t fail_pin_id){
+    struct db_fail_pin *fail_pin = NULL;
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+    int step = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    const char *sql = "SELECT * FROM fail_pins WHERE id=? LIMIT 1";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, fail_pin_id);
+    } else {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    step = sqlite3_step(res);
+
+    if (step == SQLITE_ROW) {
+        fail_pin = db_make_fail_pin(res);
+    }
+
+    sqlite3_finalize(res);
+    return fail_pin;
+}
+
+int64_t db_insert_fail_pin(struct db *db, 
+    int64_t stim_id, int64_t dut_io_id, int32_t did_fail){
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    const char *sql = "INSERT INTO fail_pins(stim_id, dut_io_id, did_fail) VALUES(?, ?, ?)";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_int64(res, 1, stim_id);
+        sqlite3_bind_int64(res, 2, dut_io_id);
+        sqlite3_bind_int64(res, 3, did_fail);
+    }else{
+        die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    int step = sqlite3_step(res);
+
+    if(step != SQLITE_DONE){
+        die("failed to exec sql '%s'", sql);
+    }
+
+    sqlite3_finalize(res);
+    return sqlite3_last_insert_rowid(db->_db);
+}
+
+
 struct db_mount* db_get_mount_by_id(struct db *db, int64_t mount_id){
     struct db_mount *mount = NULL;
     sqlite3_stmt *res = NULL;
