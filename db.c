@@ -43,7 +43,7 @@ static const char *db_pass_hash(const char *password){
     calc_sha_256(hash_bytes, utstring_body(str), utstring_len(str));
     utstring_free(str);
     for(int i=0; i<32; i++){
-        sprintf(hash_str+i, "%02X", (unsigned char)(hash_bytes+i));
+        sprintf(hash_str+i, "%02hhX", *(hash_bytes+i));
     }
     return (const char *)hash_str;
 }
@@ -413,7 +413,7 @@ int64_t db_insert_user(struct db *db,
     }
 
     sqlite3_finalize(res);
-    free(pass_hash);
+    free((char *)pass_hash);
     return sqlite3_last_insert_rowid(db->_db);
 }
 
