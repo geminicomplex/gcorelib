@@ -32,6 +32,7 @@ extern "C" {
 #include "subvec.h"
 #include "stim.h"
 #include "prgm.h"
+#include "db.h"
 
 #include "board/helper.h"
 #include "board/dma.h"
