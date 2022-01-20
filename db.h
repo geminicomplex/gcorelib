@@ -186,7 +186,7 @@ void db_free_mount(struct db_mount *mount);
  */
 struct db_user* db_get_user_by_id(struct db *db, int64_t user_id);
 int64_t db_insert_user(struct db *db, 
-        const char *username, const char *password, const char *session, int32_t is_admin);
+        const char *username, const char *password, const char *email, const char *session, int32_t is_admin);
 struct db_board* db_get_board_by_id(struct db *db, int64_t board_id);
 struct db_board* db_get_board_by_dna(struct db *db, const char *dna);
 int64_t db_insert_board(struct db *db, 
