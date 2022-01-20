@@ -33,7 +33,7 @@
 static const char *db_pass_hash(const char *password){
     uint8_t hash_bytes[32];
     char *hash_str = NULL;
-    if((hash_str = (char*)malloc(32)) == NULL){
+    if((hash_str = (char*)malloc(64)) == NULL){
         die("malloc failed");
     }
     UT_string *str;
@@ -42,7 +42,8 @@ static const char *db_pass_hash(const char *password){
     utstring_printf(str, "%s", password);
     calc_sha_256(hash_bytes, utstring_body(str), utstring_len(str));
     utstring_free(str);
-    for(int i=0; i<32; i++){
+    // each byte is two chars
+    for(int i=0; i<32; i+=2){
         sprintf(hash_str+i, "%02hhX", *(hash_bytes+i));
     }
     return (const char *)hash_str;
@@ -134,8 +135,9 @@ static struct db_user* db_make_user(sqlite3_stmt *res){
         die("malloc failed");
     }
     user->id = sqlite3_column_int64(res, 0);
-    user->username = STRDUP((const char *)sqlite3_column_text(res, 3));
-    user->password = STRDUP((const char *)sqlite3_column_text(res, 4));
+    user->username = STRDUP((const char *)sqlite3_column_text(res, 2));
+    user->password = STRDUP((const char *)sqlite3_column_text(res, 3));
+    user->email = STRDUP((const char *)sqlite3_column_text(res, 4));
     user->session = STRDUP((const char *)sqlite3_column_text(res, 5));
     user->is_admin = sqlite3_column_int(res, 6);
     return user;
@@ -185,7 +187,7 @@ static struct db_job* db_make_job(sqlite3_stmt *res){
     job->board_id = sqlite3_column_int64(res, 1);
     job->dut_board_id = sqlite3_column_int64(res, 2);
     job->user_id = sqlite3_column_int64(res, 3);
-    job->state = (enum db_job_states)sqlite3_column_int64(res, 6);
+    job->state = (enum db_job_states)sqlite3_column_int64(res, 5);
     return job;
 }
 
@@ -199,16 +201,16 @@ static struct db_prgm* db_make_prgm(sqlite3_stmt *res){
     }
     prgm->id = sqlite3_column_int64(res, 0);
     prgm->job_id = sqlite3_column_int64(res, 1);
-    prgm->date_start = util_dt_to_epoch(STRDUP((const char *)sqlite3_column_text(res, 4)));
-    prgm->date_end = util_dt_to_epoch(STRDUP((const char *)sqlite3_column_text(res, 5)));
-    prgm->path = STRDUP((const char *)sqlite3_column_text(res, 6));
-    prgm->body = STRDUP((const char *)sqlite3_column_text(res, 7));
-    prgm->return_code = sqlite3_column_int(res, 8);
-    prgm->error_msg = STRDUP((const char *)sqlite3_column_text(res, 9));
-    prgm->last_stim_id = sqlite3_column_int(res, 10);
-    prgm->did_fail = sqlite3_column_int(res, 11);
-    prgm->failing_vec = sqlite3_column_int(res, 12);
-    prgm->state = (enum db_prgm_states)sqlite3_column_int(res, 13);
+    prgm->date_start = util_dt_to_epoch(STRDUP((const char *)sqlite3_column_text(res, 3)));
+    prgm->date_end = util_dt_to_epoch(STRDUP((const char *)sqlite3_column_text(res, 4)));
+    prgm->path = STRDUP((const char *)sqlite3_column_text(res, 5));
+    prgm->body = STRDUP((const char *)sqlite3_column_text(res, 6));
+    prgm->return_code = sqlite3_column_int(res, 7);
+    prgm->error_msg = STRDUP((const char *)sqlite3_column_text(res, 8));
+    prgm->last_stim_id = sqlite3_column_int(res, 9);
+    prgm->did_fail = sqlite3_column_int(res, 10);
+    prgm->failing_vec = sqlite3_column_int(res, 11);
+    prgm->state = (enum db_prgm_states)sqlite3_column_int(res, 12);
     return prgm;
 }
 
@@ -237,10 +239,10 @@ static struct db_stim* db_make_stim(sqlite3_stmt *res){
     }
     stim->id = sqlite3_column_int64(res, 0);
     stim->prgm_id = sqlite3_column_int64(res, 1);
-    stim->path = STRDUP((const char *)sqlite3_column_text(res, 4));
-    stim->did_fail = sqlite3_column_int(res, 5);
-    stim->failing_vec = sqlite3_column_int64(res, 6);
-    stim->state = (enum db_stim_states)sqlite3_column_int(res, 7);
+    stim->path = STRDUP((const char *)sqlite3_column_text(res, 3));
+    stim->did_fail = sqlite3_column_int(res, 4);
+    stim->failing_vec = sqlite3_column_int64(res, 5);
+    stim->state = (enum db_stim_states)sqlite3_column_int(res, 6);
     return stim;
 }
 
@@ -268,11 +270,12 @@ static struct db_mount* db_make_mount(sqlite3_stmt *res){
         die("malloc failed");
     }
     mount->id = sqlite3_column_int64(res, 0);
-    mount->name = STRDUP((const char *)sqlite3_column_text(res, 3));
-    mount->ip_addr = STRDUP((const char *)sqlite3_column_text(res, 4));
-    mount->path = STRDUP((const char *)sqlite3_column_text(res, 5));
-    mount->point = STRDUP((const char *)sqlite3_column_text(res, 6));
-    mount->message = STRDUP((const char *)sqlite3_column_text(res, 7));
+    mount->name = STRDUP((const char *)sqlite3_column_text(res, 2));
+    mount->ip_addr = STRDUP((const char *)sqlite3_column_text(res, 3));
+    mount->remote_path = STRDUP((const char *)sqlite3_column_text(res, 4));
+    mount->local_point = STRDUP((const char *)sqlite3_column_text(res, 5));
+    mount->message = STRDUP((const char *)sqlite3_column_text(res, 6));
+    mount->state = (enum db_mount_states)sqlite3_column_int64(res, 7);
     return mount;
 }
 
@@ -282,6 +285,7 @@ void db_free_user(struct db_user *user){
     }
     free((char *)user->username);
     free((char *)user->password);
+    free((char *)user->email);
     free((char *)user->session);
     free(user);
     return;
@@ -360,8 +364,8 @@ void db_free_mount(struct db_mount *mount){
     }
     free((char *)mount->name);
     free((char *)mount->ip_addr);
-    free((char *)mount->path);
-    free((char *)mount->point);
+    free((char *)mount->remote_path);
+    free((char *)mount->local_point);
     free((char *)mount->message);
     free(mount);
     return;
@@ -398,7 +402,7 @@ struct db_user* db_get_user_by_id(struct db *db, int64_t user_id){
 }
 
 int64_t db_insert_user(struct db *db, 
-        const char *username, const char *password, const char *session, int32_t is_admin){
+        const char *username, const char *password, const char *email, const char *session, int32_t is_admin){
     sqlite3_stmt *res = NULL;
     int rc = 0;
 
@@ -414,6 +418,10 @@ int64_t db_insert_user(struct db *db,
         password = strdup("");
     }
 
+    if(email == NULL){
+        email = strdup("");
+    }
+
     if(session == NULL){
         session = strdup("");
     }
@@ -423,15 +431,16 @@ int64_t db_insert_user(struct db *db,
         die("pointer is null");
     }
 
-    const char *sql = "INSERT INTO users(date_created, username, password, session, is_admin) VALUES(datetime('now'), ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO users(date_created, username, password, email, session, is_admin) VALUES(datetime('now'), ?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
     if(rc == SQLITE_OK){
         sqlite3_bind_text(res, 1, username, strlen(username), SQLITE_STATIC);
         sqlite3_bind_text(res, 2, pass_hash, strlen(pass_hash), SQLITE_STATIC);
-        sqlite3_bind_text(res, 3, session, strlen(session), SQLITE_STATIC);
-        sqlite3_bind_int(res, 4, is_admin);
+        sqlite3_bind_text(res, 3, email, strlen(email), SQLITE_STATIC);
+        sqlite3_bind_text(res, 4, session, strlen(session), SQLITE_STATIC);
+        sqlite3_bind_int(res, 5, is_admin);
     }else{
         die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -703,8 +712,8 @@ int64_t db_insert_job(struct db *db,
         die("pointer is null");
     }
 
-    const char *sql = "INSERT INTO jobs(board_id, dut_board_id, user_id, date_created, date_updated, state) "
-                      "VALUES(?, ?, ?, datetime('now'), datetime('now'), ?)";
+    const char *sql = "INSERT INTO jobs(board_id, dut_board_id, user_id, date_created, state) "
+                      "VALUES(?, ?, ?, datetime('now'), ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -962,8 +971,8 @@ int64_t db_insert_prgm(struct db *db,
         error_msg = strdup("");
     }
 
-    const char *sql = "INSERT INTO prgms(job_id, date_created, date_updated, date_start, date_end, path, body, return_code, error_msg, last_stim_id, did_fail, failing_vec, state)"
-                      "VALUES(?, datetime('now'), datetime('now'), '', '', ?, ?, ?, ?, ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO prgms(job_id, date_created, date_start, date_end, path, body, return_code, error_msg, last_stim_id, did_fail, failing_vec, state)"
+                      "VALUES(?, datetime('now'), '', '', ?, ?, ?, ?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -1493,7 +1502,8 @@ struct db_mount* db_get_mount_by_id(struct db *db, int64_t mount_id){
 }
 
 int64_t db_insert_mount(struct db *db, 
-        const char *name, const char *ip_addr, const char *path, const char *point, const char *message){
+        const char *name, const char *ip_addr, const char *remote_path, 
+        const char *local_point, const char *message, enum db_mount_states state){
     sqlite3_stmt *res = NULL;
     int rc = 0;
 
@@ -1505,28 +1515,29 @@ int64_t db_insert_mount(struct db *db,
         name = strdup("");
     }
 
-    if(path == NULL){
-        path = strdup("");
+    if(remote_path == NULL){
+        remote_path = strdup("");
     }
 
-    if(point == NULL){
-        point = strdup("");
+    if(local_point == NULL){
+        local_point = strdup("");
     }
 
     if(message == NULL){
         message = strdup("");
     }
 
-    const char *sql = "INSERT INTO mounts(dna, name, path, point, message) VALUES(?, ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO mounts(dna, name, remote_path, local_point, message, state) VALUES(?, ?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
     if(rc == SQLITE_OK){
         sqlite3_bind_text(res, 1, name, strlen(name), SQLITE_STATIC);
         sqlite3_bind_text(res, 2, ip_addr, strlen(ip_addr), SQLITE_STATIC);
-        sqlite3_bind_text(res, 3, path, strlen(path), SQLITE_STATIC);
-        sqlite3_bind_text(res, 4, point, strlen(point), SQLITE_STATIC);
+        sqlite3_bind_text(res, 3, remote_path, strlen(remote_path), SQLITE_STATIC);
+        sqlite3_bind_text(res, 4, local_point, strlen(local_point), SQLITE_STATIC);
         sqlite3_bind_text(res, 5, message, strlen(message), SQLITE_STATIC);
+        sqlite3_bind_int64(res, 6, (int32_t)state);
     }else{
         die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -1539,5 +1550,43 @@ int64_t db_insert_mount(struct db *db,
 
     sqlite3_finalize(res);
     return sqlite3_last_insert_rowid(db->_db);
+}
+
+int64_t db_update_mount(struct db *db, struct db_mount *mount){
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+    if(mount == NULL){
+        die("pointer is null");
+    }
+
+    const char *sql = "UPDATE mounts SET name=?, ip_addr=?, remote_path=?, local_path=?, message=?, state=? WHERE id=?";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_text(res, 1, mount->name, strlen(mount->name), SQLITE_STATIC);
+        sqlite3_bind_text(res, 2, mount->ip_addr, strlen(mount->ip_addr), SQLITE_STATIC);
+        sqlite3_bind_text(res, 3, mount->remote_path, strlen(mount->remote_path), SQLITE_STATIC);
+        sqlite3_bind_text(res, 4, mount->local_point, strlen(mount->local_point), SQLITE_STATIC);
+        sqlite3_bind_text(res, 5, mount->message, strlen(mount->message), SQLITE_STATIC);
+        sqlite3_bind_int(res, 6, (int32_t)mount->state);
+        sqlite3_bind_int64(res, 7, mount->id);
+    } else {
+        die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    int step = sqlite3_step(res);
+
+    if (step != SQLITE_DONE) {
+        die("failed to exec sql '%s'", sql);
+    }
+
+    sqlite3_finalize(res);
+
+    return mount->id;
 }
 

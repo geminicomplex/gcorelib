@@ -15,6 +15,13 @@ extern "C" {
 
 #define PASS_SALT ("1DE4CFC74A5F9AC2CC834E029E5D95D1")
 
+enum db_user_states {
+    USER_NONE        = (1 << 0), 
+    USER_ACTIVE      = (1 << 1), 
+    USER_UNSUPPORTED = (1 << 1), 
+    USER_BANNED      = (1 << 2), 
+};
+
 enum db_job_states {
     JOB_NONE     = (1 << 0), 
     JOB_IDLE     = (1 << 1), 
@@ -45,10 +52,20 @@ enum db_stim_states {
     STIM_DONE     = (1 << 6)
 };
 
+enum db_mount_states {
+    MOUNT_NONE        = (1 << 0), 
+    MOUNT_IDLE        = (1 << 1), 
+    MOUNT_MOUNTING    = (1 << 2), 
+    MOUNT_MOUNTED     = (1 << 3), 
+    MOUNT_UNMOUNTING  = (1 << 4), 
+    MOUNT_FAILED      = (1 << 5), 
+};
+
 struct db_user {
     int64_t id;
     const char *username;
     const char *password;
+    const char *email;
     const char *session;
     int32_t is_admin;
 };
@@ -119,9 +136,10 @@ struct db_mount {
     int64_t id;
     const char *name;
     const char *ip_addr;
-    const char *path;
-    const char *point;
+    const char *remote_path;
+    const char *local_point;
     const char *message;
+    enum db_mount_states state;
 };
 
 struct db {
@@ -214,7 +232,9 @@ int64_t db_insert_fail_pin(struct db *db,
     int64_t stim_id, int64_t dut_io_id, int32_t did_fail);
 struct db_mount* db_get_mount_by_id(struct db *db, int64_t mount_id);
 int64_t db_insert_mount(struct db *db, 
-        const char *name, const char *ip_addr, const char *path, const char *point, const char *message);
+        const char *name, const char *ip_addr, const char *path, 
+        const char *point, const char *message, enum db_mount_states state);
+int64_t db_update_mount(struct db *db, struct db_mount *mount);
 
 #ifdef __cplusplus
 }
