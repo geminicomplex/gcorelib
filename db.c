@@ -33,7 +33,7 @@
 static const char *db_pass_hash(const char *password){
     uint8_t hash_bytes[32];
     char *hash_str = NULL;
-    if((hash_str = (char*)malloc(64)) == NULL){
+    if((hash_str = (char*)calloc(65, sizeof(char))) == NULL){
         die("malloc failed");
     }
     UT_string *str;
@@ -42,9 +42,11 @@ static const char *db_pass_hash(const char *password){
     utstring_printf(str, "%s", password);
     calc_sha_256(hash_bytes, utstring_body(str), utstring_len(str));
     utstring_free(str);
+    int j = 0;
     // each byte is two chars
-    for(int i=0; i<32; i+=2){
-        sprintf(hash_str+i, "%02hhX", *(hash_bytes+i));
+    for(int i=0; i<32; i++){
+        sprintf(hash_str+j, "%02X", *(hash_bytes+i));
+        j += 2;
     }
     return (const char *)hash_str;
 }
