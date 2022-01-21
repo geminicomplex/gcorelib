@@ -54,7 +54,7 @@ enum db_stim_states {
 
 enum db_mount_states {
     MOUNT_NONE        = (1 << 0), 
-    MOUNT_IDLE        = (1 << 1), 
+    MOUNT_UNMOUNTED   = (1 << 1), 
     MOUNT_MOUNTING    = (1 << 2), 
     MOUNT_MOUNTED     = (1 << 3), 
     MOUNT_UNMOUNTING  = (1 << 4), 
@@ -97,6 +97,7 @@ struct db_job {
 struct db_prgm {
     int64_t id;
     int64_t job_id;
+    int64_t mount_id;
     const char *path;
     const char *body;
     time_t date_start;
@@ -207,16 +208,16 @@ struct db_job** db_get_jobs(struct db *db,
         int64_t user_id, int32_t states);
 struct db_prgm* db_get_prgm_by_id(struct db *db, int64_t prgm_id);
 int64_t db_insert_prgm(struct db *db, 
-        int64_t job_id, const char *path, const char *body, 
+        int64_t job_id, int64_t mount_id, const char *path, const char *body, 
         int32_t return_code, const char *error_msg, int32_t last_stim_id, 
         int32_t did_fail, int32_t failing_vec, enum db_job_states state);
 int64_t db_update_prgm(struct db *db, struct db_prgm *prgm);
 uint64_t db_get_num_prgms(struct db *db, 
-        int64_t job_id, const char *path, const char *body, 
+        int64_t job_id, int64_t mount_id, const char *path, const char *body, 
         int32_t return_code, const char *error_msg, int32_t last_stim_id, 
         int32_t did_fail, int32_t failing_vec, int32_t states);
 struct db_prgm** db_get_prgms(struct db *db, 
-        int64_t job_id, const char *path, const char *body,
+        int64_t job_id, int64_t mount_id, const char *path, const char *body,
         int32_t return_code, const char *error_msg, int32_t last_stim_id,
         int32_t did_fail, int32_t failing_vec, int32_t states);
 struct db_prgm_log* db_get_prgm_log_by_id(struct db *db, int64_t prgm_log_id);

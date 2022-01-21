@@ -203,16 +203,17 @@ static struct db_prgm* db_make_prgm(sqlite3_stmt *res){
     }
     prgm->id = sqlite3_column_int64(res, 0);
     prgm->job_id = sqlite3_column_int64(res, 1);
-    prgm->date_start = util_dt_to_epoch(STRDUP((const char *)sqlite3_column_text(res, 3)));
-    prgm->date_end = util_dt_to_epoch(STRDUP((const char *)sqlite3_column_text(res, 4)));
-    prgm->path = STRDUP((const char *)sqlite3_column_text(res, 5));
-    prgm->body = STRDUP((const char *)sqlite3_column_text(res, 6));
-    prgm->return_code = sqlite3_column_int(res, 7);
-    prgm->error_msg = STRDUP((const char *)sqlite3_column_text(res, 8));
-    prgm->last_stim_id = sqlite3_column_int(res, 9);
-    prgm->did_fail = sqlite3_column_int(res, 10);
-    prgm->failing_vec = sqlite3_column_int(res, 11);
-    prgm->state = (enum db_prgm_states)sqlite3_column_int(res, 12);
+    prgm->mount_id = sqlite3_column_int64(res, 2);
+    prgm->date_start = util_dt_to_epoch(STRDUP((const char *)sqlite3_column_text(res, 4)));
+    prgm->date_end = util_dt_to_epoch(STRDUP((const char *)sqlite3_column_text(res, 5)));
+    prgm->path = STRDUP((const char *)sqlite3_column_text(res, 6));
+    prgm->body = STRDUP((const char *)sqlite3_column_text(res, 7));
+    prgm->return_code = sqlite3_column_int(res, 8);
+    prgm->error_msg = STRDUP((const char *)sqlite3_column_text(res, 9));
+    prgm->last_stim_id = sqlite3_column_int(res, 10);
+    prgm->did_fail = sqlite3_column_int(res, 11);
+    prgm->failing_vec = sqlite3_column_int(res, 12);
+    prgm->state = (enum db_prgm_states)sqlite3_column_int(res, 13);
     return prgm;
 }
 
@@ -951,7 +952,7 @@ struct db_prgm* db_get_prgm_by_id(struct db *db, int64_t prgm_id){
 }
 
 int64_t db_insert_prgm(struct db *db, 
-        int64_t job_id, const char *path, const char *body, 
+        int64_t job_id, int64_t mount_id, const char *path, const char *body, 
         int32_t return_code, const char *error_msg, int32_t last_stim_id, 
         int32_t did_fail, int32_t failing_vec, enum db_job_states state){
     sqlite3_stmt *res = NULL;
@@ -973,21 +974,22 @@ int64_t db_insert_prgm(struct db *db,
         error_msg = strdup("");
     }
 
-    const char *sql = "INSERT INTO prgms(job_id, date_created, date_start, date_end, path, body, return_code, error_msg, last_stim_id, did_fail, failing_vec, state)"
-                      "VALUES(?, datetime('now'), '', '', ?, ?, ?, ?, ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO prgms(job_id, mount_id, date_created, date_start, date_end, path, body, return_code, error_msg, last_stim_id, did_fail, failing_vec, state)"
+                      "VALUES(?, ?, datetime('now'), '', '', ?, ?, ?, ?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
     if(rc == SQLITE_OK){
         sqlite3_bind_int64(res, 1, job_id);
-        sqlite3_bind_text(res, 2, path, strlen(path), SQLITE_STATIC);
-        sqlite3_bind_text(res, 3, body, strlen(body), SQLITE_STATIC);
-        sqlite3_bind_int(res, 4, return_code);
-        sqlite3_bind_text(res, 5, error_msg, strlen(error_msg), SQLITE_STATIC);
-        sqlite3_bind_int64(res, 6, last_stim_id);
-        sqlite3_bind_int(res, 7, did_fail);
-        sqlite3_bind_int64(res, 8, failing_vec);
-        sqlite3_bind_int(res, 9, state);
+        sqlite3_bind_int64(res, 2, mount_id);
+        sqlite3_bind_text(res, 3, path, strlen(path), SQLITE_STATIC);
+        sqlite3_bind_text(res, 4, body, strlen(body), SQLITE_STATIC);
+        sqlite3_bind_int(res, 5, return_code);
+        sqlite3_bind_text(res, 6, error_msg, strlen(error_msg), SQLITE_STATIC);
+        sqlite3_bind_int64(res, 7, last_stim_id);
+        sqlite3_bind_int(res, 8, did_fail);
+        sqlite3_bind_int64(res, 9, failing_vec);
+        sqlite3_bind_int(res, 10, state);
     }else{
         die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -1014,7 +1016,7 @@ int64_t db_update_prgm(struct db *db, struct db_prgm *prgm){
         die("pointer is null");
     }
 
-    const char *sql = "UPDATE prgms SET job_id=?, date_start=?, date_end=?, path=?, body=?, return_code=?, error_msg=?, last_stim_id=?, did_fail=?, failing_vec=?, state=? WHERE id=?";
+    const char *sql = "UPDATE prgms SET job_id=?, mount_id=?, date_start=?, date_end=?, path=?, body=?, return_code=?, error_msg=?, last_stim_id=?, did_fail=?, failing_vec=?, state=? WHERE id=?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -1023,17 +1025,18 @@ int64_t db_update_prgm(struct db *db, struct db_prgm *prgm){
 
     if(rc == SQLITE_OK){
         sqlite3_bind_int64(res, 1, prgm->job_id);
-        sqlite3_bind_text(res, 2, date_start, strlen(date_start), SQLITE_STATIC);
-        sqlite3_bind_text(res, 3, date_end, strlen(date_end), SQLITE_STATIC);
-        sqlite3_bind_text(res, 4, prgm->path, strlen(prgm->path), SQLITE_STATIC);
-        sqlite3_bind_text(res, 5, prgm->body, strlen(prgm->body), SQLITE_STATIC);
-        sqlite3_bind_int(res, 6, prgm->return_code);
-        sqlite3_bind_text(res, 7, prgm->error_msg, strlen(prgm->error_msg), SQLITE_STATIC);
-        sqlite3_bind_int64(res, 8, prgm->last_stim_id);
-        sqlite3_bind_int(res, 9, prgm->did_fail);
-        sqlite3_bind_int64(res, 10, prgm->failing_vec);
-        sqlite3_bind_int(res, 11, prgm->state);
-        sqlite3_bind_int64(res, 12, prgm->id);
+        sqlite3_bind_int64(res, 2, prgm->mount_id);
+        sqlite3_bind_text(res, 3, date_start, strlen(date_start), SQLITE_STATIC);
+        sqlite3_bind_text(res, 4, date_end, strlen(date_end), SQLITE_STATIC);
+        sqlite3_bind_text(res, 5, prgm->path, strlen(prgm->path), SQLITE_STATIC);
+        sqlite3_bind_text(res, 6, prgm->body, strlen(prgm->body), SQLITE_STATIC);
+        sqlite3_bind_int(res, 7, prgm->return_code);
+        sqlite3_bind_text(res, 8, prgm->error_msg, strlen(prgm->error_msg), SQLITE_STATIC);
+        sqlite3_bind_int64(res, 9, prgm->last_stim_id);
+        sqlite3_bind_int(res, 10, prgm->did_fail);
+        sqlite3_bind_int64(res, 11, prgm->failing_vec);
+        sqlite3_bind_int(res, 12, prgm->state);
+        sqlite3_bind_int64(res, 13, prgm->id);
     } else {
         die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -1053,7 +1056,7 @@ int64_t db_update_prgm(struct db *db, struct db_prgm *prgm){
 }
 
 uint64_t db_get_num_prgms(struct db *db, 
-        int64_t job_id, const char *path, const char *body, 
+        int64_t job_id, int64_t mount_id, const char *path, const char *body, 
         int32_t return_code, const char *error_msg, int32_t last_stim_id, 
         int32_t did_fail, int32_t failing_vec, int32_t states){
     sqlite3_stmt *res = NULL;
@@ -1071,6 +1074,10 @@ uint64_t db_get_num_prgms(struct db *db,
 
     if(job_id < 0){
         die("job_id must not be < 0");
+    }
+
+    if(mount_id != -1){
+        utstring_printf(sql, "AND mount_id = %lli ", mount_id);
     }
 
     if(path != NULL){
@@ -1142,7 +1149,7 @@ uint64_t db_get_num_prgms(struct db *db,
 }
 
 struct db_prgm** db_get_prgms(struct db *db, 
-        int64_t job_id, const char *path, const char *body,
+        int64_t job_id, int64_t mount_id, const char *path, const char *body,
         int32_t return_code, const char *error_msg, int32_t last_stim_id,
         int32_t did_fail, int32_t failing_vec, int32_t states){
     struct db_prgm *prgm = NULL;
@@ -1163,6 +1170,10 @@ struct db_prgm** db_get_prgms(struct db *db,
         die("job_id must not be < 0");
     }
 
+    if(mount_id != -1){
+        utstring_printf(sql, "AND mount_id = %lli ", mount_id);
+    }
+
     if(path != NULL){
         utstring_printf(sql, "AND path = '%s' ", path);
     }
@@ -1172,7 +1183,7 @@ struct db_prgm** db_get_prgms(struct db *db,
     }
 
     if(return_code != -1){
-        utstring_printf(sql, "AND return_code = %i ", return_code);
+        utstring_printf(sql, "and return_code = %i ", return_code);
     }
 
     if(error_msg != NULL){
@@ -1220,7 +1231,7 @@ struct db_prgm** db_get_prgms(struct db *db,
         fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
 
-    uint64_t num = db_get_num_prgms(db, job_id, path, body, return_code, error_msg,
+    uint64_t num = db_get_num_prgms(db, job_id, mount_id, path, body, return_code, error_msg,
             last_stim_id, did_fail, failing_vec, states);
 
     if(num > 0){

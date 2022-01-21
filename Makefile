@@ -6,7 +6,7 @@
 #
 
 INCLUDES :=-I. -I./board -I./lib/jsmn -I./lib/avl -I./lib/slog -I./lib/fe -I./lib/lz4 -I./lib/capnp -I./lib/uthash -I./lib/sqlite -I./lib/sha2
-CFLAGS :=-O2 -fPIC -Wall -funwind-tables -g -ggdb -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=700
+CFLAGS :=-O2 -fPIC -Wall -funwind-tables -g -ggdb -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LDFLAGS := -fPIC -lm -ldl 
 PLAT :=
 
@@ -18,8 +18,7 @@ CFLAGS += -DSQLITE_ENABLE_COLUMN_METADATA=1 \
     -DSQLITE_MAX_VARIABLE_NUMBER=250000 \
     -DSQLITE_MAX_EXPR_DEPTH=10000
 
-OS := $(shell uname)
-ifeq ($(OS),Darwin)
+ifeq ($(MAKECMDGOALS),mac)
 	PLAT := mac
 	BUILD_PATH := build/mac
 	LDFLAGS += -shared -dynamiclib -Wl,-install_name,libgcore.dylib -lpthread
@@ -31,13 +30,14 @@ ifeq ($(MAKECMDGOALS),arm)
 	BUILD_PATH := build/arm
 	LDFLAGS += -shared -Wl,-soname,libgcore.so -lpthread
 	ARM_CFLAGS := -march=armv7-a -mcpu=cortex-a9 -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard
-	CFLAGS := ${ARM_CFLAGS} $(CFLAGS) -D_FILE_OFFSET_BITS=64
+	CFLAGS := ${ARM_CFLAGS} $(CFLAGS) -D_FILE_OFFSET_BITS=64 -D_XOPEN_SOURCE=700
 	EXEC := $(BUILD_PATH)/libgcore.so
 	CC := arm-linux-gnueabihf-gcc
 else
 	PLAT := linux
 	BUILD_PATH := build/linux
 	LDFLAGS += -shared -Wl,-soname,libgcore.so -lpthread
+	CFLAGS += -D_XOPEN_SOURCE=700
 	EXEC := $(BUILD_PATH)/libgcore.so
 	CC := gcc
 endif
@@ -82,6 +82,9 @@ build/linux/libgcore.so: $(SRCS) $(HEADERS)
 	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(SRCS) -o build/linux/libgcore.so
 
 build/arm/libgcore.so: $(SRCS) $(HEADERS)
+	ifeq (, $(shell which arm-linux-gnueabihf-gcc))
+		$(error "No arm-linux-gnueabihf-gcc binary found in path.")
+	endif
 	mkdir -p build/arm
 	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(SRCS) -o build/arm/libgcore.so
 
