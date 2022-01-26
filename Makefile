@@ -82,9 +82,6 @@ build/linux/libgcore.so: $(SRCS) $(HEADERS)
 	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(SRCS) -o build/linux/libgcore.so
 
 build/arm/libgcore.so: $(SRCS) $(HEADERS)
-	ifeq (, $(shell which arm-linux-gnueabihf-gcc))
-		$(error "No arm-linux-gnueabihf-gcc binary found in path.")
-	endif
 	mkdir -p build/arm
 	$(CC) $(INCLUDES) $(CFLAGS) $(LDFLAGS) $(SRCS) -o build/arm/libgcore.so
 

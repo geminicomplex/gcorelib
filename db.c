@@ -434,7 +434,8 @@ int64_t db_insert_user(struct db *db,
         die("pointer is null");
     }
 
-    const char *sql = "INSERT INTO users(date_created, username, password, email, session, is_admin) VALUES(datetime('now'), ?, ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO users(date_created, u_username, password, email, session, is_admin)"
+                      "VALUES(datetime('now'), ?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -542,7 +543,7 @@ int64_t db_insert_board(struct db *db,
         ip_addr = strdup("");
     }
 
-    const char *sql = "INSERT INTO boards(dna, name, ip_addr, cur_dut_board_id, is_master) VALUES(?, ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO boards(u_dna, u_name, u_ip_addr, cur_dut_board_id, is_master) VALUES(?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -577,7 +578,7 @@ int64_t db_update_board(struct db *db, struct db_board *board){
         die("pointer is null");
     }
 
-    const char *sql = "UPDATE boards SET dna=?, name=?, ip_addr=?, cur_dut_board_id=?, is_master=? WHERE id=?";
+    const char *sql = "UPDATE boards SET u_dna=?, u_name=?, u_ip_addr=?, cur_dut_board_id=?, is_master=? WHERE id=?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -654,7 +655,7 @@ int64_t db_insert_dut_board(struct db *db,
         profile_path = strdup("");
     }
 
-    const char *sql = "INSERT INTO dut_boards(dna, name, profile_path, cur_dut_dut_board_id, is_master) VALUES(?, ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO dut_boards(u_dna, u_name, profile_path, cur_dut_dut_board_id, is_master) VALUES(?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -1540,7 +1541,8 @@ int64_t db_insert_mount(struct db *db,
         message = strdup("");
     }
 
-    const char *sql = "INSERT INTO mounts(dna, name, remote_path, local_point, message, state) VALUES(?, ?, ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO mounts(date_created, u_name, u_ip_addr, remote_path, local_point, message, state)"
+                      "VALUES(datetime('now'), ?, ?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -1576,7 +1578,7 @@ int64_t db_update_mount(struct db *db, struct db_mount *mount){
         die("pointer is null");
     }
 
-    const char *sql = "UPDATE mounts SET name=?, ip_addr=?, remote_path=?, local_path=?, message=?, state=? WHERE id=?";
+    const char *sql = "UPDATE mounts SET u_name=?, u_ip_addr=?, remote_path=?, local_path=?, message=?, state=? WHERE id=?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
