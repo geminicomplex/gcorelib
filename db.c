@@ -502,7 +502,7 @@ struct db_board* db_get_board_by_dna(struct db *db, const char *dna){
         die("pointer is null");
     }
 
-    const char *sql = "SELECT * FROM boards WHERE dna = ?";
+    const char *sql = "SELECT * FROM boards WHERE u_dna = ?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
