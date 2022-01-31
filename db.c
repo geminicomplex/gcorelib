@@ -18,6 +18,7 @@
 
 #include "sqlite3.h"
 #include "lib/uthash/utstring.h"
+#include "lib/uthash/utarray.h"
 #include "lib/sha2/sha-256.h"
 #include "common.h"
 #include "util.h"
@@ -805,23 +806,40 @@ uint64_t db_get_num_jobs(struct db *db,
         utstring_printf(sql, "AND user_id != %lli ", user_id);
     }
 
-    if((states & JOB_IDLE) == JOB_IDLE){
-        utstring_printf(sql, "AND state = %i ", JOB_IDLE);
-    }
-    if((states & JOB_PENDING) == JOB_PENDING){
-        utstring_printf(sql, "AND state = %i ", JOB_PENDING);
-    }
-    if((states & JOB_RUNNING) == JOB_RUNNING){
-        utstring_printf(sql, "AND state = %i ", JOB_RUNNING);
-    }
-    if((states & JOB_KILLING) == JOB_KILLING){
-        utstring_printf(sql, "AND state = %i ", JOB_KILLING);
-    }
-    if((states & JOB_KILLED) == JOB_KILLED){
-        utstring_printf(sql, "AND state = %i ", JOB_KILLED);
-    }
-    if((states & JOB_DONE) == JOB_DONE){
-        utstring_printf(sql, "AND state = %i ", JOB_DONE);
+    if(states != -1){
+        bool f = false;
+        utstring_printf(sql, "AND state in ( ");
+        if((states & JOB_IDLE) == JOB_IDLE){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_IDLE);
+            f = true;
+        }
+        if((states & JOB_PENDING) == JOB_PENDING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_PENDING);
+            f = true;
+        }
+        if((states & JOB_RUNNING) == JOB_RUNNING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_RUNNING);
+            f = true;
+        }
+        if((states & JOB_KILLING) == JOB_KILLING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_KILLING);
+            f = true;
+        }
+        if((states & JOB_KILLED) == JOB_KILLED){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_KILLED);
+            f = true;
+        }
+        if((states & JOB_DONE) == JOB_DONE){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_DONE);
+            f = true;
+        }
+        utstring_printf(sql, ")");
     }
 
     const char *sql_str = utstring_body(sql);
@@ -875,23 +893,40 @@ struct db_job** db_get_jobs(struct db *db,
         utstring_printf(sql, "AND user_id != %lli ", user_id);
     }
 
-    if((states & JOB_IDLE) == JOB_IDLE){
-        utstring_printf(sql, "AND state = %i ", JOB_IDLE);
-    }
-    if((states & JOB_PENDING) == JOB_PENDING){
-        utstring_printf(sql, "AND state = %i ", JOB_PENDING);
-    }
-    if((states & JOB_RUNNING) == JOB_RUNNING){
-        utstring_printf(sql, "AND state = %i ", JOB_RUNNING);
-    }
-    if((states & JOB_KILLING) == JOB_KILLING){
-        utstring_printf(sql, "AND state = %i ", JOB_KILLING);
-    }
-    if((states & JOB_KILLED) == JOB_KILLED){
-        utstring_printf(sql, "AND state = %i ", JOB_KILLED);
-    }
-    if((states & JOB_DONE) == JOB_DONE){
-        utstring_printf(sql, "AND state = %i ", JOB_DONE);
+    if(states != -1){
+        bool f = false;
+        utstring_printf(sql, "AND state in ( ");
+        if((states & JOB_IDLE) == JOB_IDLE){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_IDLE);
+            f = true;
+        }
+        if((states & JOB_PENDING) == JOB_PENDING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_PENDING);
+            f = true;
+        }
+        if((states & JOB_RUNNING) == JOB_RUNNING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_RUNNING);
+            f = true;
+        }
+        if((states & JOB_KILLING) == JOB_KILLING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_KILLING);
+            f = true;
+        }
+        if((states & JOB_KILLED) == JOB_KILLED){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_KILLED);
+            f = true;
+        }
+        if((states & JOB_DONE) == JOB_DONE){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", JOB_DONE);
+            f = true;
+        }
+        utstring_printf(sql, ")");
     }
 
     rc = sqlite3_prepare_v2(db->_db, utstring_body(sql), -1, &res, 0);
@@ -1109,23 +1144,40 @@ uint64_t db_get_num_prgms(struct db *db,
         utstring_printf(sql, "AND failing_vec = %i ", failing_vec);
     }
 
-    if((states & PRGM_IDLE) == PRGM_IDLE){
-        utstring_printf(sql, "AND state = %i ", PRGM_IDLE);
-    }
-    if((states & PRGM_PENDING) == PRGM_PENDING){
-        utstring_printf(sql, "AND state = %i ", PRGM_PENDING);
-    }
-    if((states & PRGM_RUNNING) == PRGM_RUNNING){
-        utstring_printf(sql, "AND state = %i ", PRGM_RUNNING);
-    }
-    if((states & PRGM_KILLING) == PRGM_KILLING){
-        utstring_printf(sql, "AND state = %i ", PRGM_KILLING);
-    }
-    if((states & PRGM_KILLED) == PRGM_KILLED){
-        utstring_printf(sql, "AND state = %i ", PRGM_KILLED);
-    }
-    if((states & PRGM_DONE) == PRGM_DONE){
-        utstring_printf(sql, "AND state = %i ", PRGM_DONE);
+    if(states != -1){
+        bool f = false;
+        utstring_printf(sql, "AND state in ( ");
+        if((states & PRGM_IDLE) == PRGM_IDLE){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_IDLE);
+            f = true;
+        }
+        if((states & PRGM_PENDING) == PRGM_PENDING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_PENDING);
+            f = true;
+        }
+        if((states & PRGM_RUNNING) == PRGM_RUNNING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_RUNNING);
+            f = true;
+        }
+        if((states & PRGM_KILLING) == PRGM_KILLING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_KILLING);
+            f = true;
+        }
+        if((states & PRGM_KILLED) == PRGM_KILLED){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_KILLED);
+            f = true;
+        }
+        if((states & PRGM_DONE) == PRGM_DONE){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_DONE);
+            f = true;
+        }
+        utstring_printf(sql, ")");
     }
 
     rc = sqlite3_prepare_v2(db->_db, utstring_body(sql), -1, &res, 0);
@@ -1203,23 +1255,40 @@ struct db_prgm** db_get_prgms(struct db *db,
         utstring_printf(sql, "AND failing_vec = %i ", failing_vec);
     }
 
-    if((states & PRGM_IDLE) == PRGM_IDLE){
-        utstring_printf(sql, "AND state = %i ", PRGM_IDLE);
-    }
-    if((states & PRGM_PENDING) == PRGM_PENDING){
-        utstring_printf(sql, "AND state = %i ", PRGM_PENDING);
-    }
-    if((states & PRGM_RUNNING) == PRGM_RUNNING){
-        utstring_printf(sql, "AND state = %i ", PRGM_RUNNING);
-    }
-    if((states & PRGM_KILLING) == PRGM_KILLING){
-        utstring_printf(sql, "AND state = %i ", PRGM_KILLING);
-    }
-    if((states & PRGM_KILLED) == PRGM_KILLED){
-        utstring_printf(sql, "AND state = %i ", PRGM_KILLED);
-    }
-    if((states & PRGM_DONE) == PRGM_DONE){
-        utstring_printf(sql, "AND state = %i ", PRGM_DONE);
+    if(states != -1){
+        bool f = false;
+        utstring_printf(sql, "AND state in ( ");
+        if((states & PRGM_IDLE) == PRGM_IDLE){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_IDLE);
+            f = true;
+        }
+        if((states & PRGM_PENDING) == PRGM_PENDING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_PENDING);
+            f = true;
+        }
+        if((states & PRGM_RUNNING) == PRGM_RUNNING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_RUNNING);
+            f = true;
+        }
+        if((states & PRGM_KILLING) == PRGM_KILLING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_KILLING);
+            f = true;
+        }
+        if((states & PRGM_KILLED) == PRGM_KILLED){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_KILLED);
+            f = true;
+        }
+        if((states & PRGM_DONE) == PRGM_DONE){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", PRGM_DONE);
+            f = true;
+        }
+        utstring_printf(sql, ")");
     }
 
     const char *_sql = utstring_body(sql);
@@ -1541,7 +1610,7 @@ int64_t db_insert_mount(struct db *db,
         message = strdup("");
     }
 
-    const char *sql = "INSERT INTO mounts(date_created, u_name, u_ip_addr, remote_path, local_point, message, state)"
+    const char *sql = "INSERT INTO mounts(date_created, u_name, ip_addr, remote_path, local_point, message, state)"
                       "VALUES(datetime('now'), ?, ?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
@@ -1578,7 +1647,7 @@ int64_t db_update_mount(struct db *db, struct db_mount *mount){
         die("pointer is null");
     }
 
-    const char *sql = "UPDATE mounts SET u_name=?, u_ip_addr=?, remote_path=?, local_path=?, message=?, state=? WHERE id=?";
+    const char *sql = "UPDATE mounts SET u_name=?, ip_addr=?, remote_path=?, local_point=?, message=?, state=? WHERE id=?";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -1605,3 +1674,296 @@ int64_t db_update_mount(struct db *db, struct db_mount *mount){
     return mount->id;
 }
 
+uint64_t db_get_num_mounts(struct db *db, 
+        const char *name, const char *ip_addr, const char *remote_path,
+        const char *local_point, const char *message, int32_t states){
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+    int step = 0;
+    int64_t num = 0;
+    bool first = true;
+    
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    UT_string *sql;
+    utstring_new(sql);
+    utstring_printf(sql, "SELECT COUNT(*) FROM mounts WHERE ");
+
+    UT_array *strs;
+    char **p = NULL;
+    utarray_new(strs, &ut_str_icd);
+
+    if(name != NULL){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        utstring_printf(sql, "u_name = ? ");
+        utarray_push_back(strs, &name);
+    }
+
+    if(ip_addr != NULL){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        utstring_printf(sql, "ip_addr = ? ");
+        utarray_push_back(strs, &ip_addr);
+    }
+
+    if(remote_path != NULL){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        utstring_printf(sql, "remote_path = ?");
+        utarray_push_back(strs, &remote_path);
+    }
+
+    if(local_point != NULL){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        utstring_printf(sql, "local_point = ? ");
+        utarray_push_back(strs, &local_point);
+    }
+
+    if(message != NULL){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        utstring_printf(sql, "message = ? ");
+        utarray_push_back(strs, &message);
+    }
+
+    if(states != -1){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        bool f = false;
+        utstring_printf(sql, "state in ( ");
+        if((states & MOUNT_NONE) == MOUNT_NONE){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_NONE);
+            f = true;
+        }
+        if((states & MOUNT_UNMOUNTED) == MOUNT_UNMOUNTED){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_UNMOUNTED);
+            f = true;
+        }
+        if((states & MOUNT_MOUNTING) == MOUNT_MOUNTING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_MOUNTING);
+            f = true;
+        }
+        if((states & MOUNT_MOUNTED) == MOUNT_MOUNTED){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_MOUNTED);
+            f = true;
+        }
+        if((states & MOUNT_UNMOUNTING) == MOUNT_UNMOUNTING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_UNMOUNTING);
+            f = true;
+        }
+        if((states & MOUNT_FAILED) == MOUNT_FAILED){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_FAILED);
+            f = true;
+        }
+        utstring_printf(sql, ")");
+    }
+    utstring_printf(sql, ";");
+
+    const char *sql_str = utstring_body(sql);
+    rc = sqlite3_prepare_v2(db->_db, sql_str, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        if(utarray_len(strs) > 0){
+            int i = 1;
+            while((p=(char**)utarray_next(strs,p))){
+                sqlite3_bind_text(res, i, *p, strlen(*p), SQLITE_STATIC);
+                i += 1;
+            }
+        }
+    }else{
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    if((step = sqlite3_step(res)) == SQLITE_ROW) {
+        num = sqlite3_column_int64(res, 0);
+    }
+
+    if(num < 0){
+        die("count returned negative number");
+    }
+
+    utstring_free(sql);
+    utarray_free(strs);
+    sqlite3_finalize(res);
+    return (uint64_t)num;
+}
+
+struct db_mount** db_get_mounts(struct db *db, 
+        const char *name, const char *ip_addr, const char *remote_path,
+        const char *local_point, const char *message, int32_t states){
+    struct db_mount *mount = NULL;
+    struct db_mount **mounts = NULL;
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+    int step = 0;
+    uint64_t i = 0;
+    bool first = true;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    UT_string *sql;
+    utstring_new(sql);
+    utstring_printf(sql, "SELECT * FROM mounts WHERE ");
+
+    UT_array *strs;
+    char **p = NULL;
+    utarray_new(strs, &ut_str_icd);
+
+    if(name != NULL){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        utstring_printf(sql, "u_name = ? ");
+        utarray_push_back(strs, &name);
+    }
+
+    if(ip_addr != NULL){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        utstring_printf(sql, "ip_addr = ? ");
+        utarray_push_back(strs, &ip_addr);
+    }
+
+    if(remote_path != NULL){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        utstring_printf(sql, "remote_path = ?");
+        utarray_push_back(strs, &remote_path);
+    }
+
+    if(local_point != NULL){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        utstring_printf(sql, "local_point = ? ");
+        utarray_push_back(strs, &local_point);
+    }
+
+    if(message != NULL){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        utstring_printf(sql, "message = ? ");
+        utarray_push_back(strs, &message);
+    }
+
+    if(states != -1){
+        if(first == false){
+            utstring_printf(sql, "AND ");
+        }else{
+            first = false;
+        }
+        bool f = false;
+        utstring_printf(sql, "state in ( ");
+        if((states & MOUNT_NONE) == MOUNT_NONE){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_NONE);
+            f = true;
+        }
+        if((states & MOUNT_UNMOUNTED) == MOUNT_UNMOUNTED){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_UNMOUNTED);
+            f = true;
+        }
+        if((states & MOUNT_MOUNTING) == MOUNT_MOUNTING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_MOUNTING);
+            f = true;
+        }
+        if((states & MOUNT_MOUNTED) == MOUNT_MOUNTED){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_MOUNTED);
+            f = true;
+        }
+        if((states & MOUNT_UNMOUNTING) == MOUNT_UNMOUNTING){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_UNMOUNTING);
+            f = true;
+        }
+        if((states & MOUNT_FAILED) == MOUNT_FAILED){
+            if(f) utstring_printf(sql, ", ");
+            utstring_printf(sql, "%i", MOUNT_FAILED);
+            f = true;
+        }
+        utstring_printf(sql, ")");
+    }
+    utstring_printf(sql, ";");
+
+    rc = sqlite3_prepare_v2(db->_db, utstring_body(sql), -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        if(utarray_len(strs) > 0){
+            i = 1;
+            while((p=(char**)utarray_next(strs,p))){
+                sqlite3_bind_text(res, i, *p, strlen(*p), SQLITE_STATIC);
+                i += 1;
+            }
+        }
+    } else {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    uint64_t num = db_get_num_mounts(db, name, ip_addr, remote_path,
+        local_point, message, states);
+
+    if(num > 0){
+        if((mounts = (struct db_mount**)calloc(num, sizeof(struct db_mount*))) == NULL){
+            die("malloc failed");
+        }
+
+        i = 0;
+        while((step = sqlite3_step(res)) == SQLITE_ROW) {
+            mount = db_make_mount(res);
+            mounts[i] = mount;
+            i += 1;
+        }
+    }
+
+    utstring_free(sql);
+    utarray_free(strs);
+    sqlite3_finalize(res);
+    return mounts;
+}

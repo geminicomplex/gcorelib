@@ -236,6 +236,12 @@ int64_t db_insert_mount(struct db *db,
         const char *name, const char *ip_addr, const char *path, 
         const char *point, const char *message, enum db_mount_states state);
 int64_t db_update_mount(struct db *db, struct db_mount *mount);
+uint64_t db_get_num_mounts(struct db *db, 
+        const char *name, const char *ip_addr, const char *remote_path,
+        const char *local_point, const char *message, int32_t states);
+struct db_mount** db_get_mounts(struct db *db, 
+        const char *name, const char *ip_addr, const char *remote_path,
+        const char *local_point, const char *message, int32_t states);
 
 #ifdef __cplusplus
 }
