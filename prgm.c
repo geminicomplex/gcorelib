@@ -13,6 +13,7 @@
 
 #include "lib/fe/fe.h"
 #include "lib/uthash/utarray.h"
+#include "lib/uthash/utstring.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -51,6 +52,44 @@ struct prgm_stim *_create_prgm_stim(struct stim *stim, uint32_t a1_addr, uint32_
     return prgm_stim;
 }
 
+/*
+ * Returns the nfs mount path if the prgm has a prgm_id and a mount_id set,
+ * otherwise just return the path given.
+ *
+ */
+UT_string *_get_nfs_path(struct prgm *prgm, const char *file_path){
+    struct db_prgm *db_prgm = NULL;
+    struct db_mount *db_mount = NULL;
+    UT_string *path = NULL;
+    
+    if(prgm == NULL){
+        die("pointer is null");
+    }
+    if(file_path == NULL){
+        die("pointer is null");
+    }
+    utstring_new(path);
+
+    if(prgm->_db_prgm_id >= 0 && prgm->_db != NULL){
+        if((db_prgm = db_get_prgm_by_id(prgm->_db, prgm->_db_prgm_id)) == NULL){
+            die("pointer is null");
+        }
+        if((db_mount = db_get_mount_by_id(prgm->_db, db_prgm->mount_id)) == NULL){
+            die("pointer is null");
+        }
+        utstring_printf(path, db_mount->local_point);
+        if(file_path[0] == '/'){
+            utstring_printf(path, file_path);
+        }else{
+            utstring_printf(path, "/");
+            utstring_printf(path, file_path);
+        }
+    }else{
+        utstring_printf(path, file_path);
+    }
+    return path;
+}
+
 enum load_types {
     LOAD,
     LOADS,
@@ -85,6 +124,7 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
     char buffer[BUFFER_SIZE*2];
     uint64_t num_loaded_bytes = 0;
     enum stim_modes stim_mode = STIM_MODE_NONE;
+    UT_string *path = NULL;
 
     if(a1_addr == NULL){
         die("pointer is null");
@@ -107,9 +147,14 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
         fe_stim_path = fe_nextarg(_fe_ctx, &arg);
         fe_tostring(_fe_ctx, fe_stim_path, stim_path, sizeof(stim_path));
 
-        if((stim = get_stim_by_path(prgm->_profile, stim_path)) == NULL){
+        if((path = _get_nfs_path(prgm, stim_path)) == NULL){
+            die("error: pointer is NULL");
+        }
+
+        if((stim = get_stim_by_path(prgm->_profile, utstring_body(path))) == NULL){
             fe_error(_fe_ctx, "failed to load stim");
         }
+        utstring_free(path);
     }else if(load_type == LOADS){
         fe_stim = fe_nextarg(_fe_ctx, &arg);
         if((stim = (struct stim*)fe_toptr(_fe_ctx, fe_stim)) == NULL){
@@ -129,7 +174,7 @@ static void _load_stim(fe_Context *_fe_ctx, fe_Object *arg, enum load_types load
     stim_mode = stim_get_mode(stim);
     if(stim_mode == STIM_MODE_NONE){
         // double buffer so it can fit max len of stim_path
-        snprintf(buffer, BUFFER_SIZE*2, "can't load empty stim: '%s'", stim_path);
+        snprintf(buffer, BUFFER_SIZE*2, "can't load empty stim: '%s'", stim->path);
         fe_error(_fe_ctx, buffer);
     }
 
@@ -359,6 +404,7 @@ static fe_Object* f_reads(fe_Context *_fe_ctx, fe_Object *arg){
     struct prgm *prgm = NULL;
     fe_Object *fe_prgm = NULL;
     fe_Object *fe_stim_path = NULL;
+    UT_string *path = NULL;
 
     fe_prgm = fe_eval(_fe_ctx, fe_symbol(_fe_ctx, "prgm"));
     if((prgm = (struct prgm*)fe_toptr(_fe_ctx, fe_prgm)) == NULL){
@@ -372,9 +418,15 @@ static fe_Object* f_reads(fe_Context *_fe_ctx, fe_Object *arg){
     fe_stim_path = fe_nextarg(_fe_ctx, &arg);
     fe_tostring(_fe_ctx, fe_stim_path, stim_path, sizeof(stim_path));
 
-    if((stim = get_stim_by_path(prgm->_profile, stim_path)) == NULL){
+    if((path = _get_nfs_path(prgm, stim_path)) == NULL){
+        die("error: pointer is NULL");
+    }
+
+    if((stim = get_stim_by_path(prgm->_profile, utstring_body(path))) == NULL){
         fe_error(_fe_ctx, "Failed to load stim.");
     }
+
+    utstring_free(path);
 
     return fe_ptr(_fe_ctx, (void *) stim); 
 }
@@ -390,6 +442,14 @@ static fe_Object* f_writes(fe_Context *_fe_ctx, fe_Object *arg){
     char stim_path[BUFFER_SIZE];
     fe_Object *fe_stim = NULL;
     fe_Object *fe_stim_path = NULL;
+    struct prgm *prgm = NULL;
+    fe_Object *fe_prgm = NULL;
+    UT_string *path = NULL;
+
+    fe_prgm = fe_eval(_fe_ctx, fe_symbol(_fe_ctx, "prgm"));
+    if((prgm = (struct prgm*)fe_toptr(_fe_ctx, fe_prgm)) == NULL){
+        fe_error(_fe_ctx, "failed to get global prgm object");
+    }
 
     fe_stim = fe_nextarg(_fe_ctx, &arg);
     if((stim = (struct stim*)fe_toptr(_fe_ctx, fe_stim)) == NULL){
@@ -398,7 +458,13 @@ static fe_Object* f_writes(fe_Context *_fe_ctx, fe_Object *arg){
     fe_stim_path = fe_nextarg(_fe_ctx, &arg);
     fe_tostring(_fe_ctx, fe_stim_path, stim_path, sizeof(stim_path));
 
-    stim_serialize_to_path(stim, stim_path);
+    if((path = _get_nfs_path(prgm, stim_path)) == NULL){
+        die("error: pointer is NULL");
+    }
+
+    stim_serialize_to_path(stim, utstring_body(path));
+
+    utstring_free(path);
 
     return fe_ptr(_fe_ctx, (void *) stim); 
 }
@@ -674,6 +740,7 @@ static fe_Object* f_set_profile(fe_Context *_fe_ctx, fe_Object *arg){
     fe_Object *fe_profile_path = NULL;
     char profile_path[4096];
     struct prgm *prgm = NULL;
+    UT_string *path = NULL;
 
     fe_prgm = fe_eval(_fe_ctx, fe_symbol(_fe_ctx, "prgm"));
     if((prgm = (struct prgm*)fe_toptr(_fe_ctx, fe_prgm)) == NULL){
@@ -683,9 +750,19 @@ static fe_Object* f_set_profile(fe_Context *_fe_ctx, fe_Object *arg){
     fe_profile_path = fe_nextarg(_fe_ctx, &arg);
     fe_tostring(_fe_ctx, fe_profile_path, profile_path, sizeof(profile_path));
 
-    if((prgm->_profile = get_profile_by_path(profile_path)) == NULL){
+    if(profile_path == NULL){
         die("error: pointer is NULL");
     }
+
+    if((path = _get_nfs_path(prgm, profile_path)) == NULL){
+        die("error: pointer is NULL");
+    }
+
+    if((prgm->_profile = get_profile_by_path(utstring_body(path))) == NULL){
+        die("error: pointer is NULL");
+    }
+
+    utstring_free(path);
 
     return fe_bool(_fe_ctx, false); 
 }
