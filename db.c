@@ -143,6 +143,7 @@ static struct db_user* db_make_user(sqlite3_stmt *res){
     user->email = STRDUP((const char *)sqlite3_column_text(res, 4));
     user->session = STRDUP((const char *)sqlite3_column_text(res, 5));
     user->is_admin = sqlite3_column_int(res, 6);
+    user->state = (enum db_user_states)sqlite3_column_int64(res, 7);
     return user;
 }
 
@@ -174,7 +175,8 @@ static struct db_dut_board* db_make_dut_board(sqlite3_stmt *res){
     dut_board->id = sqlite3_column_int64(res, 0);
     dut_board->dna = STRDUP((const char *)sqlite3_column_text(res, 1));
     dut_board->name = STRDUP((const char *)sqlite3_column_text(res, 2));
-    dut_board->profile_path = STRDUP((const char *)sqlite3_column_text(res, 3));
+    dut_board->mount_id = sqlite3_column_int(res, 3);
+    dut_board->profile_path = STRDUP((const char *)sqlite3_column_text(res, 4));
     return dut_board;
 }
 
@@ -406,7 +408,8 @@ struct db_user* db_get_user_by_id(struct db *db, int64_t user_id){
 }
 
 int64_t db_insert_user(struct db *db, 
-        const char *username, const char *password, const char *email, const char *session, int32_t is_admin){
+        const char *username, const char *password, const char *email, 
+        const char *session, int32_t is_admin, enum db_user_states state){
     sqlite3_stmt *res = NULL;
     int rc = 0;
 
@@ -435,8 +438,8 @@ int64_t db_insert_user(struct db *db,
         die("pointer is null");
     }
 
-    const char *sql = "INSERT INTO users(date_created, u_username, password, email, session, is_admin)"
-                      "VALUES(datetime('now'), ?, ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO users(date_created, u_username, password, email, session, is_admin, state)"
+                      "VALUES(datetime('now'), ?, ?, ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -446,6 +449,7 @@ int64_t db_insert_user(struct db *db,
         sqlite3_bind_text(res, 3, email, strlen(email), SQLITE_STATIC);
         sqlite3_bind_text(res, 4, session, strlen(session), SQLITE_STATIC);
         sqlite3_bind_int(res, 5, is_admin);
+        sqlite3_bind_int(res, 6, (int32_t)state);
     }else{
         die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -636,7 +640,7 @@ struct db_dut_board* db_get_dut_board_by_id(struct db *db, int64_t dut_board_id)
 }
 
 int64_t db_insert_dut_board(struct db *db, 
-        const char *dna, const char *name, const char *profile_path){
+        const char *dna, const char *name, int64_t mount_id, const char *profile_path){
     sqlite3_stmt *res = NULL;
     int rc = 0;
 
@@ -656,14 +660,15 @@ int64_t db_insert_dut_board(struct db *db,
         profile_path = strdup("");
     }
 
-    const char *sql = "INSERT INTO dut_boards(u_dna, u_name, profile_path, cur_dut_dut_board_id, is_master) VALUES(?, ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO dut_boards(u_dna, u_name, mount_id, profile_path) VALUES(?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
     if(rc == SQLITE_OK){
         sqlite3_bind_text(res, 1, dna, strlen(dna), SQLITE_STATIC);
         sqlite3_bind_text(res, 2, name, strlen(name), SQLITE_STATIC);
-        sqlite3_bind_text(res, 3, profile_path, strlen(profile_path), SQLITE_STATIC);
+        sqlite3_bind_int64(res, 3, mount_id);
+        sqlite3_bind_text(res, 4, profile_path, strlen(profile_path), SQLITE_STATIC);
     }else{
         die("Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
     }
@@ -1365,7 +1370,8 @@ int64_t db_insert_prgm_log(struct db *db,
         line = strdup("");
     }
 
-    const char *sql = "INSERT INTO prgm_logs(prgm_id, date_created, line) VALUES(?, datetime('now'), ?)";
+    const char *sql = "INSERT INTO prgm_logs(prgm_id, date_created, line)"
+        "VALUES(?, datetime('now'), ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 
@@ -1430,7 +1436,8 @@ int64_t db_insert_stim(struct db *db,
         path = strdup("");
     }
 
-    const char *sql = "INSERT INTO stims(prgm_id, date_created, path, did_fail, failing_vec, state) VALUES(?, datetime('now'), ?, ?, ?, ?)";
+    const char *sql = "INSERT INTO stims(prgm_id, date_created, path, did_fail, failing_vec, state)"
+        "VALUES(?, datetime('now'), ?, ?, ?, ?)";
 
     rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
 

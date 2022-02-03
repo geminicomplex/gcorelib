@@ -68,6 +68,7 @@ struct db_user {
     const char *email;
     const char *session;
     int32_t is_admin;
+    enum db_user_states state;
 };
 
 struct db_board {
@@ -83,6 +84,7 @@ struct db_dut_board {
     int64_t id;
     const char *dna;
     const char *name;
+    int64_t mount_id;
     const char *profile_path;
 };
 
@@ -187,7 +189,8 @@ void db_free_mount(struct db_mount *mount);
  */
 struct db_user* db_get_user_by_id(struct db *db, int64_t user_id);
 int64_t db_insert_user(struct db *db, 
-        const char *username, const char *password, const char *email, const char *session, int32_t is_admin);
+        const char *username, const char *password, const char *email, 
+        const char *session, int32_t is_admin, enum db_user_states state);
 struct db_board* db_get_board_by_id(struct db *db, int64_t board_id);
 struct db_board* db_get_board_by_dna(struct db *db, const char *dna);
 int64_t db_insert_board(struct db *db, 
@@ -195,7 +198,7 @@ int64_t db_insert_board(struct db *db,
 int64_t db_update_board(struct db *db, struct db_board *board);
 struct db_dut_board* db_get_dut_board_by_id(struct db *db, int64_t dut_board_id);
 int64_t db_insert_dut_board(struct db *db, 
-        const char *dna, const char *name, const char *profile_path);
+        const char *dna, const char *name, int64_t mount_id, const char *profile_path);
 struct db_job* db_get_job_by_id(struct db *db, int64_t job_id);
 int64_t db_insert_job(struct db *db, 
         int64_t board_id, int64_t dut_board_id, int64_t user_id, enum db_job_states state);
