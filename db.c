@@ -103,6 +103,8 @@ void db_open(struct db *db, const char *path){
         bye("cannot open database: %s\n", sqlite3_errmsg(db->_db));
     }
 
+    sqlite3_busy_timeout(db->_db, 5000);
+
     db->is_open = true;
 
     // execute the create db sql
@@ -407,6 +409,40 @@ struct db_user* db_get_user_by_id(struct db *db, int64_t user_id){
     return user;
 }
 
+struct db_user* db_get_user_by_username(struct db *db, const char *username){
+    struct db_user *user = NULL;
+    sqlite3_stmt *res = NULL;
+    int rc = 0;
+    int step = 0;
+
+    if(db == NULL){
+        die("pointer is null");
+    }
+
+    if(username == NULL){
+        die("pointer is null");
+    }
+
+    const char *sql = "SELECT * FROM users WHERE u_username = ? LIMIT 1";
+
+    rc = sqlite3_prepare_v2(db->_db, sql, -1, &res, 0);
+
+    if(rc == SQLITE_OK){
+        sqlite3_bind_text(res, 1, username, strlen(username), SQLITE_STATIC);
+    } else {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db->_db));
+    }
+
+    step = sqlite3_step(res);
+
+    if (step == SQLITE_ROW) {
+        user = db_make_user(res);
+    }
+
+    sqlite3_finalize(res);
+    return user;
+}
+
 int64_t db_insert_user(struct db *db, 
         const char *username, const char *password, const char *email, 
         const char *session, int32_t is_admin, enum db_user_states state){
@@ -457,7 +493,7 @@ int64_t db_insert_user(struct db *db,
     int step = sqlite3_step(res);
 
     if(step != SQLITE_DONE){
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -565,7 +601,7 @@ int64_t db_insert_board(struct db *db,
     int step = sqlite3_step(res);
 
     if(step != SQLITE_DONE){
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -601,7 +637,7 @@ int64_t db_update_board(struct db *db, struct db_board *board){
     int step = sqlite3_step(res);
 
     if (step != SQLITE_DONE) {
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -676,7 +712,7 @@ int64_t db_insert_dut_board(struct db *db,
     int step = sqlite3_step(res);
 
     if(step != SQLITE_DONE){
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -739,7 +775,7 @@ int64_t db_insert_job(struct db *db,
     int step = sqlite3_step(res);
 
     if(step != SQLITE_DONE){
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -775,7 +811,7 @@ int64_t db_update_job(struct db *db, struct db_job *job){
     int step = sqlite3_step(res);
 
     if (step != SQLITE_DONE) {
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -1038,7 +1074,7 @@ int64_t db_insert_prgm(struct db *db,
     int step = sqlite3_step(res);
 
     if(step != SQLITE_DONE){
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -1085,7 +1121,7 @@ int64_t db_update_prgm(struct db *db, struct db_prgm *prgm){
     int step = sqlite3_step(res);
 
     if (step != SQLITE_DONE) {
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -1385,7 +1421,7 @@ int64_t db_insert_prgm_log(struct db *db,
     int step = sqlite3_step(res);
 
     if(step != SQLITE_DONE){
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -1454,7 +1490,7 @@ int64_t db_insert_stim(struct db *db,
     int step = sqlite3_step(res);
 
     if(step != SQLITE_DONE){
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -1491,7 +1527,7 @@ int64_t db_update_stim(struct db *db, struct db_stim *stim){
     int step = sqlite3_step(res);
 
     if (step != SQLITE_DONE) {
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -1553,7 +1589,7 @@ int64_t db_insert_fail_pin(struct db *db,
     int step = sqlite3_step(res);
 
     if(step != SQLITE_DONE){
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -1636,7 +1672,7 @@ int64_t db_insert_mount(struct db *db,
     int step = sqlite3_step(res);
 
     if(step != SQLITE_DONE){
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);
@@ -1673,7 +1709,7 @@ int64_t db_update_mount(struct db *db, struct db_mount *mount){
     int step = sqlite3_step(res);
 
     if (step != SQLITE_DONE) {
-        die("failed to exec sql '%s'", sql);
+        die("failed to exec sql '%s' with code %d", sql, step);
     }
 
     sqlite3_finalize(res);

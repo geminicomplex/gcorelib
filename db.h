@@ -188,6 +188,7 @@ void db_free_mount(struct db_mount *mount);
  * use these to insert, update or get rows from db
  */
 struct db_user* db_get_user_by_id(struct db *db, int64_t user_id);
+struct db_user* db_get_user_by_username(struct db *db, const char *username);
 int64_t db_insert_user(struct db *db, 
         const char *username, const char *password, const char *email, 
         const char *session, int32_t is_admin, enum db_user_states state);
