@@ -18,8 +18,8 @@ extern "C" {
 enum db_user_states {
     USER_NONE        = (1 << 0), 
     USER_ACTIVE      = (1 << 1), 
-    USER_UNSUPPORTED = (1 << 1), 
-    USER_BANNED      = (1 << 2), 
+    USER_UNSUPPORTED = (1 << 2), 
+    USER_BANNED      = (1 << 3), 
 };
 
 enum db_job_states {
